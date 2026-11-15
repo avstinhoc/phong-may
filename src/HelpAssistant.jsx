@@ -1,6 +1,6 @@
 import React,{useEffect,useMemo,useRef,useState} from 'react';
 import * as XLSX from 'xlsx';
-import {MessageCircle,Send,X,BookOpen,ChevronDown,ArrowUpRight,RotateCcw,Paperclip,FileText} from 'lucide-react';
+import {MessageCircle,Send,X,BookOpen,ChevronDown,ArrowUpRight,RotateCcw,Paperclip,FileText,Image as ImageIcon,CalendarDays,Download,CheckCircle2,Plus,Edit2} from 'lucide-react';
 import {supabase} from './lib/supabase';
 import {helpQuestions,visibleHelpTopics,helpPageTitles} from './lib/helpKnowledge';
 
@@ -19,170 +19,311 @@ const toBase64=file=>new Promise((resolve,reject)=>{
 });
 async function prepareAttachment(file){
  if(!file)return null;
- if(file.size>2.5*1024*1024)throw new Error('Tệp vượt 2,5 MB. Bạn hãy nén hoặc chia nhỏ tệp.');
- if(!allowedExt.test(file.name))throw new Error('Hỗ trợ JPG, PNG, WebP, PDF, Excel, Word DOCX, PowerPoint PPTX, CSV và TXT.');
+ if(file.size>2.5*1024*1024)throw new Error('Tệp vượt 2,5 MB. Hãy nén hoặc chia nhỏ tệp.');
+ if(!allowedExt.test(file.name))throw new Error('Hỗ trợ JPG, PNG, WebP, PDF, Excel, DOCX, PPTX, CSV và TXT.');
  const ext=file.name.split('.').at(-1).toLowerCase();
  if(['txt','csv','tsv'].includes(ext))return {name:file.name,text:(await file.text()).slice(0,55000)};
  if(['xls','xlsx'].includes(ext)){
    const workbook=XLSX.read(new Uint8Array(await file.arrayBuffer()),{type:'array'});
-   const extracted=workbook.SheetNames.slice(0,4).map(sheet=>
+   return {name:file.name,text:workbook.SheetNames.slice(0,4).map(sheet=>
      'Sheet: '+sheet+'\n'+XLSX.utils.sheet_to_csv(workbook.Sheets[sheet],{blankrows:false})
-   ).join('\n\n').slice(0,55000);
-   return {name:file.name,text:extracted};
+   ).join('\n\n').slice(0,55000)};
  }
  return {name:file.name,mimeType:fileMime(file),base64:await toBase64(file)};
 }
-function BoldText({value}){
- return <>{String(value||'').split(/(\*\*[^*\n]+\*\*)/g).map((chunk,i)=>
-   chunk.startsWith('**')&&chunk.endsWith('**')?<strong key={i}>{chunk.slice(2,-2)}</strong>:<React.Fragment key={i}>{chunk}</React.Fragment>
- )}</>;
+const normalize=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
+const aliases={
+ attendance:['lich day giao vien','thoi khoa bieu','tao buoi hoc','sua buoi hoc','luu lich hoc','doc tep','nhap lich','them lich'],
+ rollcall:['diem danh hoc sinh','diem danh','co mat','vang hoc'],
+ roster:['danh sach hoc sinh','ho so hoc sinh'],
+ students:['dang ky duyet','duyet hoc sinh','them hoc sinh','dang ky truc tuyen'],
+ computers:['phong may','gan hoc sinh','gan may','may tinh','pc'],
+ cleaning:['ve sinh may','lich ve sinh'],
+ records:['diem loi thuong','diem thuong','ghi nhan vi pham'],
+ evaluation:['danh gia hoc sinh'],
+ schools:['truong cong tac','them truong','sua truong','xoa truong','thay logo'],
+ settings:['lop ma dang ky','ma dang ky','tao lop','mo trang lop'],
+ finance:['cham cong tien cong','cham cong','luong giao vien'],
+ reports:['bao cao','xuat pdf','xuat excel','bang ke nop trung tam'],
+ accounts:['quan ly tai khoan','duyet giao vien','khoa tai khoan'],
+ dashboard:['tong quan']
+};
+function targetFor(label,topics,pageId){
+ const key=normalize(label);
+ if(!key)return null;
+ const allowed=new Set(topics.map(t=>t.id));
+ const byTitle=topics.find(t=>normalize(t.title)===key);
+ if(byTitle)return byTitle.id;
+ for(const [id,arr] of Object.entries(aliases))
+   if(allowed.has(id)&&arr.some(a=>key===a||key.includes(a)))return id;
+ if(allowed.has(pageId)&&key.length>5&&/^(luu|sua|them|xem|mo|nhap|chon|xoa)/.test(key))return pageId;
+ return null;
 }
-export function HelpAssistant({profile,page,onNavigate}){
-  const [open,setOpen]=useState(false);
-  const [tab,setTab]=useState('chat');
-  const [text,setText]=useState('');
-  const [file,setFile]=useState(null);
-  const [imageUrl,setImageUrl]=useState('');
-  const [consent,setConsent]=useState(false);
-  const fileInput=useRef(null);
-  const [messages,setMessages]=useState([]);
-  const [pending,setPending]=useState(false);
-  const [query,setQuery]=useState('');
-  const [expanded,setExpanded]=useState(page||'dashboard');
-  const chatEnd=useRef(null),inputRef=useRef(null);
-  const topics=useMemo(()=>visibleHelpTopics(profile.role),[profile.role]);
-  useEffect(()=>{
-    if(!file||!/^image\//.test(file.type)){setImageUrl('');return;}
-    const url=URL.createObjectURL(file);setImageUrl(url);
-    return()=>URL.revokeObjectURL(url);
-  },[file]);
-  const suggestions=useMemo(()=>{
-    const current=helpQuestions.filter(x=>x.page===page);
-    return [...current,...helpQuestions.filter(x=>x.page!==page)].slice(0,4);
-  },[page]);
-  const listed=useMemo(()=>{
-    const normalized=query.trim().toLocaleLowerCase('vi');
-    if(!normalized)return topics;
-    return topics.filter(topic=>[topic.title,topic.summary,...topic.keywords,...topic.steps].join(' ').toLocaleLowerCase('vi').includes(normalized));
-  },[query,topics]);
-  useEffect(()=>{if(open){inputRef.current?.focus();chatEnd.current?.scrollIntoView({block:'nearest'});}},[open,tab,messages.length,pending]);
-  useEffect(()=>{
-    if(!open)return;
-    const listener=e=>{if(e.key==='Escape')setOpen(false);};
-    document.addEventListener('keydown',listener);
-    return()=>document.removeEventListener('keydown',listener);
-  },[open]);
-  function go(id){
-    if(!topics.some(t=>t.id===id)||!helpPageTitles[id])return;
-    onNavigate(id);
-    setOpen(false);
+function RichText({value,topics,pageId,onGo}){
+ return <>{String(value||'').split(/(\*\*[^*\n]+\*\*)/g).map((chunk,i)=>{
+  if(chunk.startsWith('**')&&chunk.endsWith('**')){
+   const txt=chunk.slice(2,-2),target=targetFor(txt,topics,pageId);
+   return target?<button key={i} type="button" className="help-rich-link" onClick={()=>onGo(target)} title={'Mở '+helpPageTitles[target]}><strong>{txt}</strong></button>:<strong key={i}>{txt}</strong>;
   }
-  async function ask(question){
-    const message=String(question||'').trim();
-    if((!message&&!file)||pending)return;
-    if(file&&!consent){setMessages(m=>[...m,{role:'system',text:'Hãy tích đồng ý gửi tệp đến Gemini trước khi hỏi AI.'}].slice(-30));return;}
-    if(message.length>1300){setMessages(m=>[...m,{role:'system',text:'Câu hỏi dài quá 1300 ký tự, bạn rút gọn giúp tui nhé.'}].slice(-30));return;}
-    const last=messages.filter(m=>m.role==='user'||m.role==='assistant').map(m=>({role:m.role,text:m.text})).slice(-8);
-    setText('');
-    const userText=message||(file?'Hãy xem tệp đính kèm và hướng dẫn tôi thực hiện thao tác trong đó.':'');
-    setMessages(m=>[...m,{role:'user',text:userText,attachmentName:file?.name||null}].slice(-30));
-    setPending(true);
-    try{
-      const {data:{session}}=await supabase.auth.getSession();
-      if(!session?.access_token)throw new Error('Phiên đăng nhập đã hết hạn. Hãy đăng nhập lại.');
-      const upload=await prepareAttachment(file);
-      const res=await fetch('/api/help',{
-        method:'POST',
-        headers:{'Content-Type':'application/json',Authorization:'Bearer '+session.access_token},
-        body:JSON.stringify({question:userText,page,history:last,attachment:upload})
-      });
-      const result=await res.json().catch(()=>({error:'Máy chủ chưa trả về dữ liệu hợp lệ.'}));
-      if(!res.ok)throw new Error(result.error||'Trợ lý tạm thời không phản hồi.');
-      const nextPage=topics.some(t=>t.id===result.page_id)&&helpPageTitles[result.page_id]?result.page_id:null;
-      setMessages(m=>[...m,{role:'assistant',text:result.answer||'Tui chưa có câu trả lời phù hợp.',page_id:nextPage}].slice(-30));
-      setFile(null);setConsent(false);
-      if(fileInput.current)fileInput.current.value='';
-    }catch(error){
-      setMessages(m=>[...m,{role:'system',text:error?.message||'Không thể kết nối AI. Bạn thử lại nhé.'}].slice(-30));
-    }finally{setPending(false);}
-  }
-  return <div className={'help-dock '+(open?'help-open':'')}>
-    {!open&&<button type="button" className="help-launch" onClick={()=>setOpen(true)} aria-label="Mở trợ lý AI hướng dẫn sử dụng IC3 GS6" title="Hỏi AI cách sử dụng web">
-      <MessageCircle size={21}/><span>Hỏi AI</span>
-    </button>}
-    {open&&<section className="help-panel" role="dialog" aria-modal="false" aria-label="Trợ lý AI hướng dẫn sử dụng IC3 GS6">
-      <header className="help-header">
-        <div className="help-avatar">AI</div>
-        <div className="help-head-copy"><strong>Trợ lý IC3 AI</strong><span>Hướng dẫn sử dụng website</span></div>
-        <button className="help-icon-button" title="Đóng trợ lý" aria-label="Đóng trợ lý" onClick={()=>setOpen(false)}><X size={19}/></button>
-      </header>
-      <div className="help-tabs" role="tablist" aria-label="Các cách xem hướng dẫn">
-        <button role="tab" aria-selected={tab==='chat'} className={tab==='chat'?'selected':''} onClick={()=>setTab('chat')}><MessageCircle size={15}/> Hỏi AI</button>
-        <button role="tab" aria-selected={tab==='guide'} className={tab==='guide'?'selected':''} onClick={()=>setTab('guide')}><BookOpen size={15}/> Hướng dẫn nhanh</button>
-      </div>
-      {tab==='chat'?<>
-        <div className="help-chat-scroll" role="log" aria-live="polite" aria-relevant="additions text">
-          <div className="help-welcome">
-            <strong>Chào bạn! Tui là trợ lý IC3 GS6 👋</strong>
-            <p>Bạn cần làm thao tác nào? Cứ hỏi tự nhiên, tui sẽ chỉ đúng mục và các bước trên website.</p>
-            <span>Đang xem: {helpPageTitles[page]||'IC3 GS6'}</span>
-          </div>
-          {!messages.length&&<div className="help-suggestions">
-            {suggestions.map(item=><button type="button" key={item.title} onClick={()=>ask(item.question)} disabled={pending}>{item.title}</button>)}
-          </div>}
-          {messages.map((msg,i)=><div key={i} className={'help-message '+(msg.role==='user'?'mine':msg.role==='system'?'error':'theirs')}>
-            {msg.role==='assistant'&&<span className="help-speaker">Trợ lý AI</span>}
-            <p><BoldText value={msg.text}/></p>{msg.attachmentName&&<span className="help-attached-name">Tệp: {msg.attachmentName}</span>}
-            {msg.page_id&&<button className="help-go" type="button" onClick={()=>go(msg.page_id)}>
-              Mở mục {helpPageTitles[msg.page_id]} <ArrowUpRight size={14}/>
-            </button>}
-          </div>)}
-          {pending&&<div className="help-message theirs"><span className="help-speaker">Trợ lý AI</span><p>Đang tìm hướng dẫn phù hợp…</p></div>}
-          <div ref={chatEnd}/>
-        </div>
-        {file&&<div className="help-file-preview">
-          {imageUrl?<img src={imageUrl} alt="Ảnh đính kèm đang chọn"/>:<FileText size={20}/>}
-          <span title={file.name}>{file.name}</span>
-          <button type="button" onClick={()=>{setFile(null);setConsent(false);if(fileInput.current)fileInput.current.value='';}} aria-label="Bỏ tệp đính kèm"><X size={16}/></button>
-        </div>}
-        {file&&<label className="help-consent"><input type="checkbox" checked={consent} onChange={e=>setConsent(e.target.checked)}/> Tôi đồng ý gửi tệp này cho Google Gemini để nhận hướng dẫn.</label>}
-        <form className="help-composer" onSubmit={e=>{e.preventDefault();ask(text);}}>
-          <input ref={fileInput} type="file" style={{display:'none'}} accept=".jpg,.jpeg,.png,.webp,.pdf,.xls,.xlsx,.csv,.tsv,.txt,.docx,.pptx" onChange={e=>{setFile(e.target.files?.[0]||null);setConsent(false);}}/>
-          <button type="button" className="help-attach-button" onClick={()=>fileInput.current?.click()} disabled={pending} aria-label="Đính kèm hình ảnh hoặc tệp" title="Đính kèm ảnh, PDF, Word, Excel…"><Paperclip size={19}/></button>
-          <textarea ref={inputRef} value={text} rows={2} maxLength={1300} disabled={pending}
-            aria-label="Nhập câu hỏi cho trợ lý AI"
-            placeholder="Hỏi cách sử dụng website…"
-            onChange={e=>setText(e.target.value)}
-            onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();ask(text);}}}/>
-          <button type="submit" disabled={pending||(!text.trim()&&!file)||(file&&!consent)} title="Gửi câu hỏi" aria-label="Gửi câu hỏi"><Send size={18}/></button>
-        </form>
-        <footer className="help-footer">
-          <span>AI chỉ hướng dẫn, không tự thay đổi dữ liệu.</span>
-          {!!messages.length&&<button type="button" onClick={()=>{setMessages([]);setText('');setFile(null);setConsent(false);}} disabled={pending}><RotateCcw size={12}/> Chat mới</button>}
-        </footer>
-      </>:<>
-        <div className="help-guide">
-          <label className="help-search-label">
-            <span className="sr-only">Tìm trong hướng dẫn</span>
-            <input value={query} placeholder="Tìm theo chức năng…" onChange={e=>setQuery(e.target.value)}/>
-          </label>
-          <div className="help-guide-items">
-            {listed.map(topic=><article key={topic.id} className="help-topic">
-              <button type="button" className="help-topic-trigger" aria-expanded={expanded===topic.id} onClick={()=>setExpanded(id=>id===topic.id?'':topic.id)}>
-                <span>{topic.title}</span><ChevronDown size={16} className={expanded===topic.id?'rotated':''}/>
-              </button>
-              {expanded===topic.id&&<div className="help-topic-content">
-                <p><BoldText value={topic.summary}/></p>
-                <ol>{topic.steps.map((line,i)=><li key={i}><BoldText value={line}/></li>)}</ol>
-                {topic.notes?.map((note,i)=><p key={i} className="help-note">{note}</p>)}
-                {helpPageTitles[topic.id]&&<button className="help-go" type="button" onClick={()=>go(topic.id)}>Đến mục {topic.title} <ArrowUpRight size={14}/></button>}
-              </div>}
-            </article>)}
-            {!listed.length&&<p className="help-no-results">Chưa tìm thấy trong sổ tay. Bạn có thể chuyển sang Hỏi AI để mô tả rõ hơn.</p>}
-          </div>
-        </div>
-        <footer className="help-footer">Sổ tay hướng dẫn có sẵn, không tốn lượt hỏi Gemini.</footer>
-      </>}
-    </section>}
-  </div>;
+  return <React.Fragment key={i}>{chunk}</React.Fragment>;
+ })}</>;
+}
+const isDate=s=>/^\d{4}-\d{2}-\d{2}$/.test(s)&&!Number.isNaN(Date.parse(s))&&new Date(s).toISOString().slice(0,10)===s;
+const isClock=s=>/^([01]\d|2[0-3]):[0-5]\d$/.test(s);
+const mins=s=>Number(s.slice(0,2))*60+Number(s.slice(3,5));
+const detectMode=question=>{
+ const q=normalize(question);
+ if(/(tao|ve|thiet ke|chinh sua|sua|ghep|xoa nen).{0,45}(anh|hinh|logo|banner)/.test(q) && !/^(cach|huong dan|lam sao)/.test(q))return 'image';
+ if(/(them|tao|sua|doi|doi gio|doi ngay|dieu chinh|chinh|lap|cap nhat).{0,40}(lich|buoi hoc|thoi khoa bieu)/.test(q) && !/^(cach|huong dan|lam sao)/.test(q))return 'schedule';
+ return 'chat';
+};
+
+export function HelpAssistant({profile,page,onNavigate,onSaved}){
+ const [open,setOpen]=useState(false),[tab,setTab]=useState('chat'),[mode,setMode]=useState('chat');
+ const [text,setText]=useState(''),[file,setFile]=useState(null);
+ const [imageUrl,setImageUrl]=useState('');
+ const [messages,setMessages]=useState([]),[pending,setPending]=useState(false),[saving,setSaving]=useState(false);
+ const [query,setQuery]=useState(''),[expanded,setExpanded]=useState(page||'dashboard');
+ const [draft,setDraft]=useState(null),[lightbox,setLightbox]=useState(null);
+ const fileInput=useRef(null),chatEnd=useRef(null),inputRef=useRef(null),urls=useRef(new Set());
+ const topics=useMemo(()=>visibleHelpTopics(profile.role),[profile.role]);
+ useEffect(()=>{
+   if(!file||!/^image\//.test(fileMime(file))){setImageUrl('');return;}
+   const url=URL.createObjectURL(file);setImageUrl(url);
+   return()=>URL.revokeObjectURL(url);
+ },[file]);
+ useEffect(()=>()=>{for(const u of urls.current)URL.revokeObjectURL(u);urls.current.clear();},[]);
+ const suggestions=useMemo(()=>{
+   const current=helpQuestions.filter(x=>x.page===page);
+   return [...current,...helpQuestions.filter(x=>x.page!==page)].slice(0,4);
+ },[page]);
+ const listed=useMemo(()=>{
+   const q=normalize(query);
+   return q?topics.filter(t=>normalize([t.title,t.summary,...t.keywords,...t.steps].join(' ')).includes(q)):topics;
+ },[query,topics]);
+ useEffect(()=>{if(open){inputRef.current?.focus();chatEnd.current?.scrollIntoView({block:'end',behavior:'smooth'});}},[open,tab,messages.length,pending,draft]);
+ useEffect(()=>{
+   if(!open)return;
+   const onKey=e=>{if(e.key==='Escape'){if(lightbox)setLightbox(null);else setOpen(false);}};
+   document.addEventListener('keydown',onKey);
+   return()=>document.removeEventListener('keydown',onKey);
+ },[open,lightbox]);
+ function go(id){
+   if(!topics.some(t=>t.id===id)||!helpPageTitles[id])return;
+   onNavigate(id);setOpen(false);
+ }
+ function clearFile(){
+   setFile(null);if(fileInput.current)fileInput.current.value='';
+ }
+ function newChat(){
+   for(const u of urls.current)URL.revokeObjectURL(u);
+   urls.current.clear();setMessages([]);setDraft(null);clearFile();setText('');setMode('chat');setLightbox(null);
+ }
+ const updateDraft=(i,key,value)=>setDraft(prev=>prev?{...prev,items:prev.items.map((r,j)=>i===j?{...r,[key]:value}:r)}:null);
+ async function saveDraft(){
+   if(!draft?.items?.length||saving)return;
+   if(!profile.school_id||profile.school_id!==draft.schoolId){
+     setMessages(m=>[...m,{role:'system',text:'Bạn đã chuyển trường. Hãy quay lại trường của bản nháp trước khi lưu.'}]);return;
+   }
+   for(const row of draft.items){
+     if(!String(row.class_name||'').trim()||!isDate(row.session_date)||
+        !isClock(row.start_time)||!isClock(row.end_time)||
+        mins(row.start_time)>=mins(row.end_time)||!Number.isInteger(Number(row.period_count))||
+        Number(row.period_count)<1||Number(row.period_count)>20){
+       setMessages(m=>[...m,{role:'system',text:'Bản nháp còn thiếu lớp/ngày/giờ hoặc số tiết. Hãy chỉnh lại trước khi lưu.'}]);return;
+     }
+   }
+   if(!window.confirm('Xác nhận lưu '+draft.items.length+' buổi tại '+draft.schoolName+'? Những buổi Sửa sẽ thay đổi lịch đang có.'))return;
+   setSaving(true);
+   let saved=0,failures=[];
+   for(const row of draft.items){
+     const payload={class_name:row.class_name.trim(),session_date:row.session_date,start_time:row.start_time,
+       end_time:row.end_time,period_count:Number(row.period_count)};
+     try{
+       if(row.operation==='edit'){
+         if(!row.target_id||!row.original)throw Error('Không xác định được buổi gốc để sửa.');
+         const old=row.original;
+         const {data,error}=await supabase.from('class_sessions').update(payload)
+           .eq('id',row.target_id).eq('school_id',draft.schoolId)
+           .eq('session_date',old.session_date).eq('start_time',old.start_time).select('id');
+         if(error)throw error;
+         if(!data?.length)throw Error('Buổi này đã thay đổi hoặc không còn quyền sửa. Tải lại lịch rồi thử lại.');
+       }else{
+         const {error}=await supabase.from('class_sessions').insert({...payload,
+           school_id:draft.schoolId,teacher_id:profile.id,teacher_name:profile.full_name||'',
+           created_by:profile.id});
+         if(error)throw error;
+       }
+       saved++;
+     }catch(e){failures.push((row.class_name||'Lớp')+' '+row.session_date+': '+e.message);}
+   }
+   setSaving(false);
+   setMessages(m=>[...m,{role:'assistant',text:saved?'**Đã lưu '+saved+' buổi học** tại '+draft.schoolName+'.'+(failures.length?' Có '+failures.length+' buổi chưa lưu.':''):'Chưa lưu được buổi học nào.'},...(failures.length?[{role:'system',text:failures.join('\n')}]:[])]);
+   if(saved)onSaved?.();
+   if(!failures.length)setDraft(null);
+   else setDraft(prev=>prev?{...prev,items:prev.items.filter(r=>failures.some(f=>f.startsWith((r.class_name||'Lớp')+' '+r.session_date+':')))}:null);
+ }
+ async function ask(question){
+   const message=String(question||'').trim();
+   if((!message&&!file)||pending||saving)return;
+   if(message.length>1300){setMessages(m=>[...m,{role:'system',text:'Câu hỏi vượt quá 1.300 ký tự. Bạn rút gọn giúp tui nha.'}]);return;}
+   const actualMode=mode==='chat'?detectMode(message):mode;
+   if(actualMode==='schedule'&&!profile.school_id){setMessages(m=>[...m,{role:'system',text:'Hãy chọn trường ở menu bên trái trước khi AI tạo/sửa lịch.'}]);return;}
+   if(actualMode==='image'&&file&&!/^image\/(jpeg|png|webp)$/.test(fileMime(file))){
+     setMessages(m=>[...m,{role:'system',text:'Để chỉnh sửa hình ảnh, vui lòng chọn ảnh JPG, PNG hoặc WebP.'}]);return;
+   }
+   const attachedFile=file;
+   const userText=message||(actualMode==='image'?'Chỉnh sửa ảnh đính kèm theo phong cách rõ nét, giữ nguyên nội dung quan trọng.':'Hãy xem tệp đính kèm và hỗ trợ tôi.');
+   const history=messages.filter(m=>['user','assistant'].includes(m.role)).slice(-8).map(m=>({role:m.role,text:m.text}));
+   let img=null;
+   if(attachedFile&&/^image\/(jpeg|png|webp)$/.test(fileMime(attachedFile))){
+     img=URL.createObjectURL(attachedFile);urls.current.add(img);
+   }
+   setText('');
+   setMessages(m=>[...m,{role:'user',text:userText,mode:actualMode,attachmentName:attachedFile?.name||null,attachmentImage:img}].slice(-30));
+   setPending(true);
+   try{
+     const {data:{session}}=await supabase.auth.getSession();
+     if(!session?.access_token)throw new Error('Phiên đăng nhập hết hạn. Hãy đăng nhập lại.');
+     const attachment=await prepareAttachment(attachedFile);
+     const endpoint=actualMode==='chat'?'/api/help':'/api/help-actions';
+     const body=actualMode==='chat'?{question:userText,page,history,attachment}:
+       {question:userText,mode:actualMode,schoolId:profile.school_id,attachment};
+     const response=await fetch(endpoint,{
+       method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+session.access_token},
+       body:JSON.stringify(body)
+     });
+     const result=await response.json().catch(()=>({error:'Máy chủ chưa trả về dữ liệu hợp lệ.'}));
+     if(!response.ok)throw new Error(result.error||'Trợ lý chưa xử lý được yêu cầu.');
+     const suggestedPage=topics.some(t=>t.id===result.page_id)&&helpPageTitles[result.page_id]?result.page_id:null;
+     const image=result.image?.base64&&/^image\/(png|jpeg|webp)$/.test(result.image.mimeType||'')?
+       'data:'+result.image.mimeType+';base64,'+result.image.base64:null;
+     setMessages(m=>[...m,{role:'assistant',text:result.answer||'Đã xử lý yêu cầu.',page_id:suggestedPage,image}].slice(-30));
+     if(actualMode==='schedule'&&result.proposals?.length){
+       setDraft({items:result.proposals,schoolId:profile.school_id,
+         schoolName:result.proposals[0]?.school_name||profile.school_name});
+     }
+     if(result.warnings?.length)setMessages(m=>[...m,{role:'system',text:result.warnings.join('\n')}].slice(-30));
+     clearFile();
+   }catch(e){setMessages(m=>[...m,{role:'system',text:e?.message||'Không thể kết nối AI.'}].slice(-30));}
+   finally{setPending(false);}
+ }
+ function editImage(img){
+   if(!img)return;
+   const [header,base64]=img.split(',');
+   const mime=/^data:(image\/(?:png|jpeg|webp));base64$/.exec(header)?.[1];
+   if(!mime||!base64)return;
+   try{
+     const decoded=atob(base64),chunks=[];
+     for(let i=0;i<decoded.length;i+=32768){
+       const part=decoded.slice(i,i+32768),bytes=new Uint8Array(part.length);
+       for(let j=0;j<part.length;j++)bytes[j]=part.charCodeAt(j);
+       chunks.push(bytes);
+     }
+     setFile(new File(chunks,'anh-vua-tao.'+(mime==='image/jpeg'?'jpg':mime.split('/')[1]),{type:mime}));
+     setMode('image');setText('Chỉnh sửa ảnh này: ');inputRef.current?.focus();
+   }catch{setMessages(m=>[...m,{role:'system',text:'Không thể sử dụng ảnh này để chỉnh sửa lại.'}]);}
+ }
+ const modeButtons=[{key:'chat',title:'Hỏi đáp',Icon:MessageCircle},{key:'schedule',title:'Sửa lịch',Icon:CalendarDays},{key:'image',title:'Tạo / sửa ảnh',Icon:ImageIcon}];
+ return <div className={'help-dock '+(open?'help-open':'')}>
+   {!open&&<button className="help-launch" onClick={()=>setOpen(true)} aria-label="Mở Trợ lý IC3 AI" title="Hỏi IC3 AI"><MessageCircle size={21}/><span>Hỏi AI</span></button>}
+   {open&&<section className="help-panel" role="dialog" aria-modal="false" aria-label="Trợ lý IC3 AI">
+     <header className="help-header">
+       <div className="help-avatar">AI</div>
+       <div className="help-head-copy"><strong>Trợ lý IC3 AI</strong><span>Hỏi đáp · Lịch dạy · Hình ảnh</span></div>
+       <button className="help-icon-button" type="button" aria-label="Đóng trợ lý" title="Đóng" onClick={()=>setOpen(false)}><X size={19}/></button>
+     </header>
+     <div className="help-tabs" role="tablist" aria-label="Chế độ trợ lý">
+       <button role="tab" aria-selected={tab==='chat'} className={tab==='chat'?'selected':''} onClick={()=>setTab('chat')}><MessageCircle size={15}/> Trò chuyện</button>
+       <button role="tab" aria-selected={tab==='guide'} className={tab==='guide'?'selected':''} onClick={()=>setTab('guide')}><BookOpen size={15}/> Hướng dẫn nhanh</button>
+     </div>
+     {tab==='chat'?<>
+       <div className="help-mode-row" aria-label="Chọn chức năng AI">
+         {modeButtons.map(item=><button key={item.key} className={mode===item.key?'active':''} type="button" onClick={()=>setMode(item.key)} disabled={pending}><item.Icon size={14}/>{item.title}</button>)}
+       </div>
+       <div className="help-chat-scroll" role="log" aria-live="polite" aria-relevant="additions text">
+         <div className="help-welcome"><strong>Chào bạn! Tui là Trợ lý IC3 AI 👋</strong>
+           <p>Hỏi cách sử dụng website, gửi ảnh/file, hoặc yêu cầu tạo và sửa lịch. Tui còn có thể tạo/chỉnh sửa hình ảnh nữa.</p>
+           <span>Đang xem: {helpPageTitles[page]||'IC3 GS6'}</span>
+         </div>
+         {!messages.length&&<div className="help-suggestions">
+           {suggestions.map(item=><button type="button" key={item.title} onClick={()=>ask(item.question)} disabled={pending}>{item.title}</button>)}
+         </div>}
+         {messages.map((msg,i)=><div key={i} className={'help-message '+(msg.role==='user'?'mine':msg.role==='system'?'error':'theirs')}>
+           {msg.role==='assistant'&&<span className="help-speaker">Trợ lý IC3 AI</span>}
+           {msg.attachmentImage&&<button type="button" className="help-image-button" onClick={()=>setLightbox(msg.attachmentImage)} title="Xem ảnh đã gửi">
+             <img className="help-chat-image" src={msg.attachmentImage} alt="Ảnh đã gửi cho AI"/>
+           </button>}
+           {!msg.attachmentImage&&msg.attachmentName&&<div className="help-attachment-chip"><FileText size={14}/><span>{msg.attachmentName}</span></div>}
+           <p><RichText value={msg.text} topics={topics} pageId={msg.page_id||page} onGo={go}/></p>
+           {msg.image&&<div className="help-generated-image">
+             <button className="help-image-button" onClick={()=>setLightbox(msg.image)} type="button" title="Xem ảnh tạo ra">
+               <img className="help-chat-image" src={msg.image} alt="Hình ảnh do AI tạo hoặc chỉnh sửa"/>
+             </button>
+             <div className="help-image-tools"><a href={msg.image} download="IC3-AI-image.png"><Download size={13}/> Lưu ảnh</a>
+             <button type="button" onClick={()=>editImage(msg.image)}><Edit2 size={13}/> Sửa ảnh này</button></div>
+           </div>}
+           {msg.page_id&&<button className="help-go" type="button" onClick={()=>go(msg.page_id)}>Mở mục {helpPageTitles[msg.page_id]} <ArrowUpRight size={14}/></button>}
+         </div>)}
+         {draft?.items?.length>0&&<div className="help-schedule-card">
+           <div className="help-schedule-header"><CalendarDays size={16}/><strong>Bản nháp lịch học</strong><span>{draft.items.length} buổi</span></div>
+           <p className="help-schedule-context">Trường: <strong>{draft.schoolName}</strong> · Bạn có thể sửa từng ô trước khi lưu.</p>
+           <div className="help-schedule-list">{draft.items.map((r,i)=><div className="help-schedule-item" key={(r.target_id||'new')+'-'+i}>
+             <div className="help-schedule-item-head"><b>{r.operation==='edit'?'Sửa buổi có sẵn':'Thêm buổi mới'}</b><button type="button" title="Bỏ buổi này" onClick={()=>setDraft(d=>({...d,items:d.items.filter((_,j)=>i!==j)}))}><X size={14}/></button></div>
+             <div className="help-schedule-grid">
+               <label className="wide">Lớp<input value={r.class_name} maxLength={120} onChange={e=>updateDraft(i,'class_name',e.target.value)}/></label>
+               <label>Ngày<input type="date" value={r.session_date} onChange={e=>updateDraft(i,'session_date',e.target.value)}/></label>
+               <label>Số tiết<input type="number" min="1" max="20" value={r.period_count} onChange={e=>updateDraft(i,'period_count',e.target.value)}/></label>
+               <label>Bắt đầu<input type="time" value={r.start_time} onChange={e=>updateDraft(i,'start_time',e.target.value)}/></label>
+               <label>Kết thúc<input type="time" value={r.end_time} onChange={e=>updateDraft(i,'end_time',e.target.value)}/></label>
+             </div>
+           </div>)}</div>
+           <div className="help-schedule-actions"><button type="button" onClick={()=>setDraft(null)} disabled={saving}>Hủy</button>
+             <button className="primary" type="button" onClick={saveDraft} disabled={saving||!draft.items.length}><CheckCircle2 size={14}/>{saving?'Đang lưu…':'Xác nhận lưu lịch'}</button>
+           </div>
+         </div>}
+         {pending&&<div className="help-message theirs"><span className="help-speaker">Trợ lý IC3 AI</span><p>Đang xử lý yêu cầu của bạn…</p></div>}
+         <div ref={chatEnd}/>
+       </div>
+       {file&&<div className="help-file-preview">
+         {imageUrl?<img src={imageUrl} alt="Ảnh đính kèm sắp gửi"/>:<FileText size={20}/>}
+         <span title={file.name}>{file.name}</span>
+         <button type="button" onClick={clearFile} aria-label="Bỏ tệp đính kèm"><X size={16}/></button>
+       </div>}
+       <form className="help-composer" onSubmit={e=>{e.preventDefault();ask(text);}}>
+         <input ref={fileInput} type="file" style={{display:'none'}} accept={mode==='image'?'.jpg,.jpeg,.png,.webp':'.jpg,.jpeg,.png,.webp,.pdf,.xls,.xlsx,.csv,.tsv,.txt,.docx,.pptx'} onChange={e=>setFile(e.target.files?.[0]||null)}/>
+         <button type="button" className="help-attach-button" onClick={()=>fileInput.current?.click()} disabled={pending} aria-label="Đính kèm ảnh hoặc file" title="Thêm ảnh hoặc file"><Paperclip size={19}/></button>
+         <textarea ref={inputRef} rows={2} value={text} maxLength={1300} disabled={pending} aria-label="Nhập yêu cầu cho AI"
+           placeholder={mode==='image'?'Mô tả ảnh cần tạo hoặc chỉnh sửa…':mode==='schedule'?'Yêu cầu tạo, thêm hoặc sửa buổi học…':'Nhắn tin cho Trợ lý IC3 AI…'}
+           onChange={e=>setText(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();ask(text);}}}/>
+         <button type="submit" disabled={pending||saving||(!text.trim()&&!file)} title="Gửi câu hỏi" aria-label="Gửi câu hỏi"><Send size={18}/></button>
+       </form>
+       <footer className="help-footer">
+         <span>{file?'Tệp chỉ gửi đến Gemini khi bạn bấm Gửi.':mode==='schedule'?'Lịch được sửa sau khi bạn xác nhận lưu.':mode==='image'?'Tạo ảnh qua Gemini, tối đa 5 lượt/24 giờ.':'Nhấp từ in đậm để mở mục tương ứng.'}</span>
+         {!!messages.length&&<button type="button" onClick={newChat} disabled={pending||saving}><RotateCcw size={12}/> Chat mới</button>}
+       </footer>
+     </>:<>
+       <div className="help-guide">
+         <label className="help-search-label"><span className="sr-only">Tìm trong hướng dẫn</span>
+           <input value={query} placeholder="Tìm theo chức năng…" onChange={e=>setQuery(e.target.value)}/></label>
+         <div className="help-guide-items">{listed.map(topic=><article key={topic.id} className="help-topic">
+           <button type="button" className="help-topic-trigger" aria-expanded={expanded===topic.id} onClick={()=>setExpanded(id=>id===topic.id?'':topic.id)}>
+             <span>{topic.title}</span><ChevronDown size={16} className={expanded===topic.id?'rotated':''}/></button>
+           {expanded===topic.id&&<div className="help-topic-content">
+             <p><RichText value={topic.summary} topics={topics} pageId={topic.id} onGo={go}/></p>
+             <ol>{topic.steps.map((line,i)=><li key={i}><RichText value={line} topics={topics} pageId={topic.id} onGo={go}/></li>)}</ol>
+             {topic.notes?.map((note,i)=><p className="help-note" key={i}>{note}</p>)}
+             {helpPageTitles[topic.id]&&<button type="button" className="help-go" onClick={()=>go(topic.id)}>Đến mục {topic.title}<ArrowUpRight size={14}/></button>}
+           </div>}</article>)}
+           {!listed.length&&<p className="help-no-results">Không tìm thấy hướng dẫn. Bạn có thể hỏi AI trực tiếp.</p>}
+         </div>
+       </div>
+       <footer className="help-footer">Sổ tay có sẵn, không tốn lượt Gemini.</footer>
+     </>}
+   </section>}
+   {lightbox&&<div className="help-image-lightbox" role="dialog" aria-label="Xem hình ảnh" onClick={()=>setLightbox(null)}>
+     <button type="button" className="help-lightbox-close" aria-label="Đóng ảnh"><X size={23}/></button>
+     <img src={lightbox} alt="Xem ảnh kích thước lớn" onClick={e=>e.stopPropagation()}/>
+   </div>}
+ </div>;
 }
