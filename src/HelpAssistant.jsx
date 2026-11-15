@@ -145,7 +145,7 @@ export function HelpAssistant({profile,page,onNavigate,onSaved}){
          const old=row.original;
          const {data,error}=await supabase.from('class_sessions').update(payload)
            .eq('id',row.target_id).eq('school_id',draft.schoolId)
-           .eq('session_date',old.session_date).eq('start_time',old.start_time).select('id');
+           .eq('session_date',old.session_date).eq('start_time',old.start_time).eq('end_time',old.end_time).eq('class_name',old.class_name).select('id');
          if(error)throw error;
          if(!data?.length)throw Error('Buổi này đã thay đổi hoặc không còn quyền sửa. Tải lại lịch rồi thử lại.');
        }else{
