@@ -2,6 +2,7 @@ import {getExcelJS} from './exportPretty';
 const palette={navy:'193A50',blue:'23547A',teal:'0D877D',light:'E7F2F5',white:'FFFFFF',gray:'F4F8FA'};
 export const amount=v=>Math.round(Number(v)||0).toLocaleString('vi-VN')+' đ';
 export const vnDate=d=>d?String(d).slice(0,10).split('-').reverse().join('/'):'';
+export const schoolYear=date=>{const y=Number(String(date).slice(0,4)),m=Number(String(date).slice(5,7));const from=m>=8?y:y-1;return from+'–'+(from+1);};
 const escape=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
 export const hours=s=>{const tm=v=>{const p=String(v||'0:0').split(':');return Number(p[0]||0)+Number(p[1]||0)/60;};return Math.max(0,tm(s.end_time)-tm(s.start_time));};
 const dayNames=['Chủ nhật','Hai','Ba','Tư','Năm','Sáu','Bảy'];
@@ -27,7 +28,7 @@ function save(buffer,name){
 const fName=s=>String(s||'IC3').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9-]+/gi,'_').slice(0,60);
 function heading(ws,wb,logo,school,teacher,month,privatePay,cols){
  ws.mergeCells(1,3,2,cols);ws.mergeCells(3,3,3,cols);ws.mergeCells(4,3,4,cols);
- [['C1',String(school).toUpperCase(),16],['C3','BẢNG KÊ TIẾT DẠY THÁNG '+month,14],['C4','Môn: Tin học quốc tế IC3 GS6 · Năm học 2026–2027',10]].forEach(([ref,v,size])=>{const cell=ws.getCell(ref);cell.value=v;cell.font={name:'Arial',bold:true,size,color:{argb:'FF'+palette.navy}};cell.alignment={horizontal:'center',vertical:'middle'};});
+ [['C1',String(school).toUpperCase(),16],['C3','BẢNG KÊ TIẾT DẠY THÁNG '+month,14],['C4','Môn: Tin học quốc tế IC3 GS6 · Năm học '+schoolYear(month.slice(3,7)+'-'+month.slice(0,2)+'-01'),10]].forEach(([ref,v,size])=>{const cell=ws.getCell(ref);cell.value=v;cell.font={name:'Arial',bold:true,size,color:{argb:'FF'+palette.navy}};cell.alignment={horizontal:'center',vertical:'middle'};});
  ws.getRow(1).height=30;ws.getRow(3).height=29;ws.getRow(4).height=23;
  ws.getCell('A6').value='Giáo viên:';ws.getCell('B6').value=teacher;ws.getCell('E6').value='Kỳ báo cáo:';ws.getCell('F6').value=month;
  for(const key of ['A6','E6'])ws.getCell(key).font={bold:true,color:{argb:'FF'+palette.blue}};
@@ -105,7 +106,7 @@ export function printMonthlyPdf(p){
  const rows=p.rows.map(r=>p.privatePay?[vnDate(r.date),r.weekday,r.morning,r.afternoon,r.periods||'',r.lessons?r.hours.toFixed(2):'',r.lessons?amount(p.rate):'',r.lessons?amount(r.pay):'']:
   [vnDate(r.date),r.weekday,r.morning,r.afternoon,r.periods||'',r.lessons?r.school:'','']);
  const total=p.privatePay?['TỔNG','','','',t.periods,t.hours.toFixed(2),'',amount(t.pay)]:['TỔNG','','','',t.periods,'',''];
- printHtml({title:'BẢNG KÊ TIẾT DẠY THÁNG '+month,subtitle:'Năm học 2026–2027',school:p.school,teacher:p.teacher,logo:p.logo,headers,rows,total,privatePay:p.privatePay,
+ printHtml({title:'BẢNG KÊ TIẾT DẠY THÁNG '+month,subtitle:'Năm học '+schoolYear(p.from),school:p.school,teacher:p.teacher,logo:p.logo,headers,rows,total,privatePay:p.privatePay,
  summary:'Tổng '+t.days+' ngày dạy · '+t.lessons+' lượt lớp · '+t.periods+' tiết'+(p.privatePay?' · '+t.hours.toFixed(2)+' giờ · Tiền công: '+amount(t.pay):'')});
 }
 export function printGeneralPdf(p){printHtml({...p,total:null,summary:'Tổng số dòng: '+p.rows.length,privatePay:false});}
