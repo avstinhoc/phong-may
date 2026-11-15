@@ -102,12 +102,12 @@ export const helpTopics = [
   },
   {
     id:"schools",title:"Trường công tác",roles:["admin","teacher","staff"],
-    summary:"Quản lý nhiều trường, thay logo báo cáo, sửa tên; xóa trường chỉ dành cho Admin và có thể xóa dữ liệu liên quan.",
+    summary:"Quản lý các trường được phân quyền: giáo viên có thể thêm, sửa, thay logo và xóa sau xác minh; trường có nhiều giáo viên cùng quản lý chỉ Admin được xóa.",
     steps:[
       "Mở Trường công tác trong nhóm QUẢN LÝ.",
       "Nhập tên ở phần Thêm trường để tạo trường mới; đổi trường hoạt động bằng hộp chọn đầu menu trái.",
-      "Admin có thể chọn Thay logo (PNG/JPG/WebP) hoặc Bỏ logo để đổi hình trên Excel/PDF.",
-      "Admin nhấn Sửa để đổi tên trường, hoặc Xóa để yêu cầu xác minh bằng cách nhập lại chính xác tên trường."
+      "Giáo viên có quyền tại trường có thể chọn Thay logo (PNG/JPG/WebP) hoặc Bỏ logo để đổi hình trên Excel/PDF.",
+      "Giáo viên có quyền nhấn Sửa để đổi tên trường hoặc Xóa rồi nhập lại đúng tên trường. Nếu trường được chia sẻ cho nhiều giáo viên, cần Admin để xóa."
     ],notes:["Xóa trường có thể xóa toàn bộ lớp, lịch, học sinh, điểm danh và dữ liệu liên quan của trường. Phải kiểm tra kỹ trước khi xác nhận."],
     keywords:["trường công tác","thêm trường","xóa trường","sửa trường","logo","hình đại diện"]
   },
@@ -115,7 +115,7 @@ export const helpTopics = [
     id:"settings",title:"Lớp & mã đăng ký",roles:["admin","teacher","staff"],
     summary:"Tạo lớp và mã đăng ký; sao chép liên kết; Admin ngừng hoặc khôi phục mã.",
     steps:[
-      "Mở Lớp & mã đăng ký trong nhóm QUẢN LÝ, xem danh sách mã lớp của trường hiện tại.",
+      "Mở Lớp & mã đăng ký trong nhóm QUẢN LÝ, chọn Trường quản lý ngay trong mục này (độc lập với trường ở menu trái) rồi xem danh sách mã lớp.",
       "Nhấn Sao chép mã hoặc Copy link để gửi cho học sinh. Mở đăng ký sẽ đến /register, Mở trang lớp đến /student.",
       "Phía dưới nhập Tên lớp và Mã đăng ký, nhấn Tạo lớp nếu cần tạo lớp mới.",
       "Admin nhấn Xóa mã lớp, nhập đúng tên lớp để ngừng mã đăng ký ngay cả khi lớp đã có học sinh. Việc này KHÔNG xóa học sinh hay lịch học.",
@@ -126,8 +126,8 @@ export const helpTopics = [
     id:"finance",title:"Chấm công & tiền công",roles:["admin","teacher","staff"],
     summary:"Tổng hợp số tiết, giờ thực dạy, tiền công và mẫu riêng cho trung tâm / giáo viên.",
     steps:[
-      "Mở Chấm công & tiền công trong nhóm QUẢN LÝ, chọn tháng báo cáo và giáo viên.",
-      "Điền đơn giá 1 giờ (VNĐ) rồi nhấn Lưu lương/giờ. Admin có thể chọn giáo viên khác; giáo viên thường chỉ chọn chính mình.",
+      "Mở Chấm công & tiền công trong nhóm QUẢN LÝ, chọn Trường tính công (có thể Tất cả trường), tháng báo cáo và giáo viên. Bộ chọn trường này độc lập với menu trái.",
+      "Chọn một trường cụ thể trước khi chỉnh Đơn giá 1 giờ (VNĐ), rồi nhấn Lưu lương/giờ. Khi xem Tất cả trường, hệ thống cộng tiền theo mức giờ của từng trường. Admin có thể chọn giáo viên khác; giáo viên thường chỉ chọn chính mình.",
       "Kiểm tra tổng lượt lớp, số tiết, số giờ tính từ giờ bắt đầu/kết thúc và tổng tiền công.",
       "Chọn Xuất Excel trung tâm hoặc In/Lưu PDF để lấy bảng không có số tiền.",
       "Chọn Xuất Excel giáo viên hoặc In/Lưu PDF cho bản riêng có đơn giá, giờ, lương và sheet chi tiết."
@@ -139,10 +139,10 @@ export const helpTopics = [
     summary:"Xuất PDF và Excel theo nhiều mẫu, có tên trường và logo.",
     steps:[
       "Mở Báo cáo trong nhóm QUẢN LÝ.",
-      "Chọn mẫu: Bảng kê nộp trung tâm, Bảng kê riêng giáo viên, Kết quả học sinh, Điểm danh theo lớp, Danh sách học sinh, Danh sách máy tính, Điểm/lỗi/thưởng hoặc Vệ sinh máy.",
+      "Ở Trường báo cáo, chọn đúng trường dạy thực tế hoặc Tất cả trường. Bộ chọn này độc lập với trường ở menu trái. Sau đó chọn Bảng kê nộp trung tâm, Bảng kê riêng giáo viên, Kết quả học sinh, Điểm danh theo lớp, Danh sách học sinh, Danh sách máy tính, Điểm/lỗi/thưởng hoặc Vệ sinh máy.",
       "Chọn kỳ, giáo viên, lớp hay bài kiểm tra nếu mẫu có bộ lọc tương ứng.",
       "Kiểm tra bảng xem trước, nhấn Xuất Excel hoặc In/Lưu PDF.",
-      "Nếu cần thay logo trên tài liệu, vào Trường công tác → Thay logo; quay lại Báo cáo và xuất lại."
+      "Nếu cần logo, chọn từng trường cụ thể ở Báo cáo rồi vào Trường công tác → Thay logo. Nếu đang dạy thay trường khác, dùng bộ lọc Trường báo cáo để tên trường trong báo cáo đúng thực tế."
     ],notes:["Bản gửi trung tâm không có lương; bản riêng giáo viên có số tiền.","Nếu báo cáo trống, kiểm tra trường và bộ lọc kỳ/lớp, cùng dữ liệu đã được lưu."],
     keywords:["báo cáo","pdf","excel","in","xuất","logo","hiệu trưởng","trung tâm"]
   },
