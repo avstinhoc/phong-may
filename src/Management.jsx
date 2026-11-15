@@ -3,51 +3,58 @@ import React, { useState, useEffect } from "react";
 import { supabase } from "./lib/supabase";
 import { validateRows, repeatRows } from "./lib/timetable";
 
-export function SchoolManager({ schools, onCreated, ping }) {
-  const [name, setName] = useState(""),
-    [busy, setBusy] = useState(false);
+export function SchoolManager({ schools, onCreated, onChanged, ping, role }) {
+  const [name, setName] = useState("");
+  const [editing, setEditing] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [confirmation, setConfirmation] = useState("");
+  const [busy, setBusy] = useState(false);
   async function add(e) {
     e.preventDefault();
     setBusy(true);
-    try {
-      const { data, error } = await supabase.rpc("create_my_school", {
-        school_name: name.trim(),
-      });
-      if (error) throw error;
-      setName("");
-      onCreated(data);
-    } catch (e) {
-      ping(e.message);
-    } finally {
-      setBusy(false);
-    }
+    const {data,error}=await supabase.rpc("create_my_school",{school_name:name.trim()});
+    setBusy(false);
+    if(error) ping(error.message); else {setName("");onCreated(data);}
   }
-  return (
-    <details className="panel school-manager" open>
-      <summary>Trường công tác · {schools.length} trường</summary>
-      <ul>{schools.map(s=><li key={s.id}>{s.name}</li>)}</ul>
-      <form className="form-row" onSubmit={add}>
-        <label>
-          Tên trường
-          <input
-            required
-            maxLength={200}
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Ví dụ: THCS Nguyễn Du"
-          />
-        </label>
-        <button className="btn primary" disabled={busy}>
-          {busy ? "Đang lưu..." : "Thêm trường"}
-        </button>
-      </form>
-      <p className="muted">
-        Bạn có thể dạy tại nhiều trường. Chọn trường ở thanh bên để quản lý dữ
-        liệu tương ứng.
-      </p>
-    </details>
-  );
+  async function rename(e) {
+    e.preventDefault();
+    if(!editing)return;
+    setBusy(true);
+    const {error}=await supabase.rpc("rename_my_school",{p_school_id:editing.id,p_new_name:editing.name.trim()});
+    setBusy(false);
+    if(error)ping(error.message);else{setEditing(null);ping("Đã đổi tên trường");onChanged?.();}
+  }
+  async function remove(e) {
+    e.preventDefault();
+    if(!deleteTarget || confirmation!==deleteTarget.name)return;
+    setBusy(true);
+    const {error}=await supabase.rpc("delete_my_school",{p_school_id:deleteTarget.id,p_confirmation:confirmation});
+    setBusy(false);
+    if(error)ping(error.message);else{const id=deleteTarget.id;setDeleteTarget(null);setConfirmation("");ping("Đã xóa trường và dữ liệu liên quan");onChanged?.(id);}
+  }
+  return <section className="panel school-manager">
+    <h2>Trường công tác</h2>
+    <p className="muted">Quản lý nhiều trường độc lập. Xóa trường sẽ xóa cả lớp, lịch, học sinh, điểm danh và dữ liệu liên quan của trường đó.</p>
+    <div className="table-wrap"><table><thead><tr><th>Tên trường</th><th>Thao tác</th></tr></thead>
+      <tbody>{schools.map(s=><tr key={s.id}><td><b>{s.name}</b></td><td>
+        {role==="admin"&&<div className="actions"><button className="btn outline" onClick={()=>setEditing({...s})}>Sửa</button><button className="btn outline" onClick={()=>{setDeleteTarget(s);setConfirmation("");}}>Xóa</button></div>}
+      </td></tr>)}</tbody></table></div>
+    <form className="form-row" onSubmit={add}>
+      <label>Tên trường mới<input required maxLength={200} value={name} onChange={e=>setName(e.target.value)} placeholder="Ví dụ: THCS Nguyễn Du" /></label>
+      <button className="btn primary" disabled={busy}>{busy?"Đang lưu...":"Thêm trường"}</button>
+    </form>
+    {editing&&<div className="modal-backdrop"><div className="modal">
+      <div className="modal-head"><h3>Sửa tên trường</h3><button className="btn" onClick={()=>setEditing(null)}>Đóng</button></div>
+      <form className="form-stack" onSubmit={rename}><label>Tên trường<input required maxLength={200} value={editing.name} onChange={e=>setEditing({...editing,name:e.target.value})}/></label><button className="btn primary" disabled={busy}>Lưu thay đổi</button></form>
+    </div></div>}
+    {deleteTarget&&<div className="modal-backdrop"><div className="modal">
+      <div className="modal-head"><h3>Xác minh xóa trường</h3><button className="btn" onClick={()=>setDeleteTarget(null)}>Đóng</button></div>
+      <p><b>Hành động không thể hoàn tác.</b> Bạn sẽ xóa toàn bộ lớp, lịch, hồ sơ, điểm danh, điểm và dữ liệu máy của trường <b>{deleteTarget.name}</b>.</p>
+      <form className="form-stack" onSubmit={remove}><label>Nhập chính xác tên trường để xác nhận: <b>{deleteTarget.name}</b><input autoComplete="off" value={confirmation} onChange={e=>setConfirmation(e.target.value)} /></label><button className="btn danger" disabled={busy||confirmation!==deleteTarget.name}>Xóa vĩnh viễn trường</button></form>
+    </div></div>}
+  </section>;
 }
+
 export function Accounts({ profile }) {
   const [rows, setRows] = useState([]),
     [message, setMessage] = useState(""),
@@ -217,7 +224,7 @@ export function TimetableImport({ profile, reload, onImported }) {
     [message, setMessage] = useState(""),
     [busy, setBusy] = useState(false),
     [consent, setConsent] = useState(false),
-    [ocrMode,setOcrMode] = useState("local"),
+    [ocrMode,setOcrMode] = useState("gemini"),
     [ocrText,setOcrText] = useState("");
   useEffect(() => {
     if (!file) {
