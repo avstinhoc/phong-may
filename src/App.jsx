@@ -1,6 +1,6 @@
 
 import React, { useEffect, useMemo, useState } from "react";
-import { supabase, configurationError, authMessage } from "./lib/supabase";
+import { supabase, configurationError, authMessage, isEmailSendLimit } from "./lib/supabase";
 import { SchoolManager, Accounts, TimetableImport } from "./Management";
 import { StudentRoster } from "./StudentRoster";
 import { StudentPortal } from "./StudentPortal";
@@ -240,9 +240,29 @@ function AuthScreen({ mode, setMode, ping }) {
   const [name, setName] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [emailLimited, setEmailLimited] = useState(false);
+  const [cooldownUntil, setCooldownUntil] = useState(0);
+  const [clock, setClock] = useState(Date.now());
+  useEffect(() => {
+    if (!cooldownUntil || cooldownUntil <= Date.now()) return;
+    const timer = setInterval(() => setClock(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [cooldownUntil]);
+  const cooldownSeconds = Math.max(0, Math.ceil((cooldownUntil - clock) / 1000));
+  const handleEmailError = (error) => {
+    if (isEmailSendLimit(error) || (error?.status === 429 && mode === "register")) {
+      setEmailLimited(true);
+      setCooldownUntil(Date.now() + 60000);
+      setClock(Date.now());
+    }
+    setMessage(authMessage(error));
+  };
 
   async function submit(e) {
-    e.preventDefault(); setBusy(true); setMessage("");
+    e.preventDefault();
+    if (mode === "register" && cooldownSeconds > 0) return;
+    setBusy(true); setMessage("");
+    setEmailLimited(false);
     try {
       if (mode === "login") {
         const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
@@ -252,13 +272,14 @@ function AuthScreen({ mode, setMode, ping }) {
         if(error) throw error;
         setMessage(data.session ? "Đã đăng ký. Chờ Admin cấp quyền giáo viên." : "Đã gửi yêu cầu. Kiểm tra email xác nhận (kể cả thư rác), sau đó đăng nhập. Nếu email đã có tài khoản, hãy dùng mật khẩu hiện tại.");
       }
-    } catch(e) {setMessage(authMessage(e));} finally {setBusy(false);}
+    } catch(e) {handleEmailError(e);} finally {setBusy(false);}
   }
   async function resend() {
     if(!email.trim()) {setMessage("Nhập email trước khi gửi lại."); return;}
+    if(cooldownSeconds > 0) return;
     setBusy(true);
     try {const {error}=await supabase.auth.resend({type:'signup',email:email.trim(),options:{emailRedirectTo:emailCallbackUrl()}}); if(error) throw error; setMessage("Đã gửi yêu cầu gửi lại email xác nhận.");}
-    catch(e){setMessage(authMessage(e));} finally{setBusy(false);}
+    catch(e){handleEmailError(e);} finally{setBusy(false);}
   }
 
   return (
@@ -268,6 +289,12 @@ function AuthScreen({ mode, setMode, ping }) {
         <h1>{mode === "login" ? "Đăng nhập hệ thống" : "Đăng ký tài khoản giáo viên"}</h1>
         <p className="muted">Quản lý lớp học, học sinh và phòng máy IC3 GS6</p>
         <div role="status" aria-live="polite">{message && <p className="notice-box">{message}</p>}</div>
+        {emailLimited && mode === "register" && <div className="auth-limit-help">
+          <b>Vì sao không đăng ký được?</b>
+          <p>Supabase giới hạn số email xác nhận cho cả dự án. Đây không phải lỗi họ tên hay mật khẩu. Bấm lại liên tục sẽ không tăng hạn mức.</p>
+          <p>Admin cần bật dịch vụ gửi email riêng (Custom SMTP). Sau khi cấu hình xong, hãy đăng ký lại bằng email này.</p>
+          <a href="https://supabase.com/dashboard/project/hzxfgwnwmpdqxkvnqyim/auth/smtp" target="_blank" rel="noreferrer">Admin: Mở cài đặt SMTP của Supabase</a>
+        </div>}
         <form onSubmit={submit} className="form-stack">
           {mode === "register" && <>
             <label>Họ và tên<input required value={name} onBlur={()=>setName(properName(name))} onChange={e => setName(e.target.value)} placeholder="Nguyễn Văn A" /></label>
@@ -275,13 +302,13 @@ function AuthScreen({ mode, setMode, ping }) {
           </>}
           <label>Email<input type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="email@example.com" /></label>
           <label>Mật khẩu<input type="password" required minLength="6" value={password} onChange={e => setPassword(e.target.value)} placeholder="Tối thiểu 6 ký tự" /></label>
-          <button className="btn primary full" disabled={busy}>{busy ? "Đang xử lý..." : mode === "login" ? "Đăng nhập" : "Gửi đăng ký giáo viên"}</button>
+          <button className="btn primary full" disabled={busy || (mode === "register" && cooldownSeconds > 0)}>{busy ? "Đang xử lý..." : mode === "login" ? "Đăng nhập" : cooldownSeconds > 0 ? `Tạm dừng gửi (${cooldownSeconds}s)` : "Gửi đăng ký giáo viên"}</button>
         </form>
         <div className="auth-switch">
           {mode === "login" ? "Chưa có tài khoản giáo viên?" : "Đã có tài khoản?"}
           {" "}<button onClick={() => setMode(mode === "login" ? "register" : "login")}>{mode === "login" ? "Đăng ký" : "Đăng nhập"}</button>
         </div>
-        <button className="btn outline full" type="button" disabled={busy} onClick={resend}>Gửi lại email xác nhận</button>
+        <button className="btn outline full" type="button" disabled={busy || cooldownSeconds > 0} onClick={resend}>{cooldownSeconds > 0 ? `Không gửi lại email trong ${cooldownSeconds}s` : "Gửi lại email xác nhận"}</button>
         <div className="auth-foot">Tài khoản giáo viên mới cần quản trị viên cấp quyền trước khi sử dụng.</div>
       </div>
     </div>
