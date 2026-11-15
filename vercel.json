@@ -5,6 +5,9 @@
   "functions": {
     "api/timetable.js": {
       "maxDuration": 60
+    },
+    "api/help.js": {
+      "maxDuration": 60
     }
   },
   "rewrites": [
