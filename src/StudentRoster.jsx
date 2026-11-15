@@ -11,7 +11,7 @@ export function StudentRoster({profile,refresh,ping}){
  // Paginate rather than silently truncate large class registers.
  const values=await Promise.all(tables.map(async table=>{let all=[];for(let from=0;;from+=500){const {data,error}=await supabase.from(table).select('*').eq('school_id',profile.school_id).order('id').range(from,from+499);if(error)throw error;all.push(...data);if(data.length<500)break;}return all;})).catch(e=>{if(live)setError(e.message);return null;});if(!live)return;setLoading(false);if(values){const [students,sessions,marks,results,assignments,computers]=values;setData({students,sessions,marks,results,assignments,computers});}})();return()=>{live=false;};},[profile.school_id,refresh,version]);
  const classes=[...new Set([...data.students.map(s=>s.class_name),...data.sessions.map(s=>s.class_name)].filter(Boolean))].sort();
- const pupils=data.students.filter(s=>(!className||s.class_name===className)&&searchName(s.full_name).includes(searchName(query))).sort((a,b)=>a.full_name.localeCompare(b.full_name,'vi'));
+ const pupils=data.students.filter(s=>s.status==='active'&&(!className||s.class_name===className)&&searchName(s.full_name).includes(searchName(query))).sort((a,b)=>a.full_name.localeCompare(b.full_name,'vi'));
  const sessions=data.sessions.filter(s=>s.class_name===className).sort((a,b)=>a.session_date.localeCompare(b.session_date)||a.start_time.localeCompare(b.start_time));
  const result=s=>data.results.find(r=>r.student_id===s.id)||{gender:'',classification:'',scores:{},comment:'',standard_met:false,exam_result:''};
  const pc=s=>data.assignments.filter(a=>a.student_id===s.id&&a.active).map(a=>data.computers.find(c=>c.id===a.computer_id)?.computer_code||'').sort(comparePC).join(', ');
