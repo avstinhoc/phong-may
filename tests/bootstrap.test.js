@@ -1,0 +1,24 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { PGlite } from '@electric-sql/pglite';
+test('initial admin requires verified email and a one-time private claim',async()=>{
+const db=new PGlite();
+await db.exec(`create role anon; create role authenticated; create schema auth;
+create table auth.users(id uuid primary key,email text,email_confirmed_at timestamptz);
+create table public.profiles(id uuid primary key,role text default 'pending',is_active boolean default true);
+create function public.handle_new_user() returns trigger language plpgsql as $$begin insert into public.profiles(id) values(new.id); return new;end$$;
+create trigger on_auth_user_created after insert on auth.users for each row execute function public.handle_new_user();`);
+await db.exec(await readFile(new URL('../supabase/migrations/20261115_verified_initial_admin.sql',import.meta.url),'utf8'));
+await db.exec(`insert into private.initial_admin_claims(email) values('owner@example.test');
+insert into auth.users(id,email) values ('10000000-0000-0000-0000-000000000001','owner@example.test');
+insert into auth.users(id,email,email_confirmed_at) values ('10000000-0000-0000-0000-000000000002','other@example.test',now());`);
+assert.equal((await db.query("select count(*)::int n from profiles where role='admin'")).rows[0].n,0);
+await db.exec("update auth.users set email_confirmed_at=now() where email='owner@example.test'");
+assert.equal((await db.query("select count(*)::int n from profiles where role='admin'")).rows[0].n,1);
+assert((await db.query('select claimed_at from private.initial_admin_claims')).rows[0].claimed_at);
+await db.exec("update profiles set role='teacher'; update auth.users set email_confirmed_at=now() where email='owner@example.test'");
+assert.equal((await db.query("select count(*)::int n from profiles where role='admin'")).rows[0].n,0);
+await db.exec('set role authenticated');await assert.rejects(db.query('select * from private.initial_admin_claims'));
+await db.close();
+});
