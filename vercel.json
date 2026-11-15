@@ -2,6 +2,19 @@
   "framework": "vite",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "functions": {"api/timetable.js": {"maxDuration": 60}},
-  "rewrites": [{"source": "/register", "destination": "/index.html"}]
+  "functions": {
+    "api/timetable.js": {
+      "maxDuration": 60
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/register",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/student",
+      "destination": "/index.html"
+    }
+  ]
 }
