@@ -60,15 +60,15 @@ export function SchoolManager({ schools, onCreated, onChanged, ping, role }) {
   }
   return <section className="panel school-manager">
     <h2>Trường công tác</h2>
-    <p className="muted">Quản lý nhiều trường độc lập. Xóa trường sẽ xóa cả lớp, lịch, học sinh, điểm danh và dữ liệu liên quan của trường đó.</p>
+    <p className="muted">Quản lý các trường bạn được phân quyền: thêm, sửa, thay logo hoặc xóa trường. Xóa trường sẽ xóa lớp, lịch, học sinh, điểm danh và dữ liệu liên quan. Trường dùng chung nhiều giáo viên chỉ Admin được xóa.</p>
     <div className="table-wrap"><table><thead><tr><th>Tên trường</th><th>Logo báo cáo & Excel</th><th>Thao tác</th></tr></thead>
       <tbody>{schools.map(s=><tr key={s.id}><td><b>{s.name}</b></td>
         <td><div className="school-logo-admin">
           {s.logo_data?<img src={s.logo_data} alt={'Logo '+s.name}/>:<span>Chưa có logo</span>}
-          {role==='admin'&&<><label className="mini-btn">Thay logo<input type="file" style={{display:'none'}} accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={e=>{updateLogo(s,e.target.files?.[0]);e.target.value='';}}/></label>
+          {['admin','teacher','staff'].includes(role)&&<><label className="mini-btn">Thay logo<input type="file" style={{display:'none'}} accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={e=>{updateLogo(s,e.target.files?.[0]);e.target.value='';}}/></label>
           {s.logo_data&&<button className="mini-btn" disabled={busy} onClick={()=>clearLogo(s)}>Bỏ logo</button>}</>}
         </div></td><td>
-        {role==="admin"&&<div className="actions"><button className="btn outline" onClick={()=>setEditing({...s})}>Sửa</button><button className="btn outline" onClick={()=>{setDeleteTarget(s);setConfirmation("");}}>Xóa</button></div>}
+        {['admin','teacher','staff'].includes(role)&&<div className="actions"><button className="btn outline" onClick={()=>setEditing({...s})}>Sửa</button><button className="btn outline" onClick={()=>{setDeleteTarget(s);setConfirmation("");}}>Xóa</button></div>}
       </td></tr>)}</tbody></table></div>
     <form className="form-row" onSubmit={add}>
       <label>Tên trường mới<input required maxLength={200} value={name} onChange={e=>setName(e.target.value)} placeholder="Ví dụ: THCS Nguyễn Du" /></label>

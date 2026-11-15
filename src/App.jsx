@@ -191,10 +191,13 @@ function App() {
 
         {notice && <div className="toast"><CheckCircle2 size={17} />{notice}</div>}
 
-        <div className="content" key={schoolId}>
+        <div className="content" key={["schools","settings","finance","reports","accounts"].includes(page)?page:schoolId}>
           {(page === "schools" || !schools.length) && <SchoolManager schools={schools} role={profile.role} onCreated={id => {setSchoolId(id); reload();}} onChanged={deletedId => {if(deletedId === schoolId) setSchoolId(""); reload();}} ping={ping} />}
           {page === "accounts" && profile.role === "admin" && <Accounts profile={profile} />}
-          {!schoolId && <div className="notice-box">Thêm trường đầu tiên để bắt đầu quản lý học sinh và lịch dạy.</div>}
+          {page === "settings" && <ClassSettings profile={profile} ping={ping} schools={schools} />}
+          {page === "finance" && <TeacherPayroll profile={profile} refresh={refresh} ping={ping} schools={schools} />}
+          {page === "reports" && <ReportsCenter profile={profile} refresh={refresh} ping={ping} schools={schools} />}
+          {!schoolId && !["schools","settings","finance","reports","accounts"].includes(page) && <div className="notice-box">Thêm trường đầu tiên để bắt đầu quản lý học sinh và lịch dạy.</div>}
           {schoolId && <>
           {page === "dashboard" && <Dashboard profile={profile} refresh={refresh} setPage={setPage} />}
           {page === "roster" && <StudentRoster profile={profile} refresh={refresh} ping={ping} />}
@@ -204,10 +207,7 @@ function App() {
           {page === "attendance" && isTeacher && <Attendance profile={profile} refresh={refresh} reload={reload} ping={ping} focusDate={calendarDate} setFocusDate={setCalendarDate} onImported={async(date,name)=>{setCalendarDate(date);const {data,error}=await supabase.rpc("create_my_school",{school_name:name});if(!error)setSchoolId(data);reload();}} />}
           {page === "records" && isTeacher && <Records profile={profile} refresh={refresh} reload={reload} ping={ping} />}
           {page === "cleaning" && isTeacher && <Cleaning profile={profile} refresh={refresh} reload={reload} ping={ping} />}
-          {page === "finance" && isTeacher && <TeacherPayroll profile={profile} refresh={refresh} ping={ping} />}
           {page === "evaluation" && <Evaluation profile={profile} refresh={refresh} reload={reload} ping={ping} />}
-          {page === "reports" && isTeacher && <ReportsCenter profile={profile} refresh={refresh} ping={ping} />}
-          {page === "settings" && isTeacher && <ClassSettings profile={profile} ping={ping} />}
           </>}
         </div>
         <footer>IC3 GS6 Computer Lab <span>•</span> Dữ liệu được lưu trên Supabase</footer>

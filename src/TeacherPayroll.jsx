@@ -3,20 +3,24 @@ import {supabase} from './lib/supabase';
 import {teacherRows,teacherTotals,exportMonthlyExcel,printMonthlyPdf,amount,vnDate} from './lib/teacherReports';
 const initialMonth=()=>new Date().toLocaleDateString('en-CA').slice(0,7);
 const monthEnds=month=>{const [y,m]=month.split('-').map(Number);return {from:month+'-01',to:new Date(y,m,0).toLocaleDateString('en-CA')};};
-export function TeacherPayroll({profile,refresh,ping}){
+export function TeacherPayroll({profile,refresh,ping,schools=[]}){
  const [month,setMonth]=useState(initialMonth);
+ const [payrollSchool,setPayrollSchool]=useState('');
+ const selectedSchool=schools.find(sc=>sc.id===payrollSchool)||(schools.length===1?schools[0]:null);
+ const schoolLabel=selectedSchool?.name||'Tổng hợp các trường';
+ const schoolLogo=selectedSchool?.logo_data||null;
  const [lessons,setLessons]=useState([]),[rates,setRates]=useState([]);
  const [selected,setSelected]=useState(profile.id);
  const [editingRate,setEditingRate]=useState('');
  const [busy,setBusy]=useState(false),[loading,setLoading]=useState(true),[version,setVersion]=useState(0);
  const [error,setError]=useState('');
- useEffect(()=>{setSelected(profile.id);},[profile.school_id,profile.id]);
+ useEffect(()=>{setSelected(profile.id);},[profile.id]);
  useEffect(()=>{
    let live=true;setLoading(true);setError('');
    const readAll=async (table,selection,sort)=>{
      const rows=[];
      for(let start=0;start<100000;start+=500){
-       const {data,error}=await supabase.from(table).select(selection).eq('school_id',profile.school_id).order(sort).range(start,start+499);
+       const {data,error}=await supabase.from(table).select(selection).order(sort).range(start,start+499);
        if(error)throw error;
        rows.push(...(data||[]));if(!data||data.length<500)break;
      }
@@ -29,7 +33,7 @@ export function TeacherPayroll({profile,refresh,ping}){
      setLessons(values[0]||[]);setRates(values[1]||[]);
    }).catch(e=>{if(live){setError(e.message);setLoading(false);}});
    return()=>{live=false;};
- },[profile.school_id,refresh,version]);
+ },[refresh,version]);
  const teachers=useMemo(()=>{
   const map=new Map([[profile.id,profile.full_name||'Giáo viên hiện tại']]);
   lessons.forEach(s=>{if(s.teacher_id&&!map.has(s.teacher_id))map.set(s.teacher_id,s.teacher_name||'Giáo viên');});
@@ -37,20 +41,26 @@ export function TeacherPayroll({profile,refresh,ping}){
  },[lessons,profile.id,profile.full_name]);
  const allowed=profile.role==='admin'?teachers:teachers.filter(t=>t.id===profile.id);
  const teacher=allowed.find(t=>t.id===selected)||allowed[0]||{id:profile.id,name:profile.full_name||'Giáo viên'};
- const rate=Number(rates.find(r=>r.teacher_id===teacher.id)?.hourly_rate||0);
+ const ratesBySchool=Object.fromEntries(rates.filter(r=>r.teacher_id===teacher.id)
+   .map(r=>[r.school_id,Number(r.hourly_rate||0)]));
+ const rate=payrollSchool?Number(ratesBySchool[payrollSchool]||0):0;
+ const rateFor=session=>Number(ratesBySchool[session.school_id]||0);
+ const schoolById=Object.fromEntries(schools.map(sc=>[sc.id,sc.name]));
  useEffect(()=>{setEditingRate(String(rate));},[rate,teacher.id]);
  const dates=monthEnds(month);
- const filtered=lessons.filter(s=>s.teacher_id===teacher.id&&s.session_date>=dates.from&&s.session_date<=dates.to);
- const rows=useMemo(()=>teacherRows(filtered,dates.from,dates.to,rate,profile.school_name),[filtered.length,lessons,rate,month,teacher.id,profile.school_name]);
+ const filtered=lessons.filter(s=>s.teacher_id===teacher.id&&s.session_date>=dates.from&&s.session_date<=dates.to&&(!payrollSchool||s.school_id===payrollSchool))
+   .map(s=>({...s,school_name:schoolById[s.school_id]||''}));
+ const rows=teacherRows(filtered,dates.from,dates.to,rateFor,schoolLabel);
  const total=teacherTotals(rows);
- const params={rows,sessions:filtered,teacher:teacher.name,school:profile.school_name,logo:profile.school_logo,rate,from:dates.from};
+ const params={rows,sessions:filtered,teacher:teacher.name,school:schoolLabel,logo:schoolLogo,rate,ratesBySchool,from:dates.from};
  async function saveRate(e){
   e.preventDefault();
+  if(!payrollSchool){ping('Chọn một trường cụ thể để cập nhật đơn giá lương/giờ.');return;}
   const value=Number(editingRate);
   if(!Number.isFinite(value)||value<0||value>1e8){ping('Mức lương theo giờ chưa hợp lệ');return;}
   setBusy(true);
   const {error:err}=await supabase.from('teacher_pay_rates').upsert({
-    school_id:profile.school_id,teacher_id:teacher.id,hourly_rate:value,updated_at:new Date().toISOString()
+    school_id:payrollSchool,teacher_id:teacher.id,hourly_rate:value,updated_at:new Date().toISOString()
   },{onConflict:'school_id,teacher_id'});
   setBusy(false);
   if(err)ping(err.message);else{setVersion(v=>v+1);ping('Đã cập nhật tiền công theo giờ cho '+teacher.name);}
@@ -69,22 +79,28 @@ export function TeacherPayroll({profile,refresh,ping}){
    </div>
    <div className="panel">
      <div className="payroll-filters">
+       <label>Trường tính công
+         <select value={payrollSchool} onChange={e=>setPayrollSchool(e.target.value)}>
+           <option value="">Tất cả trường được phân quyền</option>
+           {schools.map(sc=><option key={sc.id} value={sc.id}>{sc.name}</option>)}
+         </select>
+       </label>
        <label>Tháng báo cáo<input type="month" required value={month} onChange={e=>setMonth(e.target.value)}/></label>
        <label>Giáo viên<select value={teacher.id} disabled={profile.role!=='admin'} onChange={e=>setSelected(e.target.value)}>
          {allowed.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}
        </select></label>
-       <form onSubmit={saveRate}><label>Đơn giá 1 giờ (VNĐ)<input type="number" min="0" max="100000000" step="1000" value={editingRate} onChange={e=>setEditingRate(e.target.value)}/></label>
-         <button type="submit" className="btn primary" disabled={busy}>Lưu lương/giờ</button>
+       <form onSubmit={saveRate}><label>Đơn giá 1 giờ (VNĐ)<input type="number" min="0" max="100000000" step="1000" value={editingRate} disabled={!payrollSchool} onChange={e=>setEditingRate(e.target.value)}/></label>
+         <button type="submit" className="btn primary" disabled={busy||!payrollSchool}>Lưu lương/giờ</button>
        </form>
      </div>
-     <p className="muted">Mỗi giáo viên có mức lương riêng theo từng trường. Số giờ tính từ giờ bắt đầu đến giờ kết thúc của từng buổi, còn số tiết lấy từ lịch dạy. Thay đổi mức lương sẽ cập nhật phần tính toán của các kỳ đang xem.</p>
+     <p className="muted">Mục này không phụ thuộc trường đang chọn ở menu trái. Muốn sửa đơn giá, chọn một trường cụ thể. Khi xem Tất cả trường, hệ thống cộng tiền theo mức lương từng trường. Mỗi giáo viên có mức lương riêng theo từng trường. Số giờ tính từ giờ bắt đầu đến giờ kết thúc của từng buổi, còn số tiết lấy từ lịch dạy. Thay đổi mức lương sẽ cập nhật phần tính toán của các kỳ đang xem.</p>
    </div>
    {error&&<div className="notice-box">{error}</div>}
    <div className="payroll-kpis">
      <div><small>Lượt lớp đã dạy</small><strong>{total.lessons}</strong><span>{total.days} ngày có dạy</span></div>
      <div><small>Tổng số tiết</small><strong>{total.periods}</strong><span>Theo thời khóa biểu</span></div>
      <div><small>Giờ thực dạy</small><strong>{total.hours.toFixed(2)}</strong><span>Tính theo thời gian</span></div>
-     <div><small>Tiền công của giáo viên</small><strong>{amount(total.pay)}</strong><span>{amount(rate)} / giờ</span></div>
+     <div><small>Tiền công của giáo viên</small><strong>{amount(total.pay)}</strong><span>{payrollSchool?amount(rate)+' / giờ':'Theo từng trường'}</span></div>
    </div>
    <div className="report-two-exports">
      <article className="report-export-card">

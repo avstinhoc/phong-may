@@ -270,3 +270,25 @@
   .help-header{padding:12px 13px}
 }
 @media(prefers-reduced-motion:reduce){.help-launch:hover{transform:none}.help-topic-trigger svg{transition:none}}
+
+/* IC3 AI: non-collapsing guide cards, true scrolling and file attachments */
+.help-guide-items{min-height:0;overflow-y:auto;overflow-x:hidden;flex:1 1 auto;align-content:start}
+.help-topic{flex:0 0 auto;min-height:43px;overflow:visible}
+.help-topic-trigger{min-height:44px;flex-shrink:0;white-space:normal;line-height:1.55;align-items:center}
+.help-topic-trigger span{flex:1 1 auto;min-width:0;display:block;overflow-wrap:break-word}
+.help-topic-content{overflow:visible;white-space:normal}
+.help-topic-content li{overflow-wrap:anywhere}
+.help-message strong{font-weight:800;color:inherit}
+.help-file-preview{padding:8px 12px;background:#ecf7f5;display:flex;align-items:center;gap:10px;color:#244f59;border-top:1px solid #dcebe7;font-size:10px}
+.help-file-preview img{width:38px;height:38px;object-fit:cover;border:1px solid #bfdad6;border-radius:7px}
+.help-file-preview span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.help-file-preview button{border:0;background:transparent;display:grid;place-items:center;padding:4px;color:#546e76}
+.help-attached-name{display:block;margin-top:5px;font-size:9px;opacity:.9}
+.help-consent{display:flex;align-items:flex-start;gap:7px;font-size:10px;padding:7px 13px;background:#fff8e9;color:#7e613a;line-height:1.6}
+.help-consent input{margin:1px 0;flex-shrink:0}
+.help-composer .help-attach-button{background:#f1f7f6;color:#0e8179;border:1px solid #d0e4e2;min-width:39px;min-height:42px}
+.help-composer .help-attach-button:hover{background:#e2f2ee}
+.help-composer .help-attach-button:disabled{opacity:.5}
+.management-school-select{display:flex;flex-direction:column;gap:7px;margin:15px 0 18px;font-size:12px;font-weight:700;color:#486775;max-width:460px}
+.management-school-select select{padding:10px 12px;border:1px solid #dce9ea;border-radius:9px;min-height:43px;background:#fff;color:#1b4354}
+.report-control-grid select{max-width:100%;min-width:180px}

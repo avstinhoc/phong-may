@@ -1,17 +1,19 @@
 import React,{useEffect,useState} from 'react';
 import {supabase} from './lib/supabase';
-export function ClassSettings({profile,ping}){
+export function ClassSettings({profile,ping,schools=[]}){
+ const [managedSchool,setManagedSchool]=useState('');
+ const activeSchool=managedSchool&&schools.some(x=>x.id===managedSchool)?managedSchool:(schools[0]?.id||'');
  const [code,setCode]=useState('IC3-'+Math.random().toString(36).slice(2,10).toUpperCase());
  const [name,setName]=useState(''),[rows,setRows]=useState([]),[busy,setBusy]=useState(false);
  const [deleting,setDeleting]=useState(null),[confirm,setConfirm]=useState(''),[showArchived,setShowArchived]=useState(false);
  async function load(){
-  const {data,error}=await supabase.from('classes').select('id,class_name,registration_code,archived_at').eq('school_id',profile.school_id).order('class_name');
+  const {data,error}=await supabase.from('classes').select('id,class_name,registration_code,archived_at').eq('school_id',activeSchool).order('class_name');
   if(error)ping(error.message);else setRows(data||[]);
  }
- useEffect(()=>{load();},[profile.school_id]);
+ useEffect(()=>{if(activeSchool)load();else setRows([]);},[activeSchool]);
  async function create(e){
   e.preventDefault();setBusy(true);
-  const {error}=await supabase.from('classes').insert({school_id:profile.school_id,class_name:name.trim(),registration_code:code.trim().toUpperCase(),created_by:profile.id});
+  const {error}=await supabase.from('classes').insert({school_id:activeSchool,class_name:name.trim(),registration_code:code.trim().toUpperCase(),created_by:profile.id});
   setBusy(false);if(error)ping(error.message);else{
    ping('Đã tạo lớp '+name);setName('');setCode('IC3-'+Math.random().toString(36).slice(2,10).toUpperCase());load();
   }
@@ -24,7 +26,12 @@ export function ClassSettings({profile,ping}){
  }
  function copy(value){navigator.clipboard?.writeText(value).then(()=>ping('Đã sao chép')).catch(()=>ping('Không thể sao chép'));}
  return <section className="class-management">
-  <div className="section-head"><div><h2>Lớp & mã đăng ký</h2><p>Xóa mã đăng ký không xóa học sinh, lịch dạy hay hồ sơ đã lưu. Có thể khôi phục mã khi cần.</p></div></div>
+  <div className="section-head"><div><h2>Lớp & mã đăng ký</h2><p>Chọn trường riêng cho quản lý mã lớp, không phụ thuộc ô chọn trường ở menu trái. Xóa mã không xóa học sinh hay lịch.</p></div></div>
+  <label className="management-school-select">Trường quản lý
+    <select value={activeSchool} onChange={e=>{setManagedSchool(e.target.value);setShowArchived(false);}}>
+      {schools.map(sc=><option value={sc.id} key={sc.id}>{sc.name}</option>)}
+    </select>
+  </label>
   <label className="field-inline"><input type="checkbox" checked={showArchived} onChange={e=>setShowArchived(e.target.checked)} /> Hiện mã đăng ký đã ngừng sử dụng</label>
   <div className="panel table-panel"><div className="table-wrap"><table>
    <thead><tr><th>Lớp</th><th>Mã đăng ký</th><th>Trang học sinh</th><th>Đăng ký</th><th>Thao tác</th></tr></thead>
@@ -41,7 +48,7 @@ export function ClassSettings({profile,ping}){
    <form className="form-stack" onSubmit={create}>
     <label>Tên lớp<input required maxLength={200} placeholder="Ví dụ: 6.1" value={name} onChange={e=>setName(e.target.value)}/></label>
     <label>Mã đăng ký<input required maxLength={120} value={code} onChange={e=>setCode(e.target.value.toUpperCase())}/></label>
-    <button className="btn primary full" disabled={busy}>{busy?'Đang tạo…':'Tạo lớp'}</button>
+    <button className="btn primary full" disabled={busy||!activeSchool}>{busy?'Đang tạo…':'Tạo lớp'}</button>
    </form>
    <p className="muted">Chỉ chia sẻ mã sau khi tạo thành công. Học phí học sinh không còn được tính trong hệ thống.</p>
   </div>
