@@ -7,7 +7,14 @@ async function excelLib(){
   script.src='https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   script.async=true;
   script.onload=()=>window.ExcelJS?resolve(window.ExcelJS):reject(new Error('Không tải được trình tạo Excel'));
-  script.onerror=()=>reject(new Error('Không tải được trình tạo Excel. Kiểm tra mạng và thử lại.'));
+  script.onerror=()=>{
+    const mirror=document.createElement('script');
+    mirror.src='https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js';
+    mirror.async=true;
+    mirror.onload=()=>window.ExcelJS?resolve(window.ExcelJS):reject(new Error('Không tải được thư viện Excel'));
+    mirror.onerror=()=>reject(new Error('Không tải được thư viện xuất Excel. Kiểm tra kết nối mạng.'));
+    document.head.appendChild(mirror);
+  };
   document.head.appendChild(script);
  });
  return excelLibPromise;
@@ -43,7 +50,7 @@ function styleData(ws,row,cols,alt=false){
  ws.getRow(row).height=24;
  for(let c=1;c<=cols;c++){const z=ws.getCell(row,c);z.font={size:10,name:'Arial',color:{argb:'FF'+C.ink}};
  z.alignment={vertical:'middle',wrapText:true};z.border={bottom:{style:'hair',color:{argb:'FF'+C.line}}};
- if(alt)z.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF'+C.pale}};}
+ if(alt&&!z.fill?.fgColor)z.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF'+C.pale}};}
 }
 function saveFile(buffer,name){
  const blob=new Blob([buffer],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
