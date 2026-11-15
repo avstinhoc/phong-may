@@ -7,7 +7,7 @@ import {validateRows} from './lib/timetable';
 const fmt=d=>d.toLocaleDateString('en-CA');
 const startOfMonth=()=>{const d=new Date();return fmt(new Date(d.getFullYear(),d.getMonth(),1));};
 const endOfMonth=()=>{const d=new Date();return fmt(new Date(d.getFullYear(),d.getMonth()+1,0));};
-const validDate=s=>/^\d{4}-\d{2}-\d{2}$/.test(s)&&!Number.isNaN(Date.parse(s));
+const validDate=s=>/^\d{4}-\d{2}-\d{2}$/.test(s)&&!Number.isNaN(Date.parse(s))&&new Date(s).toISOString().slice(0,10)===s;
 const mimeOf=file=>{
  if(/\.pdf$/i.test(file.name))return 'application/pdf';
  if(/\.jpe?g$/i.test(file.name))return 'image/jpeg';
@@ -94,7 +94,14 @@ export function TimetableImport({profile,reload,onImported}){
    if(ocrMode==='local'){
     if(!imageFile(file))throw new Error('Đọc trên máy chỉ hỗ trợ ảnh. PDF/Excel/CSV/TXT cần Gemini.');
     const result=await readLocalTimetable(file,firstMonday(startDate),profile.school_name,setNotice);
-    const initial=result.rows.filter(r=>r.session_date>=startDate&&r.session_date<=endDate);
+    const initial=result.rows.map(r=>{
+      let date=r.session_date;
+      for(let i=0;i<18&&date<startDate;i++){
+        const d=new Date(date+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+7);
+        date=d.toISOString().slice(0,10);
+      }
+      return {...r,session_date:date};
+    }).filter(r=>r.session_date>=startDate&&r.session_date<=endDate);
     setRows(initial);setWarnings(result.warnings||[]);setLocalText(result.text||'');
     setNotice('Đã nhận diện '+initial.length+' buổi. Kiểm tra và chỉnh sửa trước khi lưu.');
    }else{
