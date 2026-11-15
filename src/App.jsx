@@ -21,7 +21,8 @@ const nav = [
   ["students", "Đăng ký & duyệt", Users],
   ["roster", "Danh sách học sinh", ClipboardList],
   ["computers", "Phòng máy", Monitor],
-  ["attendance", "Điểm danh & lịch", CalendarDays],
+  ["attendance", "Lịch dạy giáo viên", CalendarDays],
+  ["rollcall", "Điểm danh học sinh", UserCheck],
   ["records", "Điểm, lỗi & thưởng", ClipboardList],
   ["cleaning", "Vệ sinh máy", ClipboardCheck],
   ["finance", "Học phí & tiền công", Wallet],
@@ -54,7 +55,7 @@ function App() {
   const [schoolId, setSchoolId] = useState("");
   const [profileError, setProfileError] = useState("");
   const school = schools.find(s => s.id === schoolId);
-  const profile = account ? {...account, school_id: school?.id || null, school_name: school?.name || ""} : null;
+  const profile = account ? {...account, school_id: school?.id || null, school_name: school?.name || "", school_logo:school?.logo_data||null} : null;
   const [page, setPage] = useState("dashboard");
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState("");
@@ -95,7 +96,7 @@ function App() {
       if (live) {
         setProfile(error ? null : data);
         setProfileError(error?.message || (!data ? "Chưa có hồ sơ. Hãy chạy migration để đồng bộ tài khoản Auth sang profiles." : ""));
-        const result = await supabase.from("schools").select("id,name").order("name");
+        const result = await supabase.from("schools").select("id,name,logo_data").order("name");
         if (!live) return;
         if (result.error) setProfileError(result.error.message);
         setSchools(result.data || []);
@@ -149,7 +150,7 @@ function App() {
           <School size={16} /><select aria-label="Trường đang quản lý" value={schoolId} onChange={e => setSchoolId(e.target.value)}><option value="" disabled>Chọn trường</option>{schools.map(s => <option value={s.id} key={s.id}>{s.name}</option>)}</select>
         </div>
         <nav className="nav-scroll" aria-label="Menu chính">
-          {[["GIẢNG DẠY", ["dashboard", "attendance", "students", "roster", "records", "evaluation"]],
+          {[["GIẢNG DẠY", ["dashboard", "attendance", "rollcall", "students", "roster", "records", "evaluation"]],
             ["PHÒNG MÁY", ["computers", "cleaning"]],
             ["QUẢN LÝ", ["schools", "settings", "finance", "reports", "accounts"]]].map(([group, ids]) => <React.Fragment key={group}>
             <div className="nav-label">{group}</div>
@@ -193,6 +194,7 @@ function App() {
           {page === "roster" && <StudentRoster profile={profile} refresh={refresh} ping={ping} />}
           {page === "students" && isTeacher && <Students profile={profile} refresh={refresh} reload={reload} ping={ping} navigate={setPage} />}
           {page === "computers" && <Computers profile={profile} refresh={refresh} reload={reload} ping={ping} />}
+          {page === "rollcall" && isTeacher && <RollCallView profile={profile} refresh={refresh} reload={reload} ping={ping} focusDate={calendarDate} setFocusDate={setCalendarDate} />}
           {page === "attendance" && isTeacher && <Attendance profile={profile} refresh={refresh} reload={reload} ping={ping} focusDate={calendarDate} setFocusDate={setCalendarDate} onImported={async(date,name)=>{setCalendarDate(date);const {data,error}=await supabase.rpc("create_my_school",{school_name:name});if(!error)setSchoolId(data);reload();}} />}
           {page === "records" && isTeacher && <Records profile={profile} refresh={refresh} reload={reload} ping={ping} />}
           {page === "cleaning" && isTeacher && <Cleaning profile={profile} refresh={refresh} reload={reload} ping={ping} />}
@@ -709,6 +711,15 @@ function Computers({ profile, refresh, reload, ping }) {
   </>;
 }
 
+function RollCallView({profile,refresh,reload,ping,focusDate,setFocusDate}){
+  const {rows,error}=useRows("class_sessions",profile,refresh);
+  return <>
+    <TeachingCalendar rows={rows} focusDate={focusDate} onDateChange={setFocusDate} school={profile.school_name} teacher={profile.full_name}/>
+    <RollCall profile={profile} sessions={rows} refresh={refresh} onSaved={reload} ping={ping}/>
+    {error&&<p role="alert" className="notice-box">{error}</p>}
+  </>;
+}
+
 function Attendance({ profile, refresh, reload, ping, focusDate, setFocusDate, onImported }) {
   const { rows, error: scheduleError } = useRows("class_sessions", profile, refresh);
   const classes = useRows("classes", profile, refresh);
@@ -753,7 +764,6 @@ function Attendance({ profile, refresh, reload, ping, focusDate, setFocusDate, o
   return <>
     <TeachingCalendar rows={rows} focusDate={focusDate} onDateChange={setFocusDate} school={profile.school_name} teacher={profile.full_name} />
     {scheduleError && <p role="alert" className="notice-box">Không tải được lịch: {scheduleError}</p>}
-    <RollCall profile={profile} sessions={rows} refresh={refresh} ping={ping} />
     <TimetableImport profile={profile} reload={reload} onImported={onImported} />
     <SectionHead title="Lịch học & chấm công" desc="Lập lịch theo lớp, ghi nhận giờ dạy và số tiết học" />
     <div className="two-col">
