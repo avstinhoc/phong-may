@@ -15,8 +15,13 @@ export const teacherRows=(sessions,from,to,rate,school)=>{
   const date=d.toISOString().slice(0,10),list=map.get(date)||[];
   const uniq=items=>[...new Set(items.map(s=>s.class_name))].join(', ');
   const realHours=list.reduce((n,s)=>n+hours(s),0);
+  const rateFor=typeof rate==='function'?rate:(()=>Number(rate||0));
+  const rateValues=[...new Set(list.map(s=>Number(rateFor(s)||0)))];
+  const rowRate=rateValues.length===1?rateValues[0]:(rateValues.length?'Theo trường':'');
+  const actualPay=list.reduce((n,s)=>n+Math.round(hours(s)*Number(rateFor(s)||0)),0);
+  const schoolLabel=[...new Set(list.map(s=>s.school_name||school).filter(Boolean))].join(' / ');
   out.push({date,weekday:dayNames[d.getDay()],morning:uniq(list.filter(s=>s.start_time<'12:00')),afternoon:uniq(list.filter(s=>s.start_time>='12:00')),
-    periods:list.reduce((n,s)=>n+Number(s.period_count||0),0),hours:realHours,rate:Number(rate||0),pay:Math.round(realHours*Number(rate||0)),school:school||'',lessons:list.length});
+    periods:list.reduce((n,s)=>n+Number(s.period_count||0),0),hours:realHours,rate:rowRate,pay:actualPay,school:schoolLabel||'',lessons:list.length});
  }
  return out;
 };
@@ -50,9 +55,9 @@ function buildSheet(wb,p){
  const headers=privatePay?['NGÀY','THỨ','LỚP SÁNG','LỚP CHIỀU','SỐ TIẾT','GIỜ THỰC DẠY','LƯƠNG/GIỜ','THÀNH TIỀN']:
  ['NGÀY','THỨ','LỚP SÁNG','LỚP CHIỀU','SỐ TIẾT','TRƯỜNG','GHI CHÚ'];
  tableHeader(ws,9,headers);
- p.rows.forEach((r,i)=>{const row=i+10,vals=privatePay?[vnDate(r.date),r.weekday,r.morning,r.afternoon,r.periods||'',r.lessons?Number(r.hours.toFixed(2)):'',r.lessons?Number(p.rate):'',r.lessons?r.pay:'']:
- [vnDate(r.date),r.weekday,r.morning,r.afternoon,r.periods||'',r.lessons?p.school:'',''];
- tableRow(ws,row,vals,['Bảy','Chủ nhật'].includes(r.weekday));if(privatePay){ws.getCell(row,7).numFmt='#,##0 "đ"';ws.getCell(row,8).numFmt='#,##0 "đ"';ws.getCell(row,6).numFmt='0.00';}});
+ p.rows.forEach((r,i)=>{const row=i+10,vals=privatePay?[vnDate(r.date),r.weekday,r.morning,r.afternoon,r.periods||'',r.lessons?Number(r.hours.toFixed(2)):'',r.lessons?r.rate:'',r.lessons?r.pay:'']:
+ [vnDate(r.date),r.weekday,r.morning,r.afternoon,r.periods||'',r.lessons?r.school:'',''];
+ tableRow(ws,row,vals,['Bảy','Chủ nhật'].includes(r.weekday));if(privatePay){if(typeof p.rows[i].rate==='number')ws.getCell(row,7).numFmt='#,##0 "đ"';ws.getCell(row,8).numFmt='#,##0 "đ"';ws.getCell(row,6).numFmt='0.00';}});
  const total=teacherTotals(p.rows),last=p.rows.length+10;
  tableRow(ws,last,privatePay?['TỔNG','','','',total.periods,Number(total.hours.toFixed(2)),'',total.pay]:['TỔNG','','','',total.periods,'',''],false);
  for(let i=1;i<=headers.length;i++){const c=ws.getCell(last,i);c.font={bold:true,color:{argb:'FF'+palette.blue}};c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF'+palette.light}};}
@@ -72,7 +77,7 @@ export async function exportMonthlyExcel(p){
   ws.getCell('A4').value='Giáo viên: '+p.teacher;ws.getCell('D4').value='Trường: '+p.school;
   tableHeader(ws,6,['NGÀY','LỚP','GIỜ VÀO','GIỜ RA','SỐ TIẾT','GIỜ DẠY','LƯƠNG/GIỜ','THÀNH TIỀN']);
   [...p.sessions].sort((a,b)=>a.session_date.localeCompare(b.session_date)||a.start_time.localeCompare(b.start_time)).forEach((s,i)=>{
-    const r=i+7,actualHours=hours(s);tableRow(ws,r,[vnDate(s.session_date),s.class_name,s.start_time.slice(0,5),s.end_time.slice(0,5),Number(s.period_count),Number(actualHours.toFixed(2)),Number(p.rate),Math.round(actualHours*p.rate)],i%2===1);
+    const r=i+7,actualHours=hours(s);tableRow(ws,r,[vnDate(s.session_date),s.class_name,s.start_time.slice(0,5),s.end_time.slice(0,5),Number(s.period_count),Number(actualHours.toFixed(2)),Number(p.ratesBySchool?.[s.school_id]??p.rate??0),Math.round(actualHours*Number(p.ratesBySchool?.[s.school_id]??p.rate??0))],i%2===1);
     ws.getCell(r,7).numFmt='#,##0 "đ"';ws.getCell(r,8).numFmt='#,##0 "đ"';
   });
  }
@@ -121,7 +126,7 @@ function printHtml({title,subtitle,school,teacher,logo,headers,rows,total,summar
 export function printMonthlyPdf(p){
  const t=teacherTotals(p.rows),month=p.from.slice(5,7)+'/'+p.from.slice(0,4);
  const headers=p.privatePay?['Ngày','Thứ','Lớp sáng','Lớp chiều','Số tiết','Giờ dạy','Lương/giờ','Thành tiền']:['Ngày','Thứ','Lớp sáng','Lớp chiều','Số tiết','Trường','Ghi chú'];
- const rows=p.rows.map(r=>p.privatePay?[vnDate(r.date),r.weekday,r.morning,r.afternoon,r.periods||'',r.lessons?r.hours.toFixed(2):'',r.lessons?amount(p.rate):'',r.lessons?amount(r.pay):'']:
+ const rows=p.rows.map(r=>p.privatePay?[vnDate(r.date),r.weekday,r.morning,r.afternoon,r.periods||'',r.lessons?r.hours.toFixed(2):'',r.lessons?(typeof r.rate==='number'?amount(r.rate):r.rate):'',r.lessons?amount(r.pay):'']:
   [vnDate(r.date),r.weekday,r.morning,r.afternoon,r.periods||'',r.lessons?r.school:'','']);
  const total=p.privatePay?['TỔNG','','','',t.periods,t.hours.toFixed(2),'',amount(t.pay)]:['TỔNG','','','',t.periods,'',''];
  printHtml({title:'BẢNG KÊ TIẾT DẠY THÁNG '+month,subtitle:'Năm học '+schoolYear(p.from),school:p.school,teacher:p.teacher,logo:p.logo,headers,rows,total,privatePay:p.privatePay,
