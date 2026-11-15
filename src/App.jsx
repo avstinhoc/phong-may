@@ -250,8 +250,8 @@ function AuthScreen({ mode, setMode, ping }) {
   }, [cooldownUntil]);
   const cooldownSeconds = Math.max(0, Math.ceil((cooldownUntil - clock) / 1000));
   const handleEmailError = (error) => {
-    if (isEmailSendLimit(error) || (error?.status === 429 && mode === "register")) {
-      setEmailLimited(true);
+    if (isEmailSendLimit(error)) setEmailLimited(true);
+    if (error?.status === 429 || isEmailSendLimit(error)) {
       setCooldownUntil(Date.now() + 60000);
       setClock(Date.now());
     }
