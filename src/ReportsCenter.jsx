@@ -1,6 +1,6 @@
 import React,{useEffect,useMemo,useState} from 'react';
 import {supabase} from './lib/supabase';
-import {teacherRows,teacherTotals,exportMonthlyExcel,printMonthlyPdf,exportGeneralXlsx,printGeneralPdf,amount,vnDate} from './lib/teacherReports';
+import {teacherRows,teacherTotals,exportMonthlyExcel,printMonthlyPdf,exportGeneralXlsx,printGeneralPdf,amount,vnDate,schoolYear} from './lib/teacherReports';
 const firstMonth=()=>new Date().toLocaleDateString('en-CA').slice(0,7);
 const scoreNames=['QT1','QT2','HK1','QT3','QT4','HK2','TEST 1','TEST 2','TEST 3','TEST 4','TEST 5','Mô phỏng lần 1','Mô phỏng lần 2','Mô phỏng lần 3','Mô phỏng lần 4','Mô phỏng lần 5'];
 const reportOptions=[
@@ -58,7 +58,7 @@ export function ReportsCenter({profile,refresh,ping}){
  };
  const preview=(ready[kind]||ready.center)();
  const title=(reportOptions.find(x=>x[0]===kind)||reportOptions[0])[1];
- const args={title,school:profile.school_name,logo:profile.school_logo,headers:preview.headers,rows:preview.rows,teacher:selectedTeacher.name,subtitle:'Năm học 2026–2027'};
+ const args={title,school:profile.school_name,logo:profile.school_logo,headers:preview.headers,rows:preview.rows,teacher:selectedTeacher.name,subtitle:'Năm học '+schoolYear(from)};
  async function excel(){
   try{setBusy(true);
    if(kind==='center'||kind==='teacher')await exportMonthlyExcel({rows:monthly,sessions:forMonth,teacher:selectedTeacher.name,school:profile.school_name,logo:profile.school_logo,from,rate,privatePay:kind==='teacher'});
