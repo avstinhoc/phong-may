@@ -43,7 +43,7 @@ export function TimetableImport({profile,reload,onImported}){
  const [rows,setRows]=useState([]),[warnings,setWarnings]=useState([]),[messages,setMessages]=useState([]);
  const [text,setText]=useState(''),[busy,setBusy]=useState(false),[repeat,setRepeat]=useState(false);
  const [ocrMode,setOcrMode]=useState('gemini'),[consent,setConsent]=useState(false),[localText,setLocalText]=useState('');
- const [notice,setNotice]=useState('Chọn tệp, đặt khoảng ngày và đọc lịch; hoặc yêu cầu AI tạo vài buổi dạy thay. Luôn kiểm tra trước khi lưu.');
+ const [notice,setNotice]=useState('Chọn tệp hoặc nhập yêu cầu cho AI. Lịch tạo ra chỉ được lưu sau khi bạn xác nhận.');
  const [closed,setClosed]=useState(true);
  const count=useMemo(()=>{try{return repeat?repeatRange(rows,startDate,endDate).length:rows.length;}catch{return rows.length;}},[rows,startDate,endDate,repeat]);
  useEffect(()=>{
@@ -72,7 +72,7 @@ export function TimetableImport({profile,reload,onImported}){
   const {data:{session}}=await supabase.auth.getSession();
   if(!session?.access_token)throw new Error('Phiên đăng nhập đã hết hạn.');
   const payload={action,startDate,endDate,schoolName:profile.school_name,
-    instruction,rows,teacherName:profile.full_name};
+    instruction,rows,messages:messages.slice(-10),teacherName:profile.full_name};
   if(file)
     Object.assign(payload,await fromFile());
   const response=await fetch('/api/timetable',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+session.access_token},body:JSON.stringify(payload)});
@@ -81,10 +81,15 @@ export function TimetableImport({profile,reload,onImported}){
   return result;
  }
  function resultToDraft(result,verb){
-  setRows(Array.isArray(result.rows)?result.rows:[]);
-  setWarnings(result.warnings||[]);
-  setNotice(result.summary||'Đã xử lý '+result.rows.length+' buổi. Hãy kiểm tra và bấm Lưu khi đúng.');
-  setMessages(msg=>[...msg,{role:'assistant',text:result.summary||verb+' · '+result.rows.length+' buổi. '+(result.warnings||[]).join(' ')}].slice(-12));
+  const proposed=Array.isArray(result.rows)?result.rows:[];
+  const warnings=Array.isArray(result.warnings)?result.warnings:[];
+  // Questions and clarification replies must not erase the teacher's existing draft.
+  if(result.replace_draft===true && proposed.length>0) setRows(proposed);
+  setWarnings(warnings);
+  const answer=(result.reply||result.summary||'').trim() ||
+    (proposed.length?verb+' · đã chuẩn bị '+proposed.length+' buổi để bạn kiểm tra.':'Chưa xác định được buổi cần chọn. Bạn có thể nói rõ ngày, lớp hoặc tiết.');
+  setNotice(answer);
+  setMessages(msg=>[...msg,{role:'assistant',text:answer+(warnings.length?'\nLưu ý: '+warnings.join('; '):'')}].slice(-12));
  }
  async function read(){
   setBusy(true);setNotice('Đang đọc tệp…');setRows([]);setWarnings([]);
@@ -141,7 +146,7 @@ export function TimetableImport({profile,reload,onImported}){
  return <section className="panel timetable-assistant">
   <button type="button" className="timetable-toggle" onClick={()=>setClosed(c=>!c)} aria-expanded={!closed}>{closed?'▸':'▾'} Nhập lịch từ ảnh, file hoặc chat AI</button>
   {!closed&&<>
-   <p className="muted">Hỗ trợ JPG, PNG, WebP, PDF, XLS/XLSX, CSV, TXT. Có thể nhập hoặc điều chỉnh 1–2 buổi dạy thay; AI chỉ tạo bản nháp, không tự lưu vào hệ thống.</p>
+   <p className="muted">Đọc lịch từ ảnh, PDF, Excel hoặc văn bản. AI sẽ xử lý theo yêu cầu của bạn, kể cả chọn tiết dạy thay trong lịch giáo viên khác. Bạn kiểm tra bản nháp trước khi lưu.</p>
    <div className="import-controls">
     <label>Tệp thời khóa biểu<input type="file" accept=".png,.jpg,.jpeg,.webp,.pdf,.xlsx,.xls,.csv,.tsv,.txt,image/*,application/pdf" disabled={busy} onChange={e=>{setFile(e.target.files?.[0]||null);setWarnings([]);setLocalText('');}}/></label>
     <label>Từ ngày<input type="date" value={startDate} disabled={busy} onChange={e=>setStartDate(e.target.value)}/></label>
@@ -156,9 +161,9 @@ export function TimetableImport({profile,reload,onImported}){
    <label className="consent"><input type="checkbox" checked={consent} onChange={e=>setConsent(e.target.checked)}/> Tôi đồng ý gửi ảnh, tệp hoặc nội dung chat tới Gemini để xử lý thời khóa biểu.</label>
    <div className="timetable-chat">
     <h3>Trợ lý AI chỉnh lịch dạy</h3>
-    <p className="muted">Ví dụ: “Từ ngày 5 đến 10/11, chỉ lấy 2 tiết thứ 3 mà tôi dạy thay”, “Chỉ lấy các lớp của giáo viên hiện tại”, “Tiết 4 thứ Sáu là mấy giờ? Nếu không có giờ chính xác hãy báo chưa rõ”.</p>
-    <div className="chat-history" aria-live="polite">{messages.length?messages.map((m,i)=><div key={i} className={'chat-bubble '+(m.role==='user'?'me':'ai')}><b>{m.role==='user'?'Bạn':'Gemini'}</b><p>{m.text}</p></div>):<p className="muted">Bạn có thể hỏi AI ngay cả khi chưa tải tệp, hoặc đọc tệp rồi yêu cầu lọc lại lịch.</p>}</div>
-    <form onSubmit={chat} className="chat-form"><textarea aria-label="Yêu cầu AI chỉnh lịch" rows={2} placeholder="Viết yêu cầu: chỉ lấy 1–2 buổi dạy thay, giới hạn ngày, lớp, tiết…" value={text} onChange={e=>setText(e.target.value)} disabled={busy}/><button className="btn primary" type="submit" disabled={busy||!text.trim()||!consent}>Gửi AI</button></form>
+    <p className="muted">Bạn cứ nhập yêu cầu trực tiếp. AI có thể đọc lịch của giáo viên khác để chọn những buổi bạn dạy thay; không tự lưu lịch.</p>
+    <div className="chat-history" aria-live="polite">{messages.length?messages.map((m,i)=><div key={i} className={'chat-bubble '+(m.role==='user'?'me':'ai')}><b>{m.role==='user'?'Bạn':'Gemini'}</b><p>{m.text}</p></div>):<p className="muted">Nhập yêu cầu hoặc tải tệp để AI hỗ trợ chỉnh lịch.</p>}</div>
+    <form onSubmit={chat} className="chat-form"><textarea aria-label="Yêu cầu AI chỉnh lịch" rows={2} placeholder="Nhập yêu cầu cho AI…" value={text} onChange={e=>setText(e.target.value)} disabled={busy}/><button className="btn primary" type="submit" disabled={busy||!text.trim()||!consent}>Gửi AI</button></form>
    </div>
    <div className="notice-box" role="status" aria-live="polite">{notice}</div>
    {warnings.map((w,i)=><p className="muted" key={i}>{w}</p>)}
