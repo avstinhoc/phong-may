@@ -20,9 +20,19 @@ export function ReportsCenter({profile,refresh,ping}){
  useEffect(()=>{setTeacherId(profile.id);},[profile.id,profile.school_id]);
  useEffect(()=>{let live=true;setLoading(true);setError('');
   const names=['class_sessions','students','student_results','attendance','computers','student_records','cleaning_logs','teacher_pay_rates'];
-  Promise.all(names.map(name=>supabase.from(name).select('*').eq('school_id',profile.school_id))).then(results=>{
-   if(!live)return;setLoading(false);const failed=results.find(r=>r.error);if(failed){setError(failed.error.message);return;}
-   const next={};names.forEach((name,i)=>{next[name]=results[i].data||[];});setData(next);
+  const fetchAll=async name=>{
+    const results=[],sort=name==='teacher_pay_rates'?'teacher_id':'id';
+    for(let from=0;from<100000;from+=500){
+      const {data:part,error}=await supabase.from(name).select('*')
+        .eq('school_id',profile.school_id).order(sort).range(from,from+499);
+      if(error)throw error;
+      results.push(...(part||[]));if(!part||part.length<500)break;
+    }
+    return results;
+  };
+  Promise.all(names.map(fetchAll)).then(results=>{
+    if(!live)return;setLoading(false);
+    const next={};names.forEach((name,i)=>{next[name]=results[i]||[];});setData(next);
   }).catch(e=>{if(live){setLoading(false);setError(e.message);}});return()=>{live=false;};
  },[profile.school_id,refresh]);
  const lessons=data.class_sessions||[],students=data.students||[];
