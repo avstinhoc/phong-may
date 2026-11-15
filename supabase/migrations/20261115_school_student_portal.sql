@@ -86,7 +86,7 @@ BEGIN
     WHERE a.computer_id=c.id AND a.active
     AND (s.class_id=v_class.id OR (s.class_id IS NULL AND s.class_name=v_class.class_name)))
    ELSE '[]'::jsonb END
- ) ORDER BY regexp_replace(c.computer_code,'[^0-9]','','g')::int NULLS LAST,c.computer_code),'[]'::jsonb)
+ ) ORDER BY NULLIF(regexp_replace(c.computer_code,'[^0-9]','','g'),'')::int NULLS LAST,c.computer_code),'[]'::jsonb)
  INTO v_seats FROM public.computers c WHERE c.school_id=v_class.school_id;
  SELECT COALESCE(jsonb_agg(jsonb_build_object('date',s.session_date,'start',s.start_time,'end',s.end_time,'periods',s.period_count)
   ORDER BY s.session_date,s.start_time),'[]'::jsonb) INTO v_schedule
