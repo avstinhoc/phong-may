@@ -157,3 +157,41 @@
 .payroll-kpis{grid-template-columns:repeat(2,1fr)}
 .payroll-kpis strong{font-size:19px}.report-action-bar{align-items:stretch}.report-buttons{width:100%}
 .report-buttons .btn{flex:1}}
+
+/* Timetable AI importer and flexible per-day lesson calendar */
+.flexible-calendar .section-head{align-items:center}
+.calendar-days{display:grid;grid-template-columns:repeat(7,minmax(142px,1fr));gap:9px;overflow-x:auto;padding:8px 0 12px}
+.calendar-day{min-width:142px;background:#f8fbfc;border:1px solid #e0ecee;border-radius:11px;overflow:hidden}
+.calendar-day.today{border-color:#15968c;box-shadow:0 0 0 1px #15968c22}
+.calendar-day header{display:flex;flex-direction:column;gap:4px;text-align:center;background:#eaf5f4;padding:12px 5px;color:#194b52}
+.calendar-day header strong{font-size:11px}.calendar-day header span{font-size:14px;font-weight:800}.calendar-day header small{font-size:10px;opacity:.7}
+.calendar-lesson-stack{display:flex;flex-direction:column;gap:8px;padding:9px;min-height:105px}
+.calendar-lesson{border:1px solid #d7e9e8;background:#e8f5f2;border-radius:9px;padding:9px 7px;display:flex;flex-direction:column;gap:5px}
+.calendar-lesson.pm{border-color:#efdce8;background:#f9ebf4}
+.calendar-lesson.night{border-color:#e1e2f3;background:#eef0fb}
+.calendar-lesson b{font-size:13px;color:#154658}.calendar-lesson small{font-size:10px;color:#67818c}
+.calendar-lesson .lesson-time{font-size:11px;font-weight:800;color:#0b8177}
+.calendar-empty{display:block;text-align:center;padding:20px 0;font-size:10px;color:#a0afb3}
+.timetable-assistant{padding:20px!important}
+.timetable-toggle{width:100%;text-align:left;border:0;background:none;color:#153e52;font-size:16px;font-weight:800;padding:3px 0 12px;cursor:pointer}
+.timetable-assistant>.muted{font-size:11px}
+.import-controls{display:grid;grid-template-columns:2fr 1fr 1fr;align-items:end;gap:12px;margin:16px 0}
+.import-controls label,.import-action-row label{font-size:11px;font-weight:700;color:#58727b;display:flex;flex-direction:column;gap:7px}
+.import-controls input,.import-action-row select{padding:10px;border:1px solid #d5e5e7;border-radius:8px;background:white;width:100%;min-height:41px;font-size:11px}
+.import-image-preview{max-width:100%;max-height:300px;object-fit:contain;display:block;background:#f5faf9;padding:7px;border:1px solid #dce6e5;border-radius:10px;margin:10px 0}
+.import-action-row{display:flex;align-items:end;gap:12px;margin:12px 0;flex-wrap:wrap}
+.import-action-row label{min-width:220px}
+.import-action-row .btn{min-height:41px}
+.timetable-assistant .consent{display:flex;align-items:center;gap:7px;font-size:11px;margin:12px 0;color:#4e6871}
+.timetable-chat{background:#f4f9fa;border:1px solid #deebee;border-radius:14px;padding:16px;margin:20px 0}
+.timetable-chat h3{margin:0 0 7px;font-size:15px}
+.chat-history{max-height:240px;overflow-y:auto;display:flex;gap:10px;flex-direction:column;margin:14px 0}
+.chat-bubble{max-width:85%;background:#fff;border:1px solid #dce8ea;padding:10px 13px;border-radius:12px;font-size:11px;line-height:1.6}
+.chat-bubble b{font-size:10px;color:#0e8279}.chat-bubble p{margin:3px 0 0;white-space:pre-wrap;overflow-wrap:anywhere}
+.chat-bubble.me{align-self:flex-end;background:#e2f4ef;border-color:#bde8dd}
+.chat-form{display:flex;gap:10px;align-items:stretch}
+.chat-form textarea{flex:1;min-width:0;border:1px solid #d3e6e7;border-radius:10px;font-size:11px;padding:11px;resize:vertical}
+.import-edit-table input{width:125px;min-width:100px;border:1px solid #dfe8e8;border-radius:6px;padding:7px;font-size:11px}
+.import-edit-table th{white-space:nowrap}
+.import-footer{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:15px}
+@media(max-width:760px){.import-controls{grid-template-columns:1fr 1fr}.import-controls label:first-child{grid-column:1/-1}.chat-bubble{max-width:100%}.chat-form{flex-direction:column}.calendar-days{grid-template-columns:repeat(7,145px)}}

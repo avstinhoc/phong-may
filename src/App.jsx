@@ -4,6 +4,7 @@ import { supabase, configurationError, authMessage } from "./lib/supabase";
 import { SchoolManager, Accounts, TimetableImport } from "./Management";
 import { StudentRoster } from "./StudentRoster";
 import { StudentPortal } from "./StudentPortal";
+import { AuthCallback, emailCallbackUrl } from "./AuthCallback";
 import { TeacherPayroll } from "./TeacherPayroll";
 import { ClassSettings } from "./ClassSettings";
 import { ReportsCenter } from "./ReportsCenter";
@@ -124,6 +125,7 @@ function App() {
   };
 
   if (!supabase) return <SetupScreen />;
+  if (window.location.pathname === "/auth/callback") return <AuthCallback />;
   if (window.location.pathname === "/student") {
     return <StudentPortal />;
   }
@@ -246,7 +248,7 @@ function AuthScreen({ mode, setMode, ping }) {
         const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
         if (error) throw error;
       } else {
-        const { data, error } = await supabase.auth.signUp({email:email.trim(),password, options:{emailRedirectTo:window.location.origin, data:{full_name:name.trim()}}});
+        const { data, error } = await supabase.auth.signUp({email:email.trim(),password, options:{emailRedirectTo:emailCallbackUrl(), data:{full_name:name.trim()}}});
         if(error) throw error;
         setMessage(data.session ? "Đã đăng ký. Chờ Admin cấp quyền giáo viên." : "Đã gửi yêu cầu. Kiểm tra email xác nhận (kể cả thư rác), sau đó đăng nhập. Nếu email đã có tài khoản, hãy dùng mật khẩu hiện tại.");
       }
@@ -255,7 +257,7 @@ function AuthScreen({ mode, setMode, ping }) {
   async function resend() {
     if(!email.trim()) {setMessage("Nhập email trước khi gửi lại."); return;}
     setBusy(true);
-    try {const {error}=await supabase.auth.resend({type:'signup',email:email.trim(),options:{emailRedirectTo:window.location.origin}}); if(error) throw error; setMessage("Đã gửi yêu cầu gửi lại email xác nhận.");}
+    try {const {error}=await supabase.auth.resend({type:'signup',email:email.trim(),options:{emailRedirectTo:emailCallbackUrl()}}); if(error) throw error; setMessage("Đã gửi yêu cầu gửi lại email xác nhận.");}
     catch(e){setMessage(authMessage(e));} finally{setBusy(false);}
   }
 
