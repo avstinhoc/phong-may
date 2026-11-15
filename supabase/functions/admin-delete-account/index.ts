@@ -28,25 +28,38 @@ Deno.serve(async (req: Request) => {
  try {
    const serviceUrl = Deno.env.get("SUPABASE_URL");
    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-   if (!serviceUrl || !serviceKey)
-     return json(503, { error: "Máy chủ chưa được cấu hình quyền quản trị Auth." }, allowedOrigin);
+   const callerKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_PUBLISHABLE_KEY");
+   if (!serviceUrl || !serviceKey || !callerKey)
+     return json(503, { error: "Máy chủ chưa được cấu hình đầy đủ khóa Supabase." }, allowedOrigin);
 
    const accessToken = req.headers.get("authorization")?.match(/^Bearer\s+(\S+)$/i)?.[1];
    if (!accessToken)
      return json(401, { error: "Vui lòng đăng nhập trước khi xóa tài khoản." }, allowedOrigin);
 
+   // Separate the authenticated caller's RLS-scoped client from the privileged
+   // Auth Admin client. Never use a secret API key as the REST Authorization
+   // credential when checking a user's profile. This previously caused a
+   // PostgREST 42501/403 and incorrectly reported active Admins as non-Admins.
+   const caller = createClient(serviceUrl, callerKey, {
+     global: { headers: { Authorization: "Bearer " + accessToken } },
+     auth: { persistSession: false, autoRefreshToken: false },
+   });
    const admin = createClient(serviceUrl, serviceKey, {
      auth: { persistSession: false, autoRefreshToken: false },
    });
-   const { data: identity, error: identityError } = await admin.auth.getUser(accessToken);
+   const { data: identity, error: identityError } = await caller.auth.getUser(accessToken);
    const actorId = identity?.user?.id;
    if (identityError || !actorId)
      return json(401, { error: "Phiên đăng nhập hết hạn. Hãy đăng nhập lại." }, allowedOrigin);
 
-   const { data: actor, error: actorError } = await admin.from("profiles")
-     .select("id,role,is_active").eq("id", actorId).maybeSingle();
-   if (actorError || !actor?.is_active || actor.role !== "admin")
-     return json(403, { error: "Chỉ quản trị viên đang hoạt động mới được xóa tài khoản." }, allowedOrigin);
+   // Reuse the very same database authorization function as admin_update_account.
+   const { data: canManage, error: permissionError } = await caller.rpc("is_admin");
+   if (permissionError) {
+     console.error("admin-delete-account permission lookup failed", permissionError.code);
+     return json(503, { error: "Không kiểm tra được quyền Admin trên Supabase. Vui lòng thử lại hoặc báo quản trị viên." }, allowedOrigin);
+   }
+   if (canManage !== true)
+     return json(403, { error: "Tài khoản hiện tại chưa có quyền Admin đang hoạt động." }, allowedOrigin);
 
    const body = await req.json().catch(() => null);
    const targetId = typeof body?.target_id === "string" ? body.target_id.trim() : "";
@@ -57,9 +70,13 @@ Deno.serve(async (req: Request) => {
    if (targetId === actorId)
      return json(403, { error: "Không thể xóa chính tài khoản đang đăng nhập." }, allowedOrigin);
 
-   const { data: target, error: targetError } = await admin.from("profiles")
+   const { data: target, error: targetError } = await caller.from("profiles")
      .select("id,email,role").eq("id", targetId).maybeSingle();
-   if (targetError || !target)
+   if (targetError) {
+     console.error("admin-delete-account target lookup failed", targetError.code);
+     return json(503, { error: "Không thể đọc hồ sơ tài khoản. Hãy làm mới trang và thử lại." }, allowedOrigin);
+   }
+   if (!target)
      return json(404, { error: "Không tìm thấy tài khoản này. Hãy làm mới danh sách." }, allowedOrigin);
    if (target.role === "admin")
      return json(403, { error: "Không xóa trực tiếp tài khoản Admin. Hãy bàn giao quyền trước." }, allowedOrigin);
