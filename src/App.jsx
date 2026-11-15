@@ -21,7 +21,8 @@ const nav = [
   ["students", "Đăng ký & duyệt", Users],
   ["roster", "Danh sách học sinh", ClipboardList],
   ["computers", "Phòng máy", Monitor],
-  ["attendance", "Điểm danh & lịch", CalendarDays],
+  ["attendance", "Lịch dạy giáo viên", CalendarDays],
+  ["rollcall", "Điểm danh học sinh", UserCheck],
   ["records", "Điểm, lỗi & thưởng", ClipboardList],
   ["cleaning", "Vệ sinh máy", ClipboardCheck],
   ["finance", "Học phí & tiền công", Wallet],
@@ -54,7 +55,7 @@ function App() {
   const [schoolId, setSchoolId] = useState("");
   const [profileError, setProfileError] = useState("");
   const school = schools.find(s => s.id === schoolId);
-  const profile = account ? {...account, school_id: school?.id || null, school_name: school?.name || ""} : null;
+  const profile = account ? {...account, school_id: school?.id || null, school_name: school?.name || "", school_logo:school?.logo_data||null} : null;
   const [page, setPage] = useState("dashboard");
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState("");
@@ -95,7 +96,7 @@ function App() {
       if (live) {
         setProfile(error ? null : data);
         setProfileError(error?.message || (!data ? "Chưa có hồ sơ. Hãy chạy migration để đồng bộ tài khoản Auth sang profiles." : ""));
-        const result = await supabase.from("schools").select("id,name").order("name");
+        const result = await supabase.from("schools").select("id,name,logo_data").order("name");
         if (!live) return;
         if (result.error) setProfileError(result.error.message);
         setSchools(result.data || []);
@@ -149,7 +150,7 @@ function App() {
           <School size={16} /><select aria-label="Trường đang quản lý" value={schoolId} onChange={e => setSchoolId(e.target.value)}><option value="" disabled>Chọn trường</option>{schools.map(s => <option value={s.id} key={s.id}>{s.name}</option>)}</select>
         </div>
         <nav className="nav-scroll" aria-label="Menu chính">
-          {[["GIẢNG DẠY", ["dashboard", "attendance", "students", "roster", "records", "evaluation"]],
+          {[["GIẢNG DẠY", ["dashboard", "attendance", "rollcall", "students", "roster", "records", "evaluation"]],
             ["PHÒNG MÁY", ["computers", "cleaning"]],
             ["QUẢN LÝ", ["schools", "settings", "finance", "reports", "accounts"]]].map(([group, ids]) => <React.Fragment key={group}>
             <div className="nav-label">{group}</div>
@@ -193,6 +194,7 @@ function App() {
           {page === "roster" && <StudentRoster profile={profile} refresh={refresh} ping={ping} />}
           {page === "students" && isTeacher && <Students profile={profile} refresh={refresh} reload={reload} ping={ping} navigate={setPage} />}
           {page === "computers" && <Computers profile={profile} refresh={refresh} reload={reload} ping={ping} />}
+          {page === "rollcall" && isTeacher && <RollCallView profile={profile} refresh={refresh} reload={reload} ping={ping} focusDate={calendarDate} setFocusDate={setCalendarDate} />}
           {page === "attendance" && isTeacher && <Attendance profile={profile} refresh={refresh} reload={reload} ping={ping} focusDate={calendarDate} setFocusDate={setCalendarDate} onImported={async(date,name)=>{setCalendarDate(date);const {data,error}=await supabase.rpc("create_my_school",{school_name:name});if(!error)setSchoolId(data);reload();}} />}
           {page === "records" && isTeacher && <Records profile={profile} refresh={refresh} reload={reload} ping={ping} />}
           {page === "cleaning" && isTeacher && <Cleaning profile={profile} refresh={refresh} reload={reload} ping={ping} />}
@@ -709,6 +711,15 @@ function Computers({ profile, refresh, reload, ping }) {
   </>;
 }
 
+function RollCallView({profile,refresh,reload,ping,focusDate,setFocusDate}){
+  const {rows,error}=useRows("class_sessions",profile,refresh);
+  return <>
+    <TeachingCalendar rows={rows} focusDate={focusDate} onDateChange={setFocusDate} school={profile.school_name} teacher={profile.full_name}/>
+    <RollCall profile={profile} sessions={rows} refresh={refresh} onSaved={reload} ping={ping}/>
+    {error&&<p role="alert" className="notice-box">{error}</p>}
+  </>;
+}
+
 function Attendance({ profile, refresh, reload, ping, focusDate, setFocusDate, onImported }) {
   const { rows, error: scheduleError } = useRows("class_sessions", profile, refresh);
   const classes = useRows("classes", profile, refresh);
@@ -753,7 +764,6 @@ function Attendance({ profile, refresh, reload, ping, focusDate, setFocusDate, o
   return <>
     <TeachingCalendar rows={rows} focusDate={focusDate} onDateChange={setFocusDate} school={profile.school_name} teacher={profile.full_name} />
     {scheduleError && <p role="alert" className="notice-box">Không tải được lịch: {scheduleError}</p>}
-    <RollCall profile={profile} sessions={rows} refresh={refresh} ping={ping} />
     <TimetableImport profile={profile} reload={reload} onImported={onImported} />
     <SectionHead title="Lịch học & chấm công" desc="Lập lịch theo lớp, ghi nhận giờ dạy và số tiết học" />
     <div className="two-col">
@@ -856,51 +866,88 @@ function Records({ profile, refresh, reload, ping }) {
   </>;
 }
 
-function Cleaning({ profile, refresh, reload, ping }) {
-  const pcs = useRows("computers", profile, refresh);
-  const students = useRows("students", profile, refresh);
-  const logs = useRows("cleaning_logs", profile, refresh);
-  const [form, setForm] = useState({
-    computer_id: "", student_id: "", cleaning_date: today(), status: "done", note: ""
-  });
-
-  async function save(e) {
-    e.preventDefault();
-    const { error } = await supabase.from("cleaning_logs").insert({
-      ...form, school_id: profile.school_id, created_by: profile.id
-    });
-    if (error) ping(error.message);
-    else { ping("Đã lưu vệ sinh"); reload(); }
+function Cleaning({profile,refresh,reload,ping}){
+  const pcs=useRows('computers',profile,refresh);
+  const students=useRows('students',profile,refresh);
+  const assigned=useRows('computer_assignments',profile,refresh);
+  const logs=useRows('cleaning_logs',profile,refresh);
+  const [className,setClassName]=useState('');
+  const [selectedPC,setSelectedPC]=useState('');
+  const [cleanDate,setCleanDate]=useState(today());
+  const [status,setStatus]=useState('not_done');
+  const [note,setNote]=useState('');
+  const [busy,setBusy]=useState(false);
+  const classNames=[...new Set(students.rows.map(s=>s.class_name).filter(Boolean))].sort();
+  const pupils=students.rows.filter(s=>s.class_name===className&&s.status==='active');
+  const peopleByPc=pcId=>assigned.rows
+    .filter(a=>a.active&&a.computer_id===pcId)
+    .map(a=>pupils.find(s=>s.id===a.student_id)).filter(Boolean);
+  const classPcs=pcs.rows.filter(p=>peopleByPc(p.id).length>0).sort((a,b)=>comparePC(a.computer_code,b.computer_code));
+  const visibleLogs=logs.rows.filter(l=>pupils.some(s=>s.id===l.student_id))
+    .sort((a,b)=>b.cleaning_date.localeCompare(a.cleaning_date)||b.created_at.localeCompare(a.created_at));
+  async function scheduleFor(pcsToAssign){
+    if(!className||!pcsToAssign.length)return;
+    setBusy(true);
+    try{
+      let total=0;
+      for(const p of pcsToAssign){
+        const owners=peopleByPc(p.id);
+        for(const student of owners){
+          const existing=logs.rows.find(l=>l.computer_id===p.id&&l.student_id===student.id&&l.cleaning_date===cleanDate);
+          const record={school_id:profile.school_id,computer_id:p.id,student_id:student.id,cleaning_date:cleanDate,status,note:note.slice(0,1000),created_by:profile.id};
+          const {error}=existing
+            ? await supabase.from('cleaning_logs').update({status,note:note.slice(0,1000)}).eq('id',existing.id).eq('school_id',profile.school_id)
+            : await supabase.from('cleaning_logs').insert(record);
+          if(error)throw error;total++;
+        }
+      }
+      ping('Đã lưu phân công vệ sinh cho '+total+' học sinh');reload();
+    }catch(e){ping(e.message);}finally{setBusy(false);}
   }
-
+  async function changeStatus(l,value){
+    const {error}=await supabase.from('cleaning_logs').update({status:value})
+      .eq('id',l.id).eq('school_id',profile.school_id);
+    if(error)ping(error.message);else reload();
+  }
   return <>
-    <SectionHead title="Quản lý vệ sinh máy" desc="Phân công và theo dõi vệ sinh theo từng số máy" />
+    <SectionHead title="Vệ sinh máy theo lớp" desc="Máy nào có học sinh của lớp đang ngồi thì chính học sinh đó được phân công vệ sinh" />
+    <div className="toolbar roll-toolbar">
+      <label>Lớp học<select value={className} onChange={e=>{setClassName(e.target.value);setSelectedPC('');}}><option value="">Chọn lớp</option>{classNames.map(c=><option key={c} value={c}>{c}</option>)}</select></label>
+      <span className="muted">{className?`${classPcs.length} máy có học sinh · ${pupils.length} học sinh`:'Chọn lớp để phân công vệ sinh'}</span>
+    </div>
     <div className="two-col">
       <div className="panel">
-        <h3>Ghi nhận vệ sinh</h3>
-        <form className="form-stack" onSubmit={save}>
-          <label>Số máy<select required value={form.computer_id} onChange={e => setForm({ ...form, computer_id: e.target.value })}><option value="">Chọn máy</option>{pcs.rows.map(p => <option key={p.id} value={p.id}>{p.computer_code}</option>)}</select></label>
-          <label>Học sinh phụ trách<select required value={form.student_id} onChange={e => setForm({ ...form, student_id: e.target.value })}><option value="">Chọn học sinh</option>{students.rows.map(s => <option key={s.id} value={s.id}>{s.full_name}</option>)}</select></label>
-          <label>Ngày<input type="date" value={form.cleaning_date} onChange={e => setForm({ ...form, cleaning_date: e.target.value })} /></label>
-          <label>Trạng thái<select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}><option value="done">Đã hoàn thành</option><option value="not_done">Chưa hoàn thành</option></select></label>
-          <label>Ghi chú<input value={form.note} onChange={e => setForm({ ...form, note: e.target.value })} /></label>
-          <button className="btn primary full">Lưu phân công</button>
+        <h3>Phân công vệ sinh</h3>
+        <form className="form-stack" onSubmit={e=>{e.preventDefault();scheduleFor(classPcs.filter(p=>p.id===selectedPC));}}>
+          <label>Máy cần vệ sinh<select required value={selectedPC} disabled={!className||busy} onChange={e=>setSelectedPC(e.target.value)}><option value="">Chọn máy đã có học sinh ngồi</option>{classPcs.map(p=><option key={p.id} value={p.id}>{p.computer_code} · {peopleByPc(p.id).map(s=>s.full_name).join(', ')}</option>)}</select></label>
+          {!!selectedPC&&<p className="muted">Người phụ trách: <b>{peopleByPc(selectedPC).map(s=>s.full_name).join(', ')||'Chưa có học sinh'}</b>. Không thể giao máy này cho học sinh khác.</p>}
+          <label>Ngày vệ sinh<input type="date" required value={cleanDate} onChange={e=>setCleanDate(e.target.value)}/></label>
+          <label>Trạng thái<select value={status} onChange={e=>setStatus(e.target.value)}><option value="not_done">Chưa hoàn thành / đã lên lịch</option><option value="done">Đã hoàn thành</option></select></label>
+          <label>Ghi chú<input maxLength={1000} value={note} onChange={e=>setNote(e.target.value)}/></label>
+          <button className="btn primary full" disabled={busy||!selectedPC}>Lưu lịch cho học sinh ngồi máy này</button>
+          <button className="btn outline full" type="button" disabled={busy||!classPcs.length} onClick={()=>{if(window.confirm('Giao vệ sinh ngày '+dateText(cleanDate)+' cho mọi học sinh đã ngồi máy của lớp '+className+'?'))scheduleFor(classPcs);}}>Giao cho tất cả máy có học sinh lớp này</button>
         </form>
       </div>
       <div className="panel">
-        <h3>Lịch sử vệ sinh</h3>
-        {logs.rows.slice(0, 20).map(l => (
-          <div className="task-row" key={l.id}>
-            <span className={`task-icon ${l.status === "done" ? "green" : "orange"}`}><ClipboardCheck /></span>
-            <div>
-              <b>{pcs.rows.find(p => p.id === l.computer_id)?.computer_code || "Máy"} · {students.rows.find(s => s.id === l.student_id)?.full_name || "Học sinh"}</b>
-              <small>{dateText(l.cleaning_date)} · {l.status === "done" ? "Đã hoàn thành" : "Chưa hoàn thành"}</small>
-            </div>
-          </div>
-        ))}
-        {!logs.rows.length && <Empty text="Chưa có dữ liệu vệ sinh." />}
+        <h3>Lịch vệ sinh và hoàn thành</h3>
+        {!className?<p className="muted">Chọn lớp để xem đúng lịch vệ sinh của học sinh lớp đó.</p>:<div className="cleaning-list">
+          {visibleLogs.map(l=><div className="task-row" key={l.id}>
+            <span className={`task-icon ${l.status==='done'?'green':'orange'}`}><ClipboardCheck/></span>
+            <div><b>{pcs.rows.find(p=>p.id===l.computer_id)?.computer_code||'Máy'} · {students.rows.find(s=>s.id===l.student_id)?.full_name||'Học sinh'}</b>
+              <small>{dateText(l.cleaning_date)} · {l.status==='done'?'Đã hoàn thành':'Chưa hoàn thành'}</small></div>
+            <button className="mini-btn" onClick={()=>changeStatus(l,l.status==='done'?'not_done':'done')}>{l.status==='done'?'Đánh dấu chưa làm':'Xác nhận đã dọn'}</button>
+          </div>)}
+          {!visibleLogs.length&&<p className="muted">Chưa có lịch vệ sinh cho lớp này.</p>}
+        </div>}
       </div>
     </div>
+    {!!className&&<div className="panel">
+      <h3>Phân bổ máy của lớp {className}</h3>
+      <div className="portal-pcs">{classPcs.map(p=><article key={p.id} className="portal-pc">
+        <b>{p.computer_code}</b><p>{peopleByPc(p.id).map(s=>s.full_name).join(', ')}</p>
+        <small>{visibleLogs.filter(l=>l.computer_id===p.id).slice(0,2).map(l=>dateText(l.cleaning_date)+' · '+(l.status==='done'?'Đã làm':'Chưa làm')).join(' | ')||'Chưa có lịch'}</small>
+      </article>)}</div>
+    </div>}
   </>;
 }
 
