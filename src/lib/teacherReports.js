@@ -13,7 +13,7 @@ export const teacherRows=(sessions,from,to,rate,school)=>{
  let d=new Date(from+'T12:00:00');
  for(let i=0;i<370&&d.toISOString().slice(0,10)<=to;i++,d.setDate(d.getDate()+1)){
   const date=d.toISOString().slice(0,10),list=map.get(date)||[];
-  const multiSchool=new Set(list.map(s=>s.school_name).filter(Boolean)).size>1;
+  const multiSchool=new Set(list.map(s=>s.school_name).filter(Boolean)).size>1||/tổng hợp các trường/i.test(school||'');
   const uniq=items=>[...new Set(items.map(s=>multiSchool&&s.school_name?`${s.class_name} (${s.school_name})`:s.class_name))].join(', ');
   const realHours=list.reduce((n,s)=>n+hours(s),0);
   const rateFor=typeof rate==='function'?rate:(()=>Number(rate||0));
