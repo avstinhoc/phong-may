@@ -19,7 +19,7 @@ export const helpTopics = [
       "Chọn ngày bất kỳ để xem lịch 7 ngày; mỗi buổi hiện giờ bắt đầu, kết thúc, lớp và số tiết thực tế.",
       "Ở phần Tạo buổi học / chấm công, chọn lớp, ngày, giờ bắt đầu/kết thúc, giáo viên phụ trách, số tiết rồi lưu; danh sách buổi dạy có thao tác sửa hoặc xóa.",
       "Để nhập lịch từ file, mở Nhập lịch từ ảnh, file hoặc chat AI; chọn tệp và khoảng Từ ngày – Đến ngày; chọn Gemini, đồng ý xử lý và nhấn Đọc tệp.",
-      "Có thể chat tự nhiên để yêu cầu lọc vài tiết hoặc chọn buổi dạy thay từ lịch giáo viên khác; AI chỉ tạo bản nháp để xem và sửa, không tự lưu.",
+      "Có thể chat tự nhiên để yêu cầu lọc vài tiết hoặc chọn buổi dạy thay từ lịch giáo viên khác; Trợ lý IC3 AI có chế độ Sửa lịch: yêu cầu thêm/sửa buổi học, AI chuẩn bị bản nháp để giáo viên kiểm tra và bấm Xác nhận lưu lịch; không tự thay đổi dữ liệu.",
       "Kiểm tra từng dòng, trường/lớp, ngày và giờ học, chọn Lặp hằng tuần nếu cần rồi nhấn Xác nhận lưu lịch."
     ],notes:["Lịch của các trường có thể dùng những khung giờ khác nhau.","Lịch nhập từ AI có thể nhận sai; bắt buộc kiểm tra trước khi lưu.","Gemini cần GEMINI_API_KEY trên Vercel và có giới hạn số lượt sử dụng."],
     keywords:["thời khóa biểu","tkb","tạo lịch","sửa lịch","xóa lịch","giờ học","dạy thay","gemini","ảnh","pdf","excel","lịch dạy"]
