@@ -5,6 +5,7 @@ import { SchoolManager, Accounts, TimetableImport } from "./Management";
 import { StudentRoster } from "./StudentRoster";
 import { StudentPortal } from "./StudentPortal";
 import { TeacherPayroll } from "./TeacherPayroll";
+import { ClassSettings } from "./ClassSettings";
 import { ReportsCenter } from "./ReportsCenter";
 import { properName, searchName, comparePC } from "./lib/students";
 import { TeachingCalendar } from "./TeachingCalendar";
@@ -203,7 +204,7 @@ function App() {
           {page === "finance" && isTeacher && <TeacherPayroll profile={profile} refresh={refresh} ping={ping} />}
           {page === "evaluation" && <Evaluation profile={profile} refresh={refresh} reload={reload} ping={ping} />}
           {page === "reports" && isTeacher && <ReportsCenter profile={profile} refresh={refresh} ping={ping} />}
-          {page === "settings" && isTeacher && <SettingsPage profile={profile} ping={ping} />}
+          {page === "settings" && isTeacher && <ClassSettings profile={profile} ping={ping} />}
           </>}
         </div>
         <footer>IC3 GS6 Computer Lab <span>•</span> Dữ liệu được lưu trên Supabase</footer>
@@ -1053,46 +1054,6 @@ function Evaluation({ profile, refresh, reload, ping }) {
         </div>
         <button className="btn primary" onClick={save}>Lưu nhận xét vào hồ sơ</button>
       </>}
-    </div>
-  </>;
-}
-
-function SettingsPage({ profile, ping }) {
-  const [classCode,setClassCode] = useState("IC3-" + Math.random().toString(36).slice(2, 10).toUpperCase());
-  const [className,setClassName] = useState("");
-  const [fee,setFee] = useState(0);
-  const [classes,setClasses] = useState([]);
-  const [busy,setBusy] = useState(false);
-  async function load(){
-    const {data,error}=await supabase.from("classes").select("id,class_name,registration_code,student_fee_per_period")
-      .eq("school_id",profile.school_id).order("class_name");
-    if(error)ping(error.message);else setClasses(data||[]);
-  }
-  useEffect(()=>{load();},[profile.school_id]);
-  async function createClass(e){
-    e.preventDefault();setBusy(true);
-    const {error}=await supabase.from("classes").insert({school_id:profile.school_id,
-      class_name:className.trim(),registration_code:classCode.trim().toUpperCase(),
-      student_fee_per_period:Number(fee),created_by:profile.id});
-    setBusy(false);
-    if(error)ping(error.message);else{ping("Đã tạo lớp và mã đăng ký");setClassName("");setClassCode("IC3-"+Math.random().toString(36).slice(2,10).toUpperCase());load();}
-  }
-  function copy(value){navigator.clipboard?.writeText(value).then(()=>ping("Đã sao chép")).catch(()=>ping("Không thể sao chép"));}
-  return <>
-    <SectionHead title="Lớp & mã đăng ký" desc="Mã trong danh sách bên dưới là mã hợp lệ để học sinh đăng ký và xem thông tin lớp" />
-    <div className="panel table-panel"><div className="table-wrap"><table>
-      <thead><tr><th>Lớp</th><th>Mã đăng ký chính thức</th><th>Học phí / tiết</th><th>Trang học sinh</th><th>Đăng ký</th></tr></thead>
-      <tbody>{classes.map(c=><tr key={c.id}><td><b>{c.class_name}</b></td><td><code>{c.registration_code}</code><button className="mini-btn" onClick={()=>copy(c.registration_code)}>Copy</button></td><td>{money(c.student_fee_per_period)}</td><td><a className="mini-btn" href={`/student?code=${encodeURIComponent(c.registration_code)}`} target="_blank" rel="noreferrer">Mở trang lớp</a><button className="mini-btn" onClick={()=>copy(window.location.origin+`/student?code=${encodeURIComponent(c.registration_code)}`)}>Copy link</button></td><td><a className="mini-btn" href={`/register?code=${encodeURIComponent(c.registration_code)}`} target="_blank" rel="noreferrer">Mở đăng ký</a></td></tr>)}</tbody></table></div>
-    </div>
-    <div className="panel" style={{marginTop:18}}>
-      <h3>Tạo lớp và mã đăng ký mới</h3>
-      <form className="form-stack" onSubmit={createClass}>
-        <label>Tên lớp<input required maxLength={200} value={className} onChange={e=>setClassName(e.target.value)} placeholder="Ví dụ: 6.1" /></label>
-        <label>Mã đăng ký<input required maxLength={120} value={classCode} onChange={e=>setClassCode(e.target.value.toUpperCase())}/></label>
-        <label>Học phí mỗi tiết / học sinh<input type="number" min="0" value={fee} onChange={e=>setFee(e.target.value)}/></label>
-        <button className="btn primary" disabled={busy}>{busy?"Đang tạo...":"Tạo lớp"}</button>
-      </form>
-      <p className="muted">Chỉ gửi mã đã tạo thành công. Mã chưa lưu sẽ khiến học sinh đăng ký gặp lỗi khóa ngoại.</p>
     </div>
   </>;
 }
