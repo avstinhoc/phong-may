@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { supabase, configurationError, authMessage } from "./lib/supabase";
 import { SchoolManager, Accounts, TimetableImport } from "./Management";
 import { StudentRoster } from "./StudentRoster";
+import { StudentPortal } from "./StudentPortal";
 import { properName, searchName, comparePC } from "./lib/students";
 import { TeachingCalendar } from "./TeachingCalendar";
 import { RollCall } from "./RollCall";
@@ -119,6 +120,9 @@ function App() {
   };
 
   if (!supabase) return <SetupScreen />;
+  if (window.location.pathname === "/student") {
+    return <StudentPortal />;
+  }
   if (window.location.pathname === "/register") {
     return <><PublicStudentRegister ping={ping} />{notice && <div role="status" className="toast">{notice}</div>}</>;
   }
@@ -181,13 +185,13 @@ function App() {
         {notice && <div className="toast"><CheckCircle2 size={17} />{notice}</div>}
 
         <div className="content" key={schoolId}>
-          {(page === "schools" || !schools.length) && <SchoolManager schools={schools} onCreated={id => {setSchoolId(id); reload();}} ping={ping} />}
+          {(page === "schools" || !schools.length) && <SchoolManager schools={schools} role={profile.role} onCreated={id => {setSchoolId(id); reload();}} onChanged={deletedId => {if(deletedId === schoolId) setSchoolId(""); reload();}} ping={ping} />}
           {page === "accounts" && profile.role === "admin" && <Accounts profile={profile} />}
           {!schoolId && <div className="notice-box">Thêm trường đầu tiên để bắt đầu quản lý học sinh và lịch dạy.</div>}
           {schoolId && <>
           {page === "dashboard" && <Dashboard profile={profile} refresh={refresh} setPage={setPage} />}
           {page === "roster" && <StudentRoster profile={profile} refresh={refresh} ping={ping} />}
-          {page === "students" && isTeacher && <Students profile={profile} refresh={refresh} reload={reload} ping={ping} />}
+          {page === "students" && isTeacher && <Students profile={profile} refresh={refresh} reload={reload} ping={ping} navigate={setPage} />}
           {page === "computers" && <Computers profile={profile} refresh={refresh} reload={reload} ping={ping} />}
           {page === "attendance" && isTeacher && <Attendance profile={profile} refresh={refresh} reload={reload} ping={ping} focusDate={calendarDate} setFocusDate={setCalendarDate} onImported={async(date,name)=>{setCalendarDate(date);const {data,error}=await supabase.rpc("create_my_school",{school_name:name});if(!error)setSchoolId(data);reload();}} />}
           {page === "records" && isTeacher && <Records profile={profile} refresh={refresh} reload={reload} ping={ping} />}
@@ -289,6 +293,8 @@ function PublicStudentRegister({ ping }) {
   async function submit(e) {
     e.preventDefault();
     setBusy(true);
+    const {error:classError}=await supabase.rpc('get_student_class_portal',{p_code:code.trim().toUpperCase(),p_secret:null});
+    if(classError){setBusy(false);ping('Mã lớp chưa tồn tại. Hãy nhập mã chính xác trong mục Lớp & mã đăng ký.');return;}
     const { error } = await supabase.from("student_registrations").insert({
       registration_code: code.trim().toUpperCase(),
       full_name: properName(name),
@@ -444,7 +450,7 @@ function exportRows(rows, name) {
   XLSX.writeFile(wb, name + ".xlsx");
 }
 
-function Students({ profile, refresh, reload, ping }) {
+function Students({ profile, refresh, reload, ping, navigate }) {
   const { rows, busy } = useRows("students", profile, refresh);
   const registrations = useRows("student_registrations", profile, refresh);
   const schoolClasses = useRows("classes", profile, refresh);
@@ -506,7 +512,7 @@ function Students({ profile, refresh, reload, ping }) {
       title="Quản lý học sinh"
       desc="Hồ sơ học sinh theo trường, lớp và trạng thái duyệt"
       action={<>
-        <a className="btn outline" href="/register" target="_blank" rel="noreferrer">Mở trang đăng ký</a>
+        <button className="btn outline" onClick={()=>navigate("settings")}>Mở trang đăng ký</button>
         <button className="btn primary" onClick={() => setShow(true)}><Plus size={17} />Thêm học sinh</button>
       </>}
     />
@@ -733,6 +739,12 @@ function Attendance({ profile, refresh, reload, ping, focusDate, setFocusDate, o
     else { ping("Đã lưu buổi học"); setFocusDate(form.session_date); setEditingId(null); reload(); }
   }
 
+  async function removeSession(r) {
+    if (!window.confirm(`Xóa buổi học lớp ${r.class_name} ngày ${dateText(r.session_date)}? Điểm danh của buổi này cũng sẽ bị xóa.`)) return;
+    const {error}=await supabase.from("class_sessions").delete().eq("id",r.id).eq("school_id",profile.school_id);
+    if(error)ping(error.message);else{if(editingId===r.id)setEditingId(null);ping("Đã xóa buổi học");reload();}
+  }
+
   const minutes = Math.max(0,
     Number(form.end_time.slice(0, 2)) * 60 + Number(form.end_time.slice(3, 5)) -
     Number(form.start_time.slice(0, 2)) * 60 - Number(form.start_time.slice(3, 5))
@@ -783,7 +795,7 @@ function Attendance({ profile, refresh, reload, ping, focusDate, setFocusDate, o
       <table>
         <thead><tr><th>NGÀY</th><th>LỚP</th><th>GIÁO VIÊN</th><th>GIỜ</th><th>SỐ TIẾT</th><th></th></tr></thead>
         <tbody>{rows.map(r => (
-          <tr key={r.id}><td>{dateText(r.session_date)}</td><td>{r.class_name}</td><td>{r.teacher_name}</td><td>{r.start_time} – {r.end_time}</td><td>{r.period_count}</td><td><button className="btn outline" onClick={()=>{setEditingId(r.id);setForm({class_name:r.class_name,session_date:r.session_date,start_time:r.start_time.slice(0,5),end_time:r.end_time.slice(0,5),teacher_name:r.teacher_name||"",hourly_rate:r.hourly_rate,student_fee_per_period:r.student_fee_per_period,period_count:r.period_count});}}>Sửa</button></td></tr>
+          <tr key={r.id}><td>{dateText(r.session_date)}</td><td>{r.class_name}</td><td>{r.teacher_name}</td><td>{r.start_time} – {r.end_time}</td><td>{r.period_count}</td><td><button className="btn outline" onClick={()=>{setEditingId(r.id);setForm({class_name:r.class_name,session_date:r.session_date,start_time:r.start_time.slice(0,5),end_time:r.end_time.slice(0,5),teacher_name:r.teacher_name||"",hourly_rate:r.hourly_rate,student_fee_per_period:r.student_fee_per_period,period_count:r.period_count});}}>Sửa</button><button className="btn outline" onClick={()=>removeSession(r)}>Xóa</button></td></tr>
         ))}</tbody>
       </table>
       {!rows.length && <Empty text="Chưa có lịch học." />}
@@ -1205,48 +1217,41 @@ function Reports({ profile, refresh, ping }) {
 }
 
 function SettingsPage({ profile, ping }) {
-  const [classCode, setClassCode] = useState("IC3-" + Math.random().toString(36).slice(2, 7).toUpperCase());
-  const [className, setClassName] = useState("IC3 GS6 - K01");
-  const [fee, setFee] = useState(0);
-
-  async function createClass(e) {
-    e.preventDefault();
-    const { error } = await supabase.from("classes").insert({
-      school_id: profile.school_id,
-      class_name: className,
-      registration_code: classCode,
-      student_fee_per_period: Number(fee),
-      created_by: profile.id
-    });
-    if (error) ping(error.message);
-    else ping("Đã tạo lớp và mã đăng ký");
+  const [classCode,setClassCode] = useState("IC3-" + Math.random().toString(36).slice(2, 10).toUpperCase());
+  const [className,setClassName] = useState("");
+  const [fee,setFee] = useState(0);
+  const [classes,setClasses] = useState([]);
+  const [busy,setBusy] = useState(false);
+  async function load(){
+    const {data,error}=await supabase.from("classes").select("id,class_name,registration_code,student_fee_per_period")
+      .eq("school_id",profile.school_id).order("class_name");
+    if(error)ping(error.message);else setClasses(data||[]);
   }
-
+  useEffect(()=>{load();},[profile.school_id]);
+  async function createClass(e){
+    e.preventDefault();setBusy(true);
+    const {error}=await supabase.from("classes").insert({school_id:profile.school_id,
+      class_name:className.trim(),registration_code:classCode.trim().toUpperCase(),
+      student_fee_per_period:Number(fee),created_by:profile.id});
+    setBusy(false);
+    if(error)ping(error.message);else{ping("Đã tạo lớp và mã đăng ký");setClassName("");setClassCode("IC3-"+Math.random().toString(36).slice(2,10).toUpperCase());load();}
+  }
+  function copy(value){navigator.clipboard?.writeText(value).then(()=>ping("Đã sao chép")).catch(()=>ping("Không thể sao chép"));}
   return <>
-    <SectionHead title="Thiết lập hệ thống" desc="Thông tin trường, lớp học, mã đăng ký và đơn giá" />
-    <div className="two-col">
-      <div className="panel">
-        <h3>Tạo lớp và mã đăng ký học sinh</h3>
-        <form className="form-stack" onSubmit={createClass}>
-          <label>Tên lớp<input value={className} onChange={e => setClassName(e.target.value)} /></label>
-          <label>Mã đăng ký<input value={classCode} onChange={e => setClassCode(e.target.value.toUpperCase())} /></label>
-          <label>Học phí mỗi tiết / học sinh<input type="number" min="0" value={fee} onChange={e => setFee(e.target.value)} /></label>
-          <button className="btn primary full">Tạo lớp</button>
-        </form>
-        <div className="notice-box">Mã lớp dùng để học sinh đăng ký. Hồ sơ sẽ chờ giáo viên duyệt.</div>
-      </div>
-      <div className="panel">
-        <h3>Đăng ký học sinh</h3>
-        <p className="muted">Gửi đường dẫn đăng ký công khai cho học sinh và cung cấp mã lớp.</p>
-        <div className="code-box">{classCode}</div>
-        <button className="btn outline" onClick={() => {
-          navigator.clipboard?.writeText(classCode)
-            .then(() => ping("Đã sao chép mã lớp"))
-            .catch(() => ping("Không thể sao chép mã trên trình duyệt này"));
-        }}>Sao chép mã lớp</button>
-        <p><a href={`/register?code=${encodeURIComponent(classCode)}`} target="_blank" rel="noreferrer">Mở trang đăng ký học sinh</a></p>
-        <button className="btn outline" onClick={()=>navigator.clipboard?.writeText(`${window.location.origin}/register?code=${encodeURIComponent(classCode)}`).then(()=>ping("Đã sao chép link đăng ký"))}>Sao chép link đăng ký</button>
-      </div>
+    <SectionHead title="Lớp & mã đăng ký" desc="Mã trong danh sách bên dưới là mã hợp lệ để học sinh đăng ký và xem thông tin lớp" />
+    <div className="panel table-panel"><div className="table-wrap"><table>
+      <thead><tr><th>Lớp</th><th>Mã đăng ký chính thức</th><th>Học phí / tiết</th><th>Trang học sinh</th><th>Đăng ký</th></tr></thead>
+      <tbody>{classes.map(c=><tr key={c.id}><td><b>{c.class_name}</b></td><td><code>{c.registration_code}</code><button className="mini-btn" onClick={()=>copy(c.registration_code)}>Copy</button></td><td>{money(c.student_fee_per_period)}</td><td><a className="mini-btn" href={`/student?code=${encodeURIComponent(c.registration_code)}`} target="_blank" rel="noreferrer">Mở trang lớp</a><button className="mini-btn" onClick={()=>copy(window.location.origin+`/student?code=${encodeURIComponent(c.registration_code)}`)}>Copy link</button></td><td><a className="mini-btn" href={`/register?code=${encodeURIComponent(c.registration_code)}`} target="_blank" rel="noreferrer">Mở đăng ký</a></td></tr>)}</tbody></table></div>
+    </div>
+    <div className="panel" style={{marginTop:18}}>
+      <h3>Tạo lớp và mã đăng ký mới</h3>
+      <form className="form-stack" onSubmit={createClass}>
+        <label>Tên lớp<input required maxLength={200} value={className} onChange={e=>setClassName(e.target.value)} placeholder="Ví dụ: 6.1" /></label>
+        <label>Mã đăng ký<input required maxLength={120} value={classCode} onChange={e=>setClassCode(e.target.value.toUpperCase())}/></label>
+        <label>Học phí mỗi tiết / học sinh<input type="number" min="0" value={fee} onChange={e=>setFee(e.target.value)}/></label>
+        <button className="btn primary" disabled={busy}>{busy?"Đang tạo...":"Tạo lớp"}</button>
+      </form>
+      <p className="muted">Chỉ gửi mã đã tạo thành công. Mã chưa lưu sẽ khiến học sinh đăng ký gặp lỗi khóa ngoại.</p>
     </div>
   </>;
 }
