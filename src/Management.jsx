@@ -24,6 +24,34 @@ export function SchoolManager({ schools, onCreated, onChanged, ping, role }) {
     setBusy(false);
     if(error)ping(error.message);else{setEditing(null);ping("Đã đổi tên trường");onChanged?.();}
   }
+  async function updateLogo(school,file) {
+    if(!file)return;
+    if(!['image/png','image/jpeg','image/webp'].includes(file.type) || file.size>3*1024*1024) {
+      ping('Chọn logo PNG, JPG hoặc WebP dưới 3 MB');return;
+    }
+    setBusy(true);
+    try{
+      const url=URL.createObjectURL(file);
+      const img=new Image();
+      try{await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=reject;img.src=url;});}
+      finally{URL.revokeObjectURL(url);}
+      const size=Math.min(1,180/img.naturalWidth,130/img.naturalHeight);
+      const canvas=document.createElement('canvas');
+      canvas.width=Math.max(1,Math.round(img.naturalWidth*size));
+      canvas.height=Math.max(1,Math.round(img.naturalHeight*size));
+      canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+      const data=canvas.toDataURL('image/png');
+      if(data.length>220000)throw new Error('Logo vẫn quá lớn. Hãy dùng ảnh ít chi tiết hơn.');
+      const {error}=await supabase.rpc('update_my_school_logo',{p_school_id:school.id,p_logo_data:data});
+      if(error)throw error;
+      ping('Đã cập nhật logo trường');onChanged?.();
+    }catch(e){ping(e.message);}finally{setBusy(false);}
+  }
+  async function clearLogo(school){
+    if(!window.confirm('Bỏ logo của trường '+school.name+'?'))return;
+    const {error}=await supabase.rpc('update_my_school_logo',{p_school_id:school.id,p_logo_data:null});
+    if(error)ping(error.message);else{ping('Đã bỏ logo');onChanged?.();}
+  }
   async function remove(e) {
     e.preventDefault();
     if(!deleteTarget || confirmation!==deleteTarget.name)return;
@@ -35,8 +63,13 @@ export function SchoolManager({ schools, onCreated, onChanged, ping, role }) {
   return <section className="panel school-manager">
     <h2>Trường công tác</h2>
     <p className="muted">Quản lý nhiều trường độc lập. Xóa trường sẽ xóa cả lớp, lịch, học sinh, điểm danh và dữ liệu liên quan của trường đó.</p>
-    <div className="table-wrap"><table><thead><tr><th>Tên trường</th><th>Thao tác</th></tr></thead>
-      <tbody>{schools.map(s=><tr key={s.id}><td><b>{s.name}</b></td><td>
+    <div className="table-wrap"><table><thead><tr><th>Tên trường</th><th>Logo báo cáo & Excel</th><th>Thao tác</th></tr></thead>
+      <tbody>{schools.map(s=><tr key={s.id}><td><b>{s.name}</b></td>
+        <td><div className="school-logo-admin">
+          {s.logo_data?<img src={s.logo_data} alt={'Logo '+s.name}/>:<span>Chưa có logo</span>}
+          {role==='admin'&&<><label className="mini-btn">Thay logo<input type="file" style={{display:'none'}} accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={e=>{updateLogo(s,e.target.files?.[0]);e.target.value='';}}/></label>
+          {s.logo_data&&<button className="mini-btn" disabled={busy} onClick={()=>clearLogo(s)}>Bỏ logo</button>}</>}
+        </div></td><td>
         {role==="admin"&&<div className="actions"><button className="btn outline" onClick={()=>setEditing({...s})}>Sửa</button><button className="btn outline" onClick={()=>{setDeleteTarget(s);setConfirmation("");}}>Xóa</button></div>}
       </td></tr>)}</tbody></table></div>
     <form className="form-row" onSubmit={add}>
