@@ -1,6 +1,6 @@
 // Branded XLSX export. ExcelJS is loaded only when a teacher exports a workbook.
 let excelLibPromise;
-async function excelLib(){
+export async function getExcelJS(){
  if(window.ExcelJS)return window.ExcelJS;
  if(!excelLibPromise)excelLibPromise=new Promise((resolve,reject)=>{
   const script=document.createElement('script');
@@ -58,7 +58,7 @@ function saveFile(buffer,name){
  document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),12000);
 }
 export async function downloadPrettyRoster({school,className,teacher,students,sessions,marks,results,assignments,computers,scoreKeys,logo}){
- const Excel=await excelLib(),wb=new Excel.Workbook();
+ const Excel=await getExcelJS(),wb=new Excel.Workbook();
  wb.creator='IC3 GS6 Computer Lab';wb.created=new Date();
  const summary=wb.addWorksheet('Tổng kết',{views:[{state:'frozen',ySplit:7}]});
  const att=wb.addWorksheet('Điểm danh',{views:[{state:'frozen',xSplit:5,ySplit:9}]});
