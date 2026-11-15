@@ -91,7 +91,9 @@ export function Accounts({ profile }) {
     [message, setMessage] = useState(""),
     [busy, setBusy] = useState(false),
     [query, setQuery] = useState(""),
-    [offset, setOffset] = useState(0);
+    [offset, setOffset] = useState(0),
+    [deleteTarget, setDeleteTarget] = useState(null),
+    [confirmationEmail, setConfirmationEmail] = useState("");
   async function load() {
     setBusy(true);
     try {
@@ -130,14 +132,50 @@ export function Accounts({ profile }) {
       setBusy(false);
     }
   }
+  async function removeAccount(e) {
+    e.preventDefault();
+    if (!deleteTarget || deleteTarget.id === profile.id) return;
+    if (deleteTarget.role === "admin") {
+      setMessage("Không thể xóa tài khoản Admin. Hãy bàn giao quyền trước.");
+      return;
+    }
+    if (confirmationEmail.trim().toLowerCase() !== deleteTarget.email.trim().toLowerCase()) return;
+    setBusy(true);
+    setMessage("");
+    try {
+      const {data, error} = await supabase.functions.invoke("admin-delete-account", {
+        body: {
+          target_id: deleteTarget.id,
+          confirmation_email: confirmationEmail.trim()
+        }
+      });
+      if (error) {
+        let msg = error.message;
+        try {
+          const body = await error.context?.json?.();
+          msg = body?.error || msg;
+        } catch (_) {}
+        throw new Error(msg || "Không thể xóa tài khoản.");
+      }
+      if (!data?.success) throw new Error(data?.error || "Máy chủ chưa xác nhận xóa tài khoản.");
+      setDeleteTarget(null);
+      setConfirmationEmail("");
+      setMessage("Đã xóa tài khoản đăng nhập. Lịch dạy và dữ liệu học sinh liên quan vẫn được giữ.");
+      await load();
+    } catch (e) {
+      setMessage("Không thể xóa tài khoản: " + (e?.message || String(e)));
+    } finally {
+      setBusy(false);
+    }
+  }
   const change = (id, key, value) =>
     setRows((rs) => rs.map((r) => (r.id === id ? { ...r, [key]: value } : r)));
   return (
     <section className="panel">
       <h2>Quản lý tài khoản</h2>
       <p className="muted">
-        Duyệt giáo viên, chỉnh tên, cấp quyền và khóa quyền sử dụng. Khóa sẽ
-        chặn truy cập dữ liệu kể cả với phiên đang đăng nhập.
+        Duyệt giáo viên, chỉnh tên, cấp quyền, khóa hoặc xóa tài khoản.
+        Xóa tài khoản sẽ loại bỏ đăng nhập Supabase; lịch sử học sinh và buổi dạy được giữ nguyên.
       </p>
       <div role="status">{message}</div>
       <input
@@ -207,13 +245,24 @@ export function Accounts({ profile }) {
                     />
                   </td>
                   <td>
-                    <button
-                      className="btn outline"
-                      disabled={busy || r.id === profile.id}
-                      onClick={() => save(r)}
-                    >
-                      Lưu
-                    </button>
+                    <div className="account-actions">
+                      <button
+                        className="btn outline"
+                        disabled={busy || r.id === profile.id}
+                        onClick={() => save(r)}
+                      >
+                        Lưu
+                      </button>
+                      <button
+                        type="button"
+                        className="btn account-delete-btn"
+                        disabled={busy || r.id === profile.id || r.role === "admin"}
+                        title={r.role === "admin" ? "Không xóa trực tiếp tài khoản Admin" : r.id === profile.id ? "Không thể tự xóa tài khoản" : "Xóa tài khoản đăng nhập"}
+                        onClick={() => { setDeleteTarget(r); setConfirmationEmail(""); setMessage(""); }}
+                      >
+                        Xóa
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -237,6 +286,35 @@ export function Accounts({ profile }) {
       <button className="btn outline" disabled={busy} onClick={load}>
         Làm mới
       </button>
+      {deleteTarget && (
+        <div className="modal-backdrop" role="presentation">
+          <div className="modal account-delete-modal" role="dialog" aria-modal="true" aria-labelledby="account-delete-title">
+            <div className="modal-head">
+              <h3 id="account-delete-title">Xác minh xóa tài khoản</h3>
+              <button type="button" className="btn outline" disabled={busy} onClick={() => setDeleteTarget(null)}>Đóng</button>
+            </div>
+            <p>Bạn sắp xóa tài khoản <b>{deleteTarget.full_name || "Chưa đặt tên"}</b>.</p>
+            <p className="muted">Email: <strong>{deleteTarget.email}</strong></p>
+            <p className="account-delete-warning">Tài khoản này sẽ không thể đăng nhập nữa. Đây là thao tác vĩnh viễn, nhưng các dữ liệu lớp học, học sinh và lịch dạy cũ vẫn được giữ lại. Nếu chỉ muốn tạm dừng sử dụng, hãy bỏ chọn “Cho phép sử dụng” thay vì xóa.</p>
+            <form className="form-stack" onSubmit={removeAccount}>
+              <label>Nhập chính xác email để xác nhận xóa
+                <input
+                  type="email"
+                  autoComplete="off"
+                  required
+                  placeholder={deleteTarget.email}
+                  value={confirmationEmail}
+                  disabled={busy}
+                  onChange={e => setConfirmationEmail(e.target.value)}
+                />
+              </label>
+              <button type="submit" className="btn account-confirm-delete" disabled={busy || confirmationEmail.trim().toLowerCase() !== deleteTarget.email.trim().toLowerCase()}>
+                {busy ? "Đang xóa…" : "Xóa tài khoản vĩnh viễn"}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
