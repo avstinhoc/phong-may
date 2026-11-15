@@ -4,6 +4,8 @@ import { supabase, configurationError, authMessage } from "./lib/supabase";
 import { SchoolManager, Accounts, TimetableImport } from "./Management";
 import { StudentRoster } from "./StudentRoster";
 import { StudentPortal } from "./StudentPortal";
+import { TeacherPayroll } from "./TeacherPayroll";
+import { ReportsCenter } from "./ReportsCenter";
 import { properName, searchName, comparePC } from "./lib/students";
 import { TeachingCalendar } from "./TeachingCalendar";
 import { RollCall } from "./RollCall";
@@ -25,9 +27,9 @@ const nav = [
   ["rollcall", "Điểm danh học sinh", UserCheck],
   ["records", "Điểm, lỗi & thưởng", ClipboardList],
   ["cleaning", "Vệ sinh máy", ClipboardCheck],
-  ["finance", "Học phí & tiền công", Wallet],
+  ["finance", "Chấm công & tiền công", Clock3],
   ["evaluation", "Đánh giá học sinh", Sparkles],
-  ["reports", "Báo cáo PDF", FileText],
+  ["reports", "Báo cáo", FileText],
   ["schools", "Trường công tác", School],
   ["settings", "Lớp & mã đăng ký", Settings],
   ["accounts", "Quản lý tài khoản", ShieldCheck]
@@ -150,8 +152,8 @@ function App() {
           <School size={16} /><select aria-label="Trường đang quản lý" value={schoolId} onChange={e => setSchoolId(e.target.value)}><option value="" disabled>Chọn trường</option>{schools.map(s => <option value={s.id} key={s.id}>{s.name}</option>)}</select>
         </div>
         <nav className="nav-scroll" aria-label="Menu chính">
-          {[["GIẢNG DẠY", ["dashboard", "attendance", "rollcall", "students", "roster", "records", "evaluation"]],
-            ["PHÒNG MÁY", ["computers", "cleaning"]],
+          {[["GIẢNG DẠY", ["dashboard", "attendance", "rollcall", "roster", "records", "evaluation"]],
+            ["PHÒNG MÁY", ["computers", "students", "cleaning"]],
             ["QUẢN LÝ", ["schools", "settings", "finance", "reports", "accounts"]]].map(([group, ids]) => <React.Fragment key={group}>
             <div className="nav-label">{group}</div>
             {ids.map(id => nav.find(n => n[0] === id)).filter(([id]) => id !== "accounts" || profile.role === "admin").map(([id,label,Icon]) => <button key={id} className={`nav-item ${page === id ? "active" : ""}`} onClick={()=>{setPage(id);setMobileNav(false);}}><Icon size={18}/>{label}</button>)}
@@ -198,9 +200,9 @@ function App() {
           {page === "attendance" && isTeacher && <Attendance profile={profile} refresh={refresh} reload={reload} ping={ping} focusDate={calendarDate} setFocusDate={setCalendarDate} onImported={async(date,name)=>{setCalendarDate(date);const {data,error}=await supabase.rpc("create_my_school",{school_name:name});if(!error)setSchoolId(data);reload();}} />}
           {page === "records" && isTeacher && <Records profile={profile} refresh={refresh} reload={reload} ping={ping} />}
           {page === "cleaning" && isTeacher && <Cleaning profile={profile} refresh={refresh} reload={reload} ping={ping} />}
-          {page === "finance" && isTeacher && <Finance profile={profile} refresh={refresh} />}
+          {page === "finance" && isTeacher && <TeacherPayroll profile={profile} refresh={refresh} ping={ping} />}
           {page === "evaluation" && <Evaluation profile={profile} refresh={refresh} reload={reload} ping={ping} />}
-          {page === "reports" && isTeacher && <Reports profile={profile} refresh={refresh} ping={ping} />}
+          {page === "reports" && isTeacher && <ReportsCenter profile={profile} refresh={refresh} ping={ping} />}
           {page === "settings" && isTeacher && <SettingsPage profile={profile} ping={ping} />}
           </>}
         </div>
@@ -388,7 +390,7 @@ function Dashboard({ profile, refresh, setPage }) {
         <h2>Không gian quản lý phòng máy</h2>
         <p>Theo dõi hoạt động học tập và vận hành phòng máy trên cùng một hệ thống.</p>
       </div>
-      <div className="welcome-icon"><Monitor size={54} /></div>
+      <img className="welcome-illustration" src="/computer-lab-hero.svg" alt="Minh họa phòng máy tin học hiện đại"/>
     </div>
     <div className="metrics-grid">
       <Metric label="Tổng học sinh" value={students.rows.length} sub={`${pending} hồ sơ chờ duyệt`} Icon={Users} />
@@ -419,7 +421,7 @@ function Dashboard({ profile, refresh, setPage }) {
           <button className="quick-item" onClick={() => setPage("students")}><UserPlus size={19} /><b>Thêm học sinh</b><small>Tạo hồ sơ mới</small></button>
           <button className="quick-item" onClick={() => setPage("computers")}><Monitor size={19} /><b>Quản lý máy</b><small>Thêm PC và phân chỗ</small></button>
           <button className="quick-item" onClick={() => setPage("records")}><Award size={19} /><b>Ghi nhận điểm</b><small>Thưởng hoặc vi phạm</small></button>
-          <button className="quick-item" onClick={() => setPage("reports")}><FileText size={19} /><b>Báo cáo PDF</b><small>In báo cáo</small></button>
+          <button className="quick-item" onClick={() => setPage("reports")}><FileText size={19} /><b>Báo cáo</b><small>In PDF hoặc xuất Excel</small></button>
         </div>
       </div>
     </div>
@@ -728,7 +730,7 @@ function Attendance({ profile, refresh, reload, ping, focusDate, setFocusDate, o
   const [form, setForm] = useState({
     class_name: "", session_date: today(), start_time: "17:00",
     end_time: "19:00", teacher_name: profile.full_name || "",
-    hourly_rate: 0, student_fee_per_period: 0, period_count: 1
+    period_count: 1
   });
 
   async function save(e) {
@@ -740,8 +742,6 @@ function Attendance({ profile, refresh, reload, ping, focusDate, setFocusDate, o
       school_id: profile.school_id,
       teacher_id: profile.id,
       created_by: profile.id,
-      hourly_rate: Number(form.hourly_rate),
-      student_fee_per_period: Number(form.student_fee_per_period),
       period_count: Number(form.period_count)
     };
     const { error } = editingId ? await supabase.from("class_sessions").update(payload).eq("id",editingId) : await supabase.from("class_sessions").insert(payload);
@@ -780,23 +780,18 @@ function Attendance({ profile, refresh, reload, ping, focusDate, setFocusDate, o
             <label>Giờ kết thúc<input type="time" value={form.end_time} onChange={e => setForm({ ...form, end_time: e.target.value })} /></label>
           </div>
           <label>Giáo viên<input value={form.teacher_name} onChange={e => setForm({ ...form, teacher_name: e.target.value })} /></label>
-          <div className="form-row">
-            <label>Tiền công / giờ<input type="number" min="0" value={form.hourly_rate} onChange={e => setForm({ ...form, hourly_rate: e.target.value })} /></label>
-            <label>Tiền / tiết / học sinh<input type="number" min="0" value={form.student_fee_per_period} onChange={e => setForm({ ...form, student_fee_per_period: e.target.value })} /></label>
-          </div>
+
           <label>Số tiết<input type="number" min="1" value={form.period_count} onChange={e => setForm({ ...form, period_count: e.target.value })} /></label>
           <button className="btn primary full" disabled={saving}>{saving ? "Đang lưu..." : "Lưu lịch học"}</button>{editingId && <button type="button" className="btn outline" onClick={()=>setEditingId(null)}>Hủy sửa</button>}
         </form>
       </div>
       <div className="panel">
-        <h3>Quy tắc tính tiền</h3>
+        <h3>Thông tin thời lượng buổi dạy</h3>
         <div className="calc-box">
-          <small>Tiền học một học sinh</small>
-          <b>{money(form.student_fee_per_period * form.period_count)}</b>
-          <small>Tiền công giáo viên ước tính</small>
-          <b>{money(form.hourly_rate * minutes / 60)}</b>
+          <small>Số tiết dự kiến</small><b>{form.period_count} tiết</b>
+          <small>Thời gian thực dạy</small><b>{(minutes / 60).toFixed(2)} giờ</b>
         </div>
-        <p className="muted">Lịch tuần được hiển thị ở bên dưới. Học phí và tiền công được tổng hợp trong mục Tài chính.</p>
+        <p className="muted">Mức tiền công của từng giáo viên được điều chỉnh riêng tại mục Chấm công & tiền công. Không tính hoặc hiển thị học phí học sinh.</p>
       </div>
     </div>
 
@@ -805,7 +800,7 @@ function Attendance({ profile, refresh, reload, ping, focusDate, setFocusDate, o
       <table>
         <thead><tr><th>NGÀY</th><th>LỚP</th><th>GIÁO VIÊN</th><th>GIỜ</th><th>SỐ TIẾT</th><th></th></tr></thead>
         <tbody>{rows.map(r => (
-          <tr key={r.id}><td>{dateText(r.session_date)}</td><td>{r.class_name}</td><td>{r.teacher_name}</td><td>{r.start_time} – {r.end_time}</td><td>{r.period_count}</td><td><button className="btn outline" onClick={()=>{setEditingId(r.id);setForm({class_name:r.class_name,session_date:r.session_date,start_time:r.start_time.slice(0,5),end_time:r.end_time.slice(0,5),teacher_name:r.teacher_name||"",hourly_rate:r.hourly_rate,student_fee_per_period:r.student_fee_per_period,period_count:r.period_count});}}>Sửa</button><button className="btn outline" onClick={()=>removeSession(r)}>Xóa</button></td></tr>
+          <tr key={r.id}><td>{dateText(r.session_date)}</td><td>{r.class_name}</td><td>{r.teacher_name}</td><td>{r.start_time} – {r.end_time}</td><td>{r.period_count}</td><td><button className="btn outline" onClick={()=>{setEditingId(r.id);setForm({class_name:r.class_name,session_date:r.session_date,start_time:r.start_time.slice(0,5),end_time:r.end_time.slice(0,5),teacher_name:r.teacher_name||"",period_count:r.period_count});}}>Sửa</button><button className="btn outline" onClick={()=>removeSession(r)}>Xóa</button></td></tr>
         ))}</tbody>
       </table>
       {!rows.length && <Empty text="Chưa có lịch học." />}
@@ -951,57 +946,6 @@ function Cleaning({profile,refresh,reload,ping}){
   </>;
 }
 
-function Finance({ profile, refresh }) {
-  const sessions = useRows("class_sessions", profile, refresh);
-  const students = useRows("students", profile, refresh);
-  const [className, setClassName] = useState("");
-
-  const data = sessions.rows.filter(s => !className || s.class_name === className).map(s => {
-    const mins = Math.max(0,
-      Number(s.end_time?.slice(0, 2)) * 60 + Number(s.end_time?.slice(3, 5)) -
-      Number(s.start_time?.slice(0, 2)) * 60 - Number(s.start_time?.slice(3, 5))
-    );
-    return {
-      ...s,
-      hours: mins / 60,
-      teacher_pay: mins / 60 * Number(s.hourly_rate || 0),
-      student_fee: Number(s.student_fee_per_period || 0) *
-        Number(s.period_count || 0) *
-        students.rows.filter(x => x.class_name === s.class_name && x.status !== "inactive").length
-    };
-  });
-
-  const sumTeacher = data.reduce((a, b) => a + b.teacher_pay, 0);
-  const sumStudent = data.reduce((a, b) => a + b.student_fee, 0);
-
-  return <>
-    <SectionHead title="Học phí & tiền công" desc="Tổng hợp tiền học theo tiết và tiền công giáo viên theo giờ" />
-    <div className="metrics-grid">
-      <Metric label="Tổng học phí dự kiến" value={money(sumStudent)} sub="Theo số học sinh và số tiết" Icon={Wallet} />
-      <Metric label="Tổng tiền công giáo viên" value={money(sumTeacher)} sub="Theo thời lượng buổi dạy" Icon={Clock3} tone="blue" />
-      <Metric label="Số buổi đã ghi" value={data.length} sub="Theo bộ lọc hiện tại" Icon={CalendarDays} tone="purple" />
-      <Metric label="Học sinh" value={students.rows.length} sub="Trong phạm vi dữ liệu" Icon={Users} tone="orange" />
-    </div>
-    <div className="toolbar">
-      <select value={className} onChange={e => setClassName(e.target.value)}>
-        <option value="">Tất cả lớp</option>
-        {[...new Set(sessions.rows.map(s => s.class_name))].map(c => <option key={c}>{c}</option>)}
-      </select>
-      <button className="btn outline" onClick={() => exportRows(data, "Bao_cao_hoc_phi_tien_cong")}><Download size={16} />Xuất Excel</button>
-    </div>
-    <div className="panel table-panel">
-      <table>
-        <thead><tr><th>NGÀY</th><th>LỚP</th><th>GIÁO VIÊN</th><th>SỐ TIẾT</th><th>HỌC PHÍ DỰ KIẾN</th><th>TIỀN CÔNG</th></tr></thead>
-        <tbody>{data.map(d => (
-          <tr key={d.id}><td>{dateText(d.session_date)}</td><td>{d.class_name}</td><td>{d.teacher_name}</td><td>{d.period_count}</td><td>{money(d.student_fee)}</td><td>{money(d.teacher_pay)}</td></tr>
-        ))}</tbody>
-      </table>
-      {!data.length && <Empty text="Chưa có buổi học để tính tiền." />}
-    </div>
-    <p className="muted tiny">Học phí trong báo cáo là số tiền dự kiến theo số học sinh thuộc lớp, chưa phải số tiền thực thu. Muốn quản lý công nợ cần thêm bảng thu phí riêng.</p>
-  </>;
-}
-
 function Evaluation({ profile, refresh, reload, ping }) {
   const students = useRows("students", profile, refresh);
   const records = useRows("student_records", profile, refresh);
@@ -1109,156 +1053,6 @@ function Evaluation({ profile, refresh, reload, ping }) {
         </div>
         <button className="btn primary" onClick={save}>Lưu nhận xét vào hồ sơ</button>
       </>}
-    </div>
-  </>;
-}
-
-function Reports({ profile, refresh, ping }) {
-  const students = useRows("students", profile, refresh);
-  const pcs = useRows("computers", profile, refresh);
-  const sessions = useRows("class_sessions", profile, refresh);
-  const records = useRows("student_records", profile, refresh);
-  const cleaning = useRows("cleaning_logs", profile, refresh);
-  const attendance = useRows("attendance", profile, refresh);
-  const [from, setFrom] = useState(today().slice(0, 8) + "01");
-  const [to, setTo] = useState(today());
-  const [kind, setKind] = useState("overview");
-
-  const inRange = row => {
-    const d = row.session_date || row.record_date || row.cleaning_date;
-    return !d || (d >= from && d <= to);
-  };
-
-  const filteredSessions = sessions.rows.filter(inRange);
-  const filteredRecords = records.rows.filter(inRange);
-  const filteredCleaning = cleaning.rows.filter(inRange);
-  const filteredAttendance = attendance.rows;
-
-  const reportRows = useMemo(() => {
-    if (kind === "students") return students.rows.map(s => ({
-      "Họ tên": s.full_name,
-      "Mã học sinh": s.student_code,
-      "Lớp": s.class_name,
-      "Trường": s.school_name,
-      "Trạng thái": s.status,
-      "Điện thoại": s.phone
-    }));
-    if (kind === "computers") return pcs.rows.map(p => ({
-      "Mã máy": p.computer_code,
-      "Vị trí": p.location,
-      "Trạng thái": p.status,
-      "Sức chứa": p.capacity
-    }));
-    if (kind === "records") return filteredRecords.map(r => ({
-      "Ngày": r.record_date,
-      "Học sinh": students.rows.find(s => s.id === r.student_id)?.full_name || "",
-      "Loại": r.record_type,
-      "Nội dung": r.title,
-      "Điểm": r.points,
-      "Ghi chú": r.note
-    }));
-    if (kind === "cleaning") return filteredCleaning.map(r => ({
-      "Ngày": r.cleaning_date,
-      "Máy": pcs.rows.find(p => p.id === r.computer_id)?.computer_code || "",
-      "Học sinh": students.rows.find(s => s.id === r.student_id)?.full_name || "",
-      "Trạng thái": r.status,
-      "Ghi chú": r.note
-    }));
-    if (kind === "attendance") return filteredAttendance.map(r => ({
-      "Buổi học": r.session_id,
-      "Học sinh": students.rows.find(s => s.id === r.student_id)?.full_name || "",
-      "Trạng thái": r.status,
-      "Ghi chú": r.note
-    }));
-    return filteredSessions.map(s => ({
-      "Ngày": s.session_date,
-      "Lớp": s.class_name,
-      "Giáo viên": s.teacher_name,
-      "Bắt đầu": s.start_time,
-      "Kết thúc": s.end_time,
-      "Số tiết": s.period_count,
-      "Tiền công/giờ": s.hourly_rate,
-      "Học phí/tiết": s.student_fee_per_period
-    }));
-  }, [kind, students.rows, pcs.rows, filteredRecords, filteredCleaning, filteredAttendance, filteredSessions]);
-
-  function printPdf() {
-    const titles = {
-      overview: "BÁO CÁO LỊCH HỌC",
-      students: "DANH SÁCH HỌC SINH",
-      computers: "DANH SÁCH PHÒNG MÁY",
-      records: "BÁO CÁO ĐIỂM, LỖI VÀ KHEN THƯỞNG",
-      cleaning: "BÁO CÁO VỆ SINH MÁY",
-      attendance: "BÁO CÁO ĐIỂM DANH"
-    };
-    const title = titles[kind] || "BÁO CÁO";
-    const columns = reportRows.length ? Object.keys(reportRows[0]) : [];
-    const esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({
-      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
-    }[c]));
-    const html = `
-      <!doctype html><html lang="vi"><head><meta charset="utf-8">
-      <title>${title}</title>
-      <style>
-        body{font-family:Arial,sans-serif;color:#172033;padding:24px}
-        h1{text-align:center;font-size:20px;margin:0 0 8px}
-        p{text-align:center;color:#555;margin:4px 0 20px}
-        table{width:100%;border-collapse:collapse;font-size:11px}
-        th,td{border:1px solid #bbb;padding:7px;text-align:left;vertical-align:top}
-        th{background:#edf2f7}
-        .foot{margin-top:28px;text-align:right;font-size:12px}
-        @media print{body{padding:0} @page{size:A4 landscape;margin:12mm}}
-      </style></head><body>
-      <h1>${esc(title)}</h1>
-      <p>${esc(profile.school_name || "IC3 GS6")} · Từ ${esc(dateText(from))} đến ${esc(dateText(to))}</p>
-      ${columns.length ? `<table><thead><tr>${columns.map(c => `<th>${esc(c)}</th>`).join("")}</tr></thead><tbody>${reportRows.map(row => `<tr>${columns.map(c => `<td>${esc(row[c])}</td>`).join("")}</tr>`).join("")}</tbody></table>` : "<p>Không có dữ liệu trong báo cáo.</p>"}
-      <div class="foot">Ngày xuất báo cáo: ${esc(dateText(today()))}</div>
-      <script>window.onload=()=>{window.print()}</script>
-      </body></html>`;
-    const w = window.open("", "_blank");
-    if (!w) {
-      ping("Trình duyệt đang chặn cửa sổ in. Hãy cho phép pop-up rồi thử lại.");
-      return;
-    }
-    w.document.open();
-    w.document.write(html);
-    w.document.close();
-  }
-
-  return <>
-    <SectionHead title="Báo cáo & xuất PDF" desc="Lọc dữ liệu theo thời gian, in hoặc lưu thành PDF" />
-    <div className="panel">
-      <div className="form-row">
-        <label>Từ ngày<input type="date" value={from} onChange={e => setFrom(e.target.value)} /></label>
-        <label>Đến ngày<input type="date" value={to} onChange={e => setTo(e.target.value)} /></label>
-      </div>
-      <label>Loại báo cáo
-        <select value={kind} onChange={e => setKind(e.target.value)}>
-          <option value="overview">Lịch học</option>
-          <option value="students">Danh sách học sinh</option>
-          <option value="computers">Danh sách máy tính</option>
-          <option value="records">Điểm, lỗi và khen thưởng</option>
-          <option value="cleaning">Vệ sinh máy</option>
-          <option value="attendance">Điểm danh</option>
-        </select>
-      </label>
-      <div className="toolbar">
-        <button className="btn primary" onClick={printPdf}><Printer size={17} />In / Lưu PDF</button>
-        <button className="btn outline" onClick={() => exportRows(reportRows, "Bao_cao_IC3_GS6")}><FileSpreadsheet size={17} />Xuất Excel</button>
-      </div>
-      <p className="muted tiny">Khi cửa sổ in mở ra, chọn máy in “Save as PDF” hoặc “Lưu thành PDF”. Báo cáo chỉ chứa dữ liệu mà tài khoản hiện tại được phép đọc.</p>
-    </div>
-    <div className="panel table-panel">
-      <div className="panel-head"><div><h3>Xem trước báo cáo</h3><p>{reportRows.length} dòng dữ liệu</p></div></div>
-      <div className="table-wrap">
-        {reportRows.length ? <table>
-          <thead><tr>{Object.keys(reportRows[0]).map(k => <th key={k}>{k}</th>)}</tr></thead>
-          <tbody>{reportRows.slice(0, 100).map((r, i) => (
-            <tr key={i}>{Object.keys(reportRows[0]).map(k => <td key={k}>{String(r[k] ?? "")}</td>)}</tr>
-          ))}</tbody>
-        </table> : <Empty text="Không có dữ liệu cho loại báo cáo này." />}
-      </div>
-      {reportRows.length > 100 && <p className="muted tiny">Bảng xem trước giới hạn 100 dòng; thao tác xuất báo cáo vẫn lấy toàn bộ dữ liệu đã tải.</p>}
     </div>
   </>;
 }
