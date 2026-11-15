@@ -68,15 +68,15 @@ export function ReportsCenter({profile,refresh,ping,schools=[]}){
  const ready={
   center:()=>({headers:['Ngày','Thứ','Lớp sáng','Lớp chiều','Số tiết','Trường','Ghi chú'],rows:monthly.map(s=>[vnDate(s.date),s.weekday,s.morning,s.afternoon,s.periods||'',s.lessons?s.school:'',''])}),
   teacher:()=>({headers:['Ngày','Thứ','Lớp sáng','Lớp chiều','Số tiết','Giờ dạy','Lương / giờ','Thành tiền'],rows:monthly.map(s=>[vnDate(s.date),s.weekday,s.morning,s.afternoon,s.periods||'',s.lessons?s.hours.toFixed(2):'',s.lessons?amount(rate):'',s.lessons?amount(s.pay):''])}),
-  scores:()=>({headers:['STT','Họ','Tên','Lớp','Điểm '+exam,'Xếp loại','Nhận xét'],rows:chosen.map((s,i)=>{
+  scores:()=>({headers:['STT','Họ','Tên','Lớp','Trường','Điểm '+exam,'Xếp loại','Nhận xét'],rows:chosen.map((s,i)=>{
     const r=results.find(z=>z.student_id===s.id)||{},n=clean(s.full_name).split(/\s+/);
-    return [i+1,n.slice(0,-1).join(' '),n.at(-1)||'',s.class_name,r.scores?.[exam]??'',r.classification||'',r.comment||''];})}),
-  attendance:()=>({headers:['STT','Học sinh','Lớp','Buổi học','Ngày','Số tiết','Điểm danh'],rows:chosen.flatMap((s,i)=>selectedSessions.filter(l=>l.class_name===s.class_name&&l.school_id===s.school_id).map((l,j)=>{
-    const status=statusMap.get(s.id+':'+l.id);return [i+1,s.full_name,s.class_name,j+1,vnDate(l.session_date),l.period_count,status==='absent'?'Vắng':status==='late'?'Đi trễ':status==='excused'?'Có phép':'Có mặt'];}))}),
+    return [i+1,n.slice(0,-1).join(' '),n.at(-1)||'',s.class_name,schoolById[s.school_id]||s.school_name||'',r.scores?.[exam]??'',r.classification||'',r.comment||''];})}),
+  attendance:()=>({headers:['STT','Học sinh','Lớp','Trường','Buổi học','Ngày','Số tiết','Điểm danh'],rows:chosen.flatMap((s,i)=>selectedSessions.filter(l=>l.class_name===s.class_name&&l.school_id===s.school_id).map((l,j)=>{
+    const status=statusMap.get(s.id+':'+l.id);return [i+1,s.full_name,s.class_name,schoolById[s.school_id]||s.school_name||'',j+1,vnDate(l.session_date),l.period_count,status==='absent'?'Vắng':status==='late'?'Đi trễ':status==='excused'?'Có phép':'Có mặt'];}))}),
   students:()=>({headers:['STT','Mã HS','Họ tên','Lớp','Trường','Trạng thái'],rows:chosen.map((s,i)=>[i+1,s.student_code||'',s.full_name,s.class_name,s.school_name||schoolById[s.school_id]||'','Đang học'])}),
-  computers:()=>({headers:['Máy','Vị trí','Trạng thái','Số chỗ'],rows:(data.computers||[]).map(p=>[p.computer_code,p.location||'',p.status,p.capacity])}),
-  records:()=>({headers:['Ngày','Học sinh','Lớp','Loại','Nội dung','Điểm'],rows:(data.student_records||[]).map(r=>{const st=students.find(s=>s.id===r.student_id);return [vnDate(r.record_date),st?.full_name||'',st?.class_name||'',r.record_type,r.title||'',r.points];})}),
-  cleaning:()=>({headers:['Ngày','Máy','Học sinh','Lớp','Trạng thái'],rows:(data.cleaning_logs||[]).map(r=>{const st=students.find(s=>s.id===r.student_id),pc=(data.computers||[]).find(p=>p.id===r.computer_id);return [vnDate(r.cleaning_date),pc?.computer_code||'',st?.full_name||'',st?.class_name||'',r.status==='done'?'Đã làm':'Chưa làm'];})})
+  computers:()=>({headers:['Máy','Trường','Vị trí','Trạng thái','Số chỗ'],rows:(data.computers||[]).map(p=>[p.computer_code,schoolById[p.school_id]||'',p.location||'',p.status,p.capacity])}),
+  records:()=>({headers:['Ngày','Học sinh','Lớp','Trường','Loại','Nội dung','Điểm'],rows:(data.student_records||[]).map(r=>{const st=students.find(s=>s.id===r.student_id);return [vnDate(r.record_date),st?.full_name||'',st?.class_name||'',schoolById[r.school_id]||'',r.record_type,r.title||'',r.points];})}),
+  cleaning:()=>({headers:['Ngày','Máy','Học sinh','Lớp','Trường','Trạng thái'],rows:(data.cleaning_logs||[]).map(r=>{const st=students.find(s=>s.id===r.student_id),pc=(data.computers||[]).find(p=>p.id===r.computer_id);return [vnDate(r.cleaning_date),pc?.computer_code||'',st?.full_name||'',st?.class_name||'',schoolById[r.school_id]||'',r.status==='done'?'Đã làm':'Chưa làm'];})})
  };
  const preview=(ready[kind]||ready.center)();
  const title=(reportOptions.find(x=>x[0]===kind)||reportOptions[0])[1];
