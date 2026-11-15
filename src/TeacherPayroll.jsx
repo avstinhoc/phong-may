@@ -13,11 +13,20 @@ export function TeacherPayroll({profile,refresh,ping}){
  useEffect(()=>{setSelected(profile.id);},[profile.school_id,profile.id]);
  useEffect(()=>{
    let live=true;setLoading(true);setError('');
+   const readAll=async (table,selection,sort)=>{
+     const rows=[];
+     for(let start=0;start<100000;start+=500){
+       const {data,error}=await supabase.from(table).select(selection).eq('school_id',profile.school_id).order(sort).range(start,start+499);
+       if(error)throw error;
+       rows.push(...(data||[]));if(!data||data.length<500)break;
+     }
+     return rows;
+   };
    Promise.all([
-     supabase.from('class_sessions').select('id,school_id,teacher_id,teacher_name,class_name,session_date,start_time,end_time,period_count').eq('school_id',profile.school_id).order('session_date'),
-     supabase.from('teacher_pay_rates').select('school_id,teacher_id,hourly_rate').eq('school_id',profile.school_id)
-   ]).then(values=>{if(!live)return;setLoading(false);const failed=values.find(x=>x.error);if(failed){setError(failed.error.message);return;}
-     setLessons(values[0].data||[]);setRates(values[1].data||[]);
+     readAll('class_sessions','id,school_id,teacher_id,teacher_name,class_name,session_date,start_time,end_time,period_count','id'),
+     readAll('teacher_pay_rates','school_id,teacher_id,hourly_rate','teacher_id')
+   ]).then(values=>{if(!live)return;setLoading(false);
+     setLessons(values[0]||[]);setRates(values[1]||[]);
    }).catch(e=>{if(live){setError(e.message);setLoading(false);}});
    return()=>{live=false;};
  },[profile.school_id,refresh,version]);
