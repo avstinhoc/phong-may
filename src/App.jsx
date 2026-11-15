@@ -2,6 +2,10 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase, configurationError, authMessage } from "./lib/supabase";
 import { SchoolManager, Accounts, TimetableImport } from "./Management";
+import { StudentRoster } from "./StudentRoster";
+import { properName, searchName, comparePC } from "./lib/students";
+import { TeachingCalendar } from "./TeachingCalendar";
+import { RollCall } from "./RollCall";
 import * as XLSX from "xlsx";
 import {
   LayoutDashboard, Users, Monitor, ClipboardList, CalendarDays, Wallet,
@@ -13,7 +17,8 @@ import {
 
 const nav = [
   ["dashboard", "Tổng quan", LayoutDashboard],
-  ["students", "Học sinh", Users],
+  ["students", "Đăng ký & duyệt", Users],
+  ["roster", "Danh sách học sinh", ClipboardList],
   ["computers", "Phòng máy", Monitor],
   ["attendance", "Điểm danh & lịch", CalendarDays],
   ["records", "Điểm, lỗi & thưởng", ClipboardList],
@@ -21,7 +26,8 @@ const nav = [
   ["finance", "Học phí & tiền công", Wallet],
   ["evaluation", "Đánh giá học sinh", Sparkles],
   ["reports", "Báo cáo PDF", FileText],
-  ["settings", "Thiết lập", Settings],
+  ["schools", "Trường công tác", School],
+  ["settings", "Lớp & mã đăng ký", Settings],
   ["accounts", "Quản lý tài khoản", ShieldCheck]
 ];
 
@@ -40,6 +46,7 @@ const dateText = value => {
 };
 
 function App() {
+  const [calendarDate,setCalendarDate]=useState(today());
   const [session, setSession] = useState(null);
   const [account, setProfile] = useState(null);
   const [schools, setSchools] = useState([]);
@@ -137,18 +144,14 @@ function App() {
         <div className="school-chip">
           <School size={16} /><select aria-label="Trường đang quản lý" value={schoolId} onChange={e => setSchoolId(e.target.value)}><option value="" disabled>Chọn trường</option>{schools.map(s => <option value={s.id} key={s.id}>{s.name}</option>)}</select>
         </div>
-        <div className="nav-label">MENU CHÍNH</div>
-        {nav.filter(([id]) =>
-          id !== "accounts" || profile.role === "admin"
-        ).map(([id, label, Icon]) => (
-          <button
-            key={id}
-            className={`nav-item ${page === id ? "active" : ""}`}
-            onClick={() => { setPage(id); setMobileNav(false); }}
-          >
-            <Icon size={18} />{label}
-          </button>
-        ))}
+        <nav className="nav-scroll" aria-label="Menu chính">
+          {[["GIẢNG DẠY", ["dashboard", "attendance", "students", "roster", "records", "evaluation"]],
+            ["PHÒNG MÁY", ["computers", "cleaning"]],
+            ["QUẢN LÝ", ["schools", "settings", "finance", "reports", "accounts"]]].map(([group, ids]) => <React.Fragment key={group}>
+            <div className="nav-label">{group}</div>
+            {ids.map(id => nav.find(n => n[0] === id)).filter(([id]) => id !== "accounts" || profile.role === "admin").map(([id,label,Icon]) => <button key={id} className={`nav-item ${page === id ? "active" : ""}`} onClick={()=>{setPage(id);setMobileNav(false);}}><Icon size={18}/>{label}</button>)}
+          </React.Fragment>)}
+        </nav>
         <div className="sidebar-bottom">
           <div className="user-mini">
             <div className="avatar">{(profile.full_name || "U").slice(0, 1).toUpperCase()}</div>
@@ -168,7 +171,7 @@ function App() {
             <div className="eyebrow">HỆ THỐNG QUẢN LÝ PHÒNG MÁY</div>
             <h1>{nav.find(x => x[0] === page)?.[1] || "IC3 GS6"}</h1>
           </div>
-          <div className="top-actions">
+          <div className="top-actions"><button className="btn" onClick={signOut}><LogOut size={16}/>Đăng xuất</button>
             <span className="role-pill">{profile.role === "admin" ? "ADMIN" : profile.role === "teacher" ? "GIÁO VIÊN" : "HỌC SINH"}</span>
             <button className="icon-btn" title="Làm mới" onClick={reload}><RefreshCw size={18} /></button>
             <div className="avatar">{(profile.full_name || "U").slice(0, 1).toUpperCase()}</div>
@@ -178,14 +181,15 @@ function App() {
         {notice && <div className="toast"><CheckCircle2 size={17} />{notice}</div>}
 
         <div className="content" key={schoolId}>
-          <SchoolManager schools={schools} onCreated={id => {setSchoolId(id); reload();}} ping={ping} />
+          {(page === "schools" || !schools.length) && <SchoolManager schools={schools} onCreated={id => {setSchoolId(id); reload();}} ping={ping} />}
           {page === "accounts" && profile.role === "admin" && <Accounts profile={profile} />}
           {!schoolId && <div className="notice-box">Thêm trường đầu tiên để bắt đầu quản lý học sinh và lịch dạy.</div>}
           {schoolId && <>
           {page === "dashboard" && <Dashboard profile={profile} refresh={refresh} setPage={setPage} />}
+          {page === "roster" && <StudentRoster profile={profile} refresh={refresh} ping={ping} />}
           {page === "students" && isTeacher && <Students profile={profile} refresh={refresh} reload={reload} ping={ping} />}
           {page === "computers" && <Computers profile={profile} refresh={refresh} reload={reload} ping={ping} />}
-          {page === "attendance" && isTeacher && <Attendance profile={profile} refresh={refresh} reload={reload} ping={ping} />}
+          {page === "attendance" && isTeacher && <Attendance profile={profile} refresh={refresh} reload={reload} ping={ping} focusDate={calendarDate} setFocusDate={setCalendarDate} onImported={async(date,name)=>{setCalendarDate(date);const {data,error}=await supabase.rpc("create_my_school",{school_name:name});if(!error)setSchoolId(data);reload();}} />}
           {page === "records" && isTeacher && <Records profile={profile} refresh={refresh} reload={reload} ping={ping} />}
           {page === "cleaning" && isTeacher && <Cleaning profile={profile} refresh={refresh} reload={reload} ping={ping} />}
           {page === "finance" && isTeacher && <Finance profile={profile} refresh={refresh} />}
@@ -255,7 +259,7 @@ function AuthScreen({ mode, setMode, ping }) {
         <div role="status" aria-live="polite">{message && <p className="notice-box">{message}</p>}</div>
         <form onSubmit={submit} className="form-stack">
           {mode === "register" && <>
-            <label>Họ và tên<input required value={name} onChange={e => setName(e.target.value)} placeholder="Nguyễn Văn A" /></label>
+            <label>Họ và tên<input required value={name} onBlur={()=>setName(properName(name))} onChange={e => setName(e.target.value)} placeholder="Nguyễn Văn A" /></label>
             <p className="muted">Sau khi được duyệt, bạn có thể tự thêm nhiều trường và lịch dạy.</p>
           </>}
           <label>Email<input type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="email@example.com" /></label>
@@ -274,10 +278,9 @@ function AuthScreen({ mode, setMode, ping }) {
 }
 
 function PublicStudentRegister({ ping }) {
-  const [code, setCode] = useState("");
+  const [code, setCode] = useState(()=>new URLSearchParams(window.location.search).get("code")||"");
   const [name, setName] = useState("");
   const [studentCode, setStudentCode] = useState("");
-  const [phone, setPhone] = useState("");
   const [computer, setComputer] = useState("");
   const [note, setNote] = useState("");
   const [done, setDone] = useState(false);
@@ -288,9 +291,8 @@ function PublicStudentRegister({ ping }) {
     setBusy(true);
     const { error } = await supabase.from("student_registrations").insert({
       registration_code: code.trim().toUpperCase(),
-      full_name: name,
+      full_name: properName(name),
       student_code: studentCode,
-      phone,
       computer_code: computer.trim().toUpperCase(),
       note
     });
@@ -314,7 +316,6 @@ function PublicStudentRegister({ ping }) {
             <label>Mã lớp đăng ký<input required value={code} onChange={e => setCode(e.target.value)} placeholder="Ví dụ: IC3-K01" /></label>
             <label>Họ và tên<input required value={name} onChange={e => setName(e.target.value)} placeholder="Nguyễn Văn A" /></label>
             <label>Mã học sinh (nếu có)<input value={studentCode} onChange={e => setStudentCode(e.target.value)} /></label>
-            <label>Số điện thoại<input value={phone} onChange={e => setPhone(e.target.value)} /></label>
             <label>Số máy mong muốn<input value={computer} onChange={e => setComputer(e.target.value)} placeholder="PC1 – PC40" /></label>
             <label>Ghi chú<textarea value={note} onChange={e => setNote(e.target.value)} /></label>
             <button className="btn primary full" disabled={busy}>{busy ? "Đang gửi..." : "Gửi đăng ký"}</button>
@@ -335,7 +336,7 @@ function useRows(table, profile, refresh, extra = {}) {
     (async () => {
       setBusy(true);
       let q = supabase.from(table).select("*");
-      if (profile?.school_id) q = q.eq("school_id", profile.school_id);
+      if (profile?.school_id && table !== "student_registrations") q = q.eq("school_id", profile.school_id);
       Object.entries(extra).forEach(([k, v]) => {
         if (v !== undefined && v !== null) q = q.eq(k, v);
       });
@@ -446,22 +447,23 @@ function exportRows(rows, name) {
 function Students({ profile, refresh, reload, ping }) {
   const { rows, busy } = useRows("students", profile, refresh);
   const registrations = useRows("student_registrations", profile, refresh);
+  const schoolClasses = useRows("classes", profile, refresh);
   const [show, setShow] = useState(false);
   const [search, setSearch] = useState("");
   const [form, setForm] = useState({
     full_name: "", class_name: "", school_name: profile.school_name || "",
-    student_code: "", phone: "", status: "active"
+    student_code: "", phone: "", date_of_birth:"", status: "active"
   });
 
   const filtered = rows.filter(s =>
     `${s.full_name} ${s.class_name} ${s.student_code}`.toLowerCase().includes(search.toLowerCase())
   );
-  const waiting = registrations.rows.filter(r => r.status === "pending");
+  const waiting = registrations.rows.filter(r => r.status === "pending" && schoolClasses.rows.some(c=>c.registration_code===r.registration_code));
 
   async function save(e) {
     e.preventDefault();
     const { error } = await supabase.from("students").insert({
-      ...form, school_id: profile.school_id, created_by: profile.id
+      ...form, full_name:properName(form.full_name),date_of_birth:form.date_of_birth||null, school_id: profile.school_id, created_by: profile.id
     });
     if (error) ping(error.message);
     else {
@@ -487,66 +489,8 @@ function Students({ profile, refresh, reload, ping }) {
   }
 
   async function approveRegistration(r) {
-    const { data: cls, error: ce } = await supabase.from("classes")
-      .select("*").eq("registration_code", r.registration_code).maybeSingle();
-
-    if (ce || !cls) {
-      ping(ce?.message || "Không tìm thấy lớp theo mã đăng ký");
-      return;
-    }
-
-    const { data: student, error } = await supabase.from("students").insert({
-      school_id: cls.school_id,
-      class_id: cls.id,
-      full_name: r.full_name,
-      student_code: r.student_code,
-      class_name: cls.class_name,
-      school_name: profile.school_name,
-      phone: r.phone,
-      status: "active",
-      created_by: profile.id
-    }).select().single();
-
-    if (error) { ping(error.message); return; }
-
-    const { error: updateError } = await supabase.from("student_registrations")
-      .update({ status: "approved" }).eq("id", r.id);
-
-    if (updateError) {
-      ping("Đã tạo học sinh nhưng cập nhật đăng ký gặp lỗi: " + updateError.message);
-      reload();
-      return;
-    }
-
-    if (r.computer_code) {
-      const { data: pc } = await supabase.from("computers")
-        .select("id,capacity").eq("school_id", cls.school_id)
-        .eq("computer_code", r.computer_code).maybeSingle();
-
-      if (pc && student) {
-        const { count } = await supabase.from("computer_assignments")
-          .select("*", { count: "exact", head: true })
-          .eq("computer_id", pc.id).eq("active", true);
-
-        if ((count || 0) < Number(pc.capacity || 2)) {
-          const { error: assignError } = await supabase.from("computer_assignments").insert({
-            school_id: cls.school_id,
-            computer_id: pc.id,
-            student_id: student.id,
-            assigned_date: today(),
-            active: true
-          });
-          ping(assignError ? "Đã duyệt học sinh nhưng chưa gán được máy: " + assignError.message : "Đã duyệt và gán máy " + r.computer_code);
-        } else {
-          ping("Đã duyệt học sinh. Máy đăng ký đã đủ chỗ, hãy chọn máy khác.");
-        }
-      } else {
-        ping("Đã duyệt học sinh; máy đăng ký chưa có trong danh sách.");
-      }
-    } else {
-      ping("Đã duyệt học sinh");
-    }
-    reload();
+    const {error}=await supabase.rpc("approve_registration",{registration_id:r.id});
+    if(error) ping(error.message); else {ping("Đã duyệt học sinh và gán máy đăng ký");reload();}
   }
 
   async function rejectRegistration(r) {
@@ -623,7 +567,8 @@ function Students({ profile, refresh, reload, ping }) {
           <label>Lớp<input value={form.class_name} onChange={e => setForm({ ...form, class_name: e.target.value })} /></label>
         </div>
         <label>Trường<input value={form.school_name} onChange={e => setForm({ ...form, school_name: e.target.value })} /></label>
-        <label>Số điện thoại<input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} /></label>
+        <label>Ngày sinh (nếu có)<input type="date" value={form.date_of_birth} onChange={e=>setForm({...form,date_of_birth:e.target.value})}/></label>
+        <label>Số điện thoại liên hệ (không bắt buộc)<input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} /></label>
         <button className="btn primary full">Lưu học sinh</button>
       </form>
     </Modal>}
@@ -632,8 +577,15 @@ function Students({ profile, refresh, reload, ping }) {
 
 function Computers({ profile, refresh, reload, ping }) {
   const { rows, busy } = useRows("computers", profile, refresh);
+  const [className,setClassName]=useState("");
+  const classes=useRows("classes",profile,refresh);
   const students = useRows("students", profile, refresh);
   const assigned = useRows("computer_assignments", profile, refresh);
+  const records = useRows("student_records", profile, refresh);
+  const classNames=[...new Set([...classes.rows.map(c=>c.class_name),...students.rows.map(s=>s.class_name)].filter(Boolean))].sort();
+  const classStudents=students.rows.filter(s=>s.class_name===className);
+  const classAssignments=assigned.rows.filter(a=>classStudents.some(s=>s.id===a.student_id));
+  const [assigning,setAssigning]=useState(null),[chosenId,setChosenId]=useState(""),[assignBusy,setAssignBusy]=useState(false);
   const [show, setShow] = useState(false);
   const [count, setCount] = useState(40);
   const [pc, setPc] = useState({
@@ -647,7 +599,7 @@ function Computers({ profile, refresh, reload, ping }) {
       location: pc.location,
       status: "available",
       capacity: Number(pc.capacity)
-    }, { onConflict: "school_id,computer_code" });
+    }, { onConflict: "school_id,computer_code", ignoreDuplicates: true });
     return error;
   }
 
@@ -669,42 +621,10 @@ function Computers({ profile, refresh, reload, ping }) {
     reload();
   }
 
-  async function assign(computer) {
-    const activeAssignments = assigned.rows.filter(
-      a => a.computer_id === computer.id && a.active
-    );
-    if (activeAssignments.length >= Number(computer.capacity || 2)) {
-      ping("Máy này đã đủ sức chứa.");
-      return;
-    }
-
-    const chosen = prompt(
-      "Nhập mã học sinh hoặc ID học sinh cần gán vào " + computer.computer_code
-    );
-    if (!chosen) return;
-
-    const student = students.rows.find(
-      s => s.student_code === chosen.trim() || s.id === chosen.trim()
-    );
-    if (!student) { ping("Không tìm thấy học sinh."); return; }
-
-    const already = assigned.rows.find(
-      a => a.student_id === student.id && a.active
-    );
-    if (already) {
-      ping("Học sinh đang được gán vào một máy khác. Hãy gỡ phân công cũ trước.");
-      return;
-    }
-
-    const { error } = await supabase.from("computer_assignments").insert({
-      school_id: profile.school_id,
-      computer_id: computer.id,
-      student_id: student.id,
-      assigned_date: today(),
-      active: true
-    });
-    if (error) ping(error.message);
-    else { ping("Đã phân công " + student.full_name + " vào " + computer.computer_code); reload(); }
+  async function assign(e) {
+    e.preventDefault();if(!chosenId||!assigning||assignBusy)return;setAssignBusy(true);
+    const {error}=await supabase.from("computer_assignments").insert({school_id:profile.school_id,computer_id:assigning.id,student_id:chosenId,assigned_date:today(),active:true});
+    setAssignBusy(false);if(error)ping(error.message);else{setAssigning(null);setChosenId("");ping("Đã lưu chỗ ngồi cho lớp "+className);reload();}
   }
 
   async function release(a) {
@@ -732,19 +652,20 @@ function Computers({ profile, refresh, reload, ping }) {
         <button className="btn primary" onClick={() => setShow(true)}><Plus size={17} />Thêm máy</button>
       </>}
     />
-    <div className="toolbar">
+    <div className="toolbar"><label className="field-inline">Lớp đang xem <select aria-label="Lớp phòng máy" value={className} onChange={e=>setClassName(e.target.value)}><option value="">Chọn lớp</option>{classNames.map(c=><option key={c}>{c}</option>)}</select></label>
       <div className="field-inline">Số máy muốn khởi tạo <input type="number" min="1" max="500" value={count} onChange={e => setCount(e.target.value)} /></div>
       <span className="muted">{rows.length} máy đã có trong hệ thống</span>
     </div>
+    <p className="notice-box">{className ? `Chỗ ngồi được lưu riêng cho lớp ${className}. Trạng thái hỏng/bảo trì áp dụng cho máy ở mọi lớp.` : "Chọn lớp để xem và sắp xếp chỗ ngồi."}</p>
     <div className="computer-grid">
-      {rows.map(c => {
-        const users = assigned.rows.filter(a => a.computer_id === c.id && a.active);
+      {[...rows].sort((a,b)=>comparePC(a.computer_code,b.computer_code)).map(c => {
+        const users = classAssignments.filter(a => a.computer_id === c.id && a.active);
         return (
-          <div className={`computer-card ${c.status === "maintenance" ? "maintenance" : users.length ? "occupied" : ""}`} key={c.id}>
+          <div className={`computer-card ${["maintenance","broken"].includes(c.status) ? "maintenance" : users.length ? "occupied" : ""}`} key={c.id}>
             <div className="pc-top">
               <Monitor size={22} />
-              <span className={`status ${c.status === "maintenance" ? "pending" : users.length ? "active" : "free"}`}>
-                {c.status === "maintenance" ? "Bảo trì" : users.length ? "Đang dùng" : "Trống"}
+              <span className={`status ${["maintenance","broken"].includes(c.status) ? "pending" : users.length ? "active" : "free"}`}>
+                {c.status === "broken" ? "Hỏng" : c.status === "maintenance" ? "Bảo trì" : users.length ? "Đang dùng" : "Trống"}
               </span>
             </div>
             <h3>{c.computer_code}</h3>
@@ -753,12 +674,13 @@ function Computers({ profile, refresh, reload, ping }) {
             <div className="pc-users">
               {users.length ? users.map(a => (
                 <div className="pc-user-row" key={a.id}>
-                  <span>• {students.rows.find(s => s.id === a.student_id)?.full_name || "Học sinh"}</span>
+                  <span>• {(students.rows.find(s => s.id === a.student_id)?.full_name || "Học sinh").trim().split(/\s+/).slice(-2).join(" ")}</span>
                   <button className="mini-btn danger" onClick={() => release(a)}>Gỡ</button>
+                  {records.rows.filter(r=>r.student_id===a.student_id && r.record_type==="violation").map(r=><small className="negative" key={r.id}>{r.title}{r.note ? `: ${r.note}` : ""}</small>)}
                 </div>
               )) : <span>Chưa có học sinh</span>}
             </div>
-            <button className="mini-btn" disabled={users.length >= Number(c.capacity || 2) || c.status === "maintenance"} onClick={() => assign(c)}>+ Gán học sinh</button>
+            <button className="mini-btn" disabled={!className || users.length >= Number(c.capacity || 2) || ["maintenance","broken"].includes(c.status)} onClick={() => {setAssigning(c);setChosenId("");}}>+ Gán học sinh</button>
             <select value={c.status || "available"} onChange={e => changeStatus(c, e.target.value)}>
               <option value="available">Sẵn sàng</option>
               <option value="maintenance">Bảo trì</option>
@@ -769,6 +691,7 @@ function Computers({ profile, refresh, reload, ping }) {
       })}
     </div>
     {!rows.length && !busy && <Empty text="Chưa có máy tính. Dùng nút tạo PC1–PC40 để khởi tạo nhanh." />}
+    {assigning && <Modal title={`Gán học sinh lớp ${className} vào ${assigning.computer_code}`} onClose={()=>setAssigning(null)}><form className="form-stack" onSubmit={assign}><label>Học sinh<select required value={chosenId} onChange={e=>setChosenId(e.target.value)}><option value="">Chọn học sinh chưa có máy</option>{classStudents.filter(s=>s.status==='active'&&!assigned.rows.some(a=>a.active&&a.student_id===s.id)).map(s=><option key={s.id} value={s.id}>{s.full_name}</option>)}</select></label><button className="btn primary" disabled={assignBusy}>Lưu chỗ ngồi</button></form></Modal>}
     {show && <Modal title="Thêm máy tính" onClose={() => setShow(false)}>
       <form className="form-stack" onSubmit={create}>
         <label>Mã máy<input required placeholder="PC41" value={pc.computer_code} onChange={e => setPc({ ...pc, computer_code: e.target.value })} /></label>
@@ -780,8 +703,8 @@ function Computers({ profile, refresh, reload, ping }) {
   </>;
 }
 
-function Attendance({ profile, refresh, reload, ping }) {
-  const { rows } = useRows("class_sessions", profile, refresh);
+function Attendance({ profile, refresh, reload, ping, focusDate, setFocusDate, onImported }) {
+  const { rows, error: scheduleError } = useRows("class_sessions", profile, refresh);
   const classes = useRows("classes", profile, refresh);
   const [editingId, setEditingId] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -807,7 +730,7 @@ function Attendance({ profile, refresh, reload, ping }) {
     const { error } = editingId ? await supabase.from("class_sessions").update(payload).eq("id",editingId) : await supabase.from("class_sessions").insert(payload);
     setSaving(false);
     if (error) ping(error.message);
-    else { ping("Đã lưu buổi học"); setEditingId(null); reload(); }
+    else { ping("Đã lưu buổi học"); setFocusDate(form.session_date); setEditingId(null); reload(); }
   }
 
   const minutes = Math.max(0,
@@ -816,7 +739,10 @@ function Attendance({ profile, refresh, reload, ping }) {
   );
 
   return <>
-    <TimetableImport profile={profile} reload={reload} />
+    <TeachingCalendar rows={rows} focusDate={focusDate} onDateChange={setFocusDate} school={profile.school_name} teacher={profile.full_name} />
+    {scheduleError && <p role="alert" className="notice-box">Không tải được lịch: {scheduleError}</p>}
+    <RollCall profile={profile} sessions={rows} refresh={refresh} ping={ping} />
+    <TimetableImport profile={profile} reload={reload} onImported={onImported} />
     <SectionHead title="Lịch học & chấm công" desc="Lập lịch theo lớp, ghi nhận giờ dạy và số tiết học" />
     <div className="two-col">
       <div className="panel">
@@ -851,7 +777,7 @@ function Attendance({ profile, refresh, reload, ping }) {
         <p className="muted">Lịch tuần được hiển thị ở bên dưới. Học phí và tiền công được tổng hợp trong mục Tài chính.</p>
       </div>
     </div>
-    <WeeklySchedule rows={rows} />
+
     <div className="panel table-panel">
       <h3>Buổi học đã tạo</h3>
       <table>
@@ -863,69 +789,6 @@ function Attendance({ profile, refresh, reload, ping }) {
       {!rows.length && <Empty text="Chưa có lịch học." />}
     </div>
   </>;
-}
-
-function startOfWeek(date) {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  const day = (d.getDay() + 6) % 7;
-  d.setDate(d.getDate() - day);
-  return d;
-}
-
-function toDateKey(d) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
-function WeeklySchedule({ rows = [] }) {
-  const [weekShift, setWeekShift] = useState(0);
-  const monday = startOfWeek(new Date());
-  monday.setDate(monday.getDate() + weekShift * 7);
-  const days = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(monday);
-    d.setDate(monday.getDate() + i);
-    return d;
-  });
-  const end = days[6];
-
-  return (
-    <div className="panel" style={{ marginBottom: 16 }}>
-      <div className="panel-head">
-        <div>
-          <h3>Lịch học theo tuần</h3>
-          <p>{dateText(toDateKey(monday))} – {dateText(toDateKey(end))}</p>
-        </div>
-        <div className="actions">
-          <button className="icon-btn" onClick={() => setWeekShift(v => v - 1)}><ChevronLeft /></button>
-          <button className="btn outline" onClick={() => setWeekShift(0)}>Tuần này</button>
-          <button className="icon-btn" onClick={() => setWeekShift(v => v + 1)}><ChevronRight /></button>
-        </div>
-      </div>
-      <div className="week-grid">
-        {days.map((day, i) => {
-          const key = toDateKey(day);
-          const list = rows.filter(r => r.session_date === key)
-            .sort((a, b) => String(a.start_time).localeCompare(String(b.start_time)));
-          return (
-            <div className="week-day" key={key}>
-              <div className="week-day-head">
-                <b>{["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ nhật"][i]}</b>
-                <small>{day.getDate()}/{day.getMonth() + 1}</small>
-              </div>
-              {list.map(item => (
-                <div className="week-event" key={item.id}>
-                  <b>{item.class_name}</b>
-                  <small>{item.start_time}–{item.end_time}</small>
-                  <small>{item.teacher_name}</small>
-                </div>
-              ))}
-              {!list.length && <small className="muted">Không có lịch</small>}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
 }
 
 function Records({ profile, refresh, reload, ping }) {
@@ -1084,6 +947,8 @@ function Evaluation({ profile, refresh, reload, ping }) {
   const students = useRows("students", profile, refresh);
   const records = useRows("student_records", profile, refresh);
   const attendance = useRows("attendance", profile, refresh);
+  const [classFilter,setClassFilter]=useState(""),[nameFilter,setNameFilter]=useState("");
+  const filteredStudents=students.rows.filter(s=>(!classFilter||s.class_name===classFilter)&&searchName(s.full_name).includes(searchName(nameFilter)));
   const [selected, setSelected] = useState("");
   const [commentEdit, setCommentEdit] = useState("");
 
@@ -1155,10 +1020,11 @@ function Evaluation({ profile, refresh, reload, ping }) {
   return <>
     <SectionHead title="Đánh giá học sinh" desc="Tạo nhận xét tự động dựa trên điểm, vi phạm, thưởng và chuyên cần" />
     <div className="panel eval-panel">
+      <div className="form-row"><label>Lọc theo lớp<select value={classFilter} onChange={e=>{setClassFilter(e.target.value);setSelected("");}}><option value="">Tất cả lớp</option>{[...new Set(students.rows.map(s=>s.class_name).filter(Boolean))].sort().map(c=><option key={c}>{c}</option>)}</select></label><label>Tìm tên học sinh<input value={nameFilter} onChange={e=>{setNameFilter(e.target.value);setSelected("");}} placeholder="Nhập tên, có dấu hoặc không dấu"/></label></div>
       <label>Chọn học sinh
         <select value={selected} onChange={e => setSelected(e.target.value)}>
           <option value="">Chọn học sinh cần đánh giá</option>
-          {students.rows.map(s => <option key={s.id} value={s.id}>{s.full_name} – {s.class_name}</option>)}
+          {filteredStudents.map(s => <option key={s.id} value={s.id}>{s.full_name} – {s.class_name}</option>)}
         </select>
       </label>
 
@@ -1378,8 +1244,8 @@ function SettingsPage({ profile, ping }) {
             .then(() => ping("Đã sao chép mã lớp"))
             .catch(() => ping("Không thể sao chép mã trên trình duyệt này"));
         }}>Sao chép mã lớp</button>
-        <hr />
-        <h3>Trường công tác</h3><p className="muted">Dùng danh sách ở thanh bên để đổi trường. Mỗi trường có lớp, học sinh và lịch riêng.</p>
+        <p><a href={`/register?code=${encodeURIComponent(classCode)}`} target="_blank" rel="noreferrer">Mở trang đăng ký học sinh</a></p>
+        <button className="btn outline" onClick={()=>navigator.clipboard?.writeText(`${window.location.origin}/register?code=${encodeURIComponent(classCode)}`).then(()=>ping("Đã sao chép link đăng ký"))}>Sao chép link đăng ký</button>
       </div>
     </div>
   </>;

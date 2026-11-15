@@ -54,11 +54,11 @@ Khóa tài khoản ở đây là khóa quyền truy cập dữ liệu ứng dụ
 
 1. Tạo trường đầu tiên, mở **Điểm danh & lịch → Nhập thời khóa biểu từ ảnh**.
 2. Chọn JPG/PNG/WebP tối đa 3 MB và thứ Hai của tuần áp dụng.
-3. Đồng ý gửi ảnh tới Google Gemini, bấm **Đọc ảnh**. Không lưu ảnh gốc vào database.
+3. Mặc định **Đọc trên thiết bị**: tải bộ Tesseract lần đầu rồi xử lý ảnh trong trình duyệt, không cần API key. Hỗ trợ bảng cột thứ/ngày và hai cột giờ. Có thể chọn Gemini nếu máy chủ đã cấu hình, sau khi đồng ý gửi ảnh. Không lưu ảnh gốc vào database.
 4. Kiểm tra từng dòng, sửa giờ nếu ảnh chỉ ghi số tiết, bỏ dòng của giáo viên khác. AI có thể đọc sai; kết quả chưa tự ghi vào database.
 5. Chọn số tuần và **Xác nhận lưu trường, lớp và lịch**. Tối đa 500 buổi/lần, 20 yêu cầu đọc ảnh/tài khoản/ngày. Yêu cầu AI lỗi sau khi lấy hạn mức vẫn tính một lần.
 
-Chưa cấu hình AI, hết hạn mức hoặc lỗi dịch vụ: website hiển thị nguyên nhân, vẫn nhập lịch bằng tay. Chưa có ảnh thật và khóa AI thì chưa thể kiểm chứng độ chính xác nhận diện thực tế.
+OCR trên thiết bị có thể mất dấu chấm tên lớp hoặc nhầm chữ số ở ảnh mờ. Luôn đối chiếu bảng, giờ và tuần trước khi lưu; văn bản OCR được hiển thị để sửa. Chế độ Gemini vẫn cần cấu hình khóa riêng.
 
 ## Chẩn đoán đăng nhập
 
@@ -84,3 +84,17 @@ values ('email-admin@example.com') on conflict(email) do nothing;
 ```
 
 Khi người dùng đăng ký và xác nhận email, trigger sẽ cấp Admin một lần. Tài khoản chưa xác nhận không được cấp quyền; giáo viên không truy cập được danh sách này. Nếu tài khoản đã xác nhận trước khi chuẩn bị email, cấp quyền bằng SQL theo mục Admin đầu tiên. Kiểm thử cơ chế này: `tests/bootstrap.test.js`.
+
+## Sửa quyền bảng, PC mặc định và điểm danh
+
+Chạy thêm hai migration `20261115_table_access_pc_defaults.sql` và `20261115_registration_attendance.sql`. Quyền CRUD được cấp rõ cho authenticated và được RLS giới hạn theo trường; anon chỉ INSERT đăng ký, không được đọc danh sách. Không cấp TRUNCATE. Mỗi trường có sẵn PC1–40, khởi tạo lại không ghi đè trạng thái. Duyệt đăng ký và gán máy chạy trong một transaction, kiểm tra sức chứa và máy hỏng.
+
+Menu chia Giảng dạy / Phòng máy / Quản lý, cuộn riêng để nút đăng xuất luôn hiện. Thêm trường chỉ trong Trường công tác. Admin mở Quản lý tài khoản để duyệt, đổi vai trò hoặc khóa giáo viên. Điểm danh chọn buổi học, lấy học sinh đã duyệt và có máy của đúng lớp. Lưu lại cập nhật bản ghi cũ. Lịch tuần có chọn ngày, tự chuyển tới ngày vừa lưu.
+
+## Danh sách theo lớp và mẫu điểm danh
+
+Migration `20261115_class_seating_roster.sql` chuẩn hóa tên riêng khi đăng ký/thêm học sinh, kiểm tra sức chứa theo lớp, thêm `student_results` có RLS theo trường. Phòng máy lọc theo lớp; trạng thái hỏng/bảo trì dùng chung, chỗ ngồi riêng theo lớp của học sinh.
+
+Danh sách học sinh tham khảo cấu trúc Google Sheet người dùng cung cấp: mã/STT/họ tên/ngày sinh/giới tính/XL, B1–B70, QT/HK/TEST/mô phỏng, nhận xét và tổng hợp vắng. Xuất Excel giữ cột SĐT/CMND/Mã DDDT trống để tương thích mẫu, không yêu cầu trẻ nhập những thông tin này. Không sao chép dữ liệu cá nhân trong mẫu. Tỷ lệ vắng tính trên số buổi đã điểm danh, gồm vắng và vắng có phép; ô chưa điểm danh để trống.
+
+Chọn **Google Gemini** trong nhập ảnh để dùng API máy chủ; cấu hình `GEMINI_API_KEY` trong Vercel Environment Variables (Production và Preview), không dùng tiền tố VITE_. `GEMINI_MODEL` tùy chọn, mặc định `gemini-2.5-flash`; phải redeploy sau khi thêm khóa. Chưa có khóa thì không thể xác minh live Gemini. Đọc trên thiết bị vẫn dùng được.
