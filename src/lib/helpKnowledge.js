@@ -159,6 +159,19 @@ export const helpTopics = [
     keywords:["admin","duyệt giáo viên","quyền","khóa","xóa tài khoản","sửa tài khoản","đăng ký giáo viên"]
   },
   {
+    id:"ai",title:"Trợ lý IC3 AI",roles:["admin","teacher","staff"],
+    summary:"Hỏi đáp hướng dẫn website, gửi ảnh/file trong tin nhắn, tạo hoặc chỉnh sửa ảnh; lập kế hoạch thêm/sửa lịch có xác nhận.",
+    steps:[
+      "Nhấn nút Hỏi AI ở góc dưới bên phải để mở Trợ lý IC3 AI.",
+      "Trong Trò chuyện, chọn Hỏi đáp để hỏi cách dùng website, gửi ảnh/Excel/PDF/Word/PowerPoint bằng biểu tượng kẹp giấy rồi nhấn Gửi. Ảnh hiển thị ngay trong tin nhắn.",
+      "Chọn Sửa lịch để mô tả muốn thêm buổi học, đổi giờ, đổi lớp hoặc gửi ảnh thời khóa biểu. AI tạo bản nháp tối đa 12 buổi trong đúng trường đang chọn.",
+      "Xem và sửa lại ngày, lớp, giờ, số tiết trong bản nháp rồi nhấn Xác nhận lưu lịch. Trợ lý không tự ghi dữ liệu nếu bạn chưa xác nhận.",
+      "Chọn Tạo / sửa ảnh, nhập mô tả rồi bấm Gửi để tạo ảnh; có thể gửi ảnh mẫu để chỉnh hoặc bấm Sửa ảnh này ở ảnh AI vừa tạo. Nhấn Lưu ảnh để tải về.",
+      "Chạm vào tên chức năng in đậm trong câu trả lời để mở đúng mục web; Hướng dẫn nhanh có sổ tay không tốn lượt AI."
+    ],notes:["Các file và ảnh chỉ được gửi cho Gemini khi người dùng nhấn Gửi.","Tạo ảnh giới hạn 5 lượt/24 giờ và còn phụ thuộc hạn mức model Gemini.","Sửa lịch chỉ hỗ trợ thêm/sửa buổi học; thao tác xóa phải làm trực tiếp trong Lịch dạy giáo viên."],
+    keywords:["ai","chat gpt","hỏi ai","chatbot","trợ lý","tạo ảnh","chỉnh ảnh","gửi file","gửi ảnh","sửa lịch"]
+  },
+  {
     id:"login",title:"Đăng nhập & xác thực giáo viên",roles:["admin","teacher","staff"],
     summary:"Giáo viên đăng ký bằng email, xác thực thư rồi chờ Admin duyệt.",
     steps:[
@@ -181,7 +194,7 @@ export const helpTopics = [
   }
 ];
 
-export const helpPageTitles=Object.fromEntries(helpTopics.filter(t=>t.id!=="login"&&t.id!=="public").map(t=>[t.id,t.title]));
+export const helpPageTitles=Object.fromEntries(helpTopics.filter(t=>t.id!=="login"&&t.id!=="public"&&t.id!=="ai").map(t=>[t.id,t.title]));
 export const helpQuestions=[
   {title:"Nhập thời khóa biểu bằng ảnh hoặc Excel",page:"attendance",question:"Cách nhập thời khóa biểu bằng ảnh, PDF hoặc Excel và lưu đúng ngày giờ?"},
   {title:"Điểm danh một lớp",page:"rollcall",question:"Hướng dẫn điểm danh học sinh theo buổi và lưu kết quả."},
