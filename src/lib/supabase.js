@@ -29,8 +29,14 @@ try {
 } catch (e) {
   configurationError = e.message;
 }
+export function isEmailSendLimit(error) {
+  return error?.code === "over_email_send_rate_limit" ||
+    /email rate limit exceeded|over_email_send_rate_limit|email send rate limit/i.test(error?.message || "");
+}
 export function authMessage(error) {
   const text = error?.message || String(error);
+  if (isEmailSendLimit(error))
+    return "Hệ thống đã hết lượt gửi email xác nhận của dự án. Yêu cầu đăng ký lần này CHƯA thành công. Đừng gửi lại liên tục; Admin cần cấu hình Custom SMTP trong Supabase hoặc chờ hạn mức email được cấp lại.";
   if (/invalid login credentials/i.test(text))
     return "Email hoặc mật khẩu chưa đúng. Nếu chưa có tài khoản, hãy đăng ký trước.";
   if (/email not confirmed/i.test(text))
