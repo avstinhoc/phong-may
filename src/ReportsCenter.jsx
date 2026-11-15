@@ -17,7 +17,7 @@ const clean=s=>String(s||'').trim();
 export function ReportsCenter({profile,refresh,ping,schools=[]}){
  const [kind,setKind]=useState('center'),[month,setMonth]=useState(firstMonth),[className,setClassName]=useState(''),[teacherId,setTeacherId]=useState(profile.id),[exam,setExam]=useState('TEST 1');
  const [reportSchool,setReportSchool]=useState('');
- const selectedSchool=schools.find(x=>x.id===reportSchool);
+ const selectedSchool=schools.find(x=>x.id===reportSchool)||(schools.length===1?schools[0]:null);
  const reportSchoolName=selectedSchool?.name||'Tổng hợp các trường';
  const reportSchoolLogo=selectedSchool?.logo_data||null;
  const [allData,setAllData]=useState({}),[error,setError]=useState(''),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false);
