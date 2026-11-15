@@ -78,14 +78,32 @@ export async function exportMonthlyExcel(p){
  }
  save(await wb.xlsx.writeBuffer(),(p.privatePay?'Luong_giao_vien_':'Bao_cao_trung_tam_')+fName(p.teacher)+'_'+p.from.slice(0,7)+'.xlsx');
 }
-export async function exportGeneralXlsx({title,school,logo,headers,rows}){
+export async function exportGeneralXlsx({title,school,logo,headers,rows,teacher}){
  const Excel=await getExcelJS(),wb=new Excel.Workbook(),ws=wb.addWorksheet('Báo cáo');
  wb.creator='IC3 GS6';headers.forEach((h,i)=>ws.getColumn(i+1).width=Math.min(36,Math.max(14,h.length+12)));
  const end=Math.max(headers.length,5);ws.mergeCells(1,2,2,end);ws.getCell('B1').value=String(school).toUpperCase();
  ws.mergeCells(3,2,3,end);ws.getCell('B3').value=title.toUpperCase();
  for(const a of ['B1','B3']){ws.getCell(a).font={bold:true,size:15,color:{argb:'FF'+palette.navy}};ws.getCell(a).alignment={horizontal:'center'};}
  if(logo?.startsWith('data:image/png;base64,')){try{const id=wb.addImage({base64:logo,extension:'png'});ws.addImage(id,{tl:{col:0,row:0},ext:{width:110,height:65}});}catch(e){}}
- tableHeader(ws,6,headers);rows.forEach((r,i)=>tableRow(ws,i+7,r,i%2===1));ws.getCell(rows.length+9,1).value='Ngày xuất: '+new Date().toLocaleDateString('vi-VN');
+ tableHeader(ws,6,headers);
+ const gradeIndex=headers.findIndex(h=>h.toLowerCase().includes('xếp loại'));
+ rows.forEach((r,i)=>{
+  const row=i+7;tableRow(ws,row,r,i%2===1);
+  if(gradeIndex>=0){
+   const grade=String(r[gradeIndex]||'').trim().toUpperCase(),cell=ws.getCell(row,gradeIndex+1);
+   if(['A','B','C'].includes(grade)){
+     cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:grade==='A'?'FFDFF2E8':grade==='B'?'FFFFF2D6':'FFFFDFCB'}};
+     cell.font={bold:true,color:{argb:grade==='A'?'FF1B7D54':grade==='B'?'FF986D1B':'FFB04625'}};
+     cell.alignment={horizontal:'center',vertical:'middle'};
+   }
+  }
+ });
+ const signRow=rows.length+10;
+ ws.getCell(signRow,1).value='Ngày xuất: '+new Date().toLocaleDateString('vi-VN');
+ ws.getCell(signRow,Math.max(3,headers.length-2)).value='NGƯỜI LẬP BẢNG';
+ ws.getCell(signRow+1,Math.max(3,headers.length-2)).value='(Ký, ghi rõ họ tên)';
+ ws.getCell(signRow+4,Math.max(3,headers.length-2)).value=teacher||'';
+ ws.getCell(signRow+4,Math.max(3,headers.length-2)).font={bold:true,color:{argb:'FF'+palette.navy}};
  ws.pageSetup={paperSize:9,orientation:'landscape',fitToPage:true,fitToWidth:1,fitToHeight:0};
  save(await wb.xlsx.writeBuffer(),fName(title)+'.xlsx');
 }
