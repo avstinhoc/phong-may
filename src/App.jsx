@@ -8,6 +8,7 @@ import { AuthCallback, emailCallbackUrl } from "./AuthCallback";
 import { TeacherPayroll } from "./TeacherPayroll";
 import { ClassSettings } from "./ClassSettings";
 import { ReportsCenter } from "./ReportsCenter";
+import { HelpAssistant } from "./HelpAssistant";
 import { properName, searchName, comparePC } from "./lib/students";
 import { TeachingCalendar } from "./TeachingCalendar";
 import { RollCall } from "./RollCall";
@@ -211,6 +212,7 @@ function App() {
         </div>
         <footer>IC3 GS6 Computer Lab <span>•</span> Dữ liệu được lưu trên Supabase</footer>
       </main>
+      <HelpAssistant key={profile.id} profile={profile} page={page} onNavigate={id=>{setPage(id);setMobileNav(false);}} />
     </div>
   );
 }
