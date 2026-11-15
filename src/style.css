@@ -292,3 +292,61 @@
 .management-school-select{display:flex;flex-direction:column;gap:7px;margin:15px 0 18px;font-size:12px;font-weight:700;color:#486775;max-width:460px}
 .management-school-select select{padding:10px 12px;border:1px solid #dce9ea;border-radius:9px;min-height:43px;background:#fff;color:#1b4354}
 .report-control-grid select{max-width:100%;min-width:180px}
+
+/* IC3 AI 2.0: chat-style attachments, action choices and editable schedule cards */
+.help-panel{width:min(475px,calc(100vw - 28px));height:min(755px,calc(100dvh - 36px))}
+.help-chat-scroll{min-height:0;flex:1 1 auto;overflow-y:auto;overflow-x:hidden;padding:13px}
+.help-mode-row{display:flex;flex:0 0 auto;gap:7px;padding:9px 12px;background:white;border-bottom:1px solid #e7efef}
+.help-mode-row button{flex:1 1 0;min-width:0;display:flex;align-items:center;justify-content:center;gap:5px;
+  color:#568086;background:#f7fbfb;border:1px solid #e1eded;padding:9px 5px;border-radius:9px;font-size:10px;font-weight:800}
+.help-mode-row button.active{background:#e2f6f1;border-color:#70beb3;color:#087669}
+.help-mode-row button:disabled{opacity:.55}
+.help-message{max-width:94%;padding:11px 13px;line-height:1.7}
+.help-message.mine{max-width:90%;min-width:110px}
+.help-message p{white-space:pre-wrap;line-height:1.75;overflow-wrap:anywhere}
+.help-message .help-image-button{display:block;width:auto;max-width:240px;border:0;background:transparent;
+  box-shadow:none;padding:0;border-radius:11px;overflow:hidden;min-width:0;margin:0 0 8px;text-align:left}
+.help-chat-image{display:block;width:100%;height:auto;max-height:255px;object-fit:contain;border-radius:10px;background:#edf5f6;cursor:zoom-in}
+.help-image-button:hover .help-chat-image{filter:brightness(.97)}
+.help-generated-image{margin-top:10px}
+.help-generated-image .help-image-button{max-width:265px}
+.help-image-tools{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.help-image-tools a,.help-image-tools button{display:flex;align-items:center;gap:5px;border-radius:8px;border:1px solid #d2e5e2;background:#f7fbfa;color:#147568;
+  padding:6px 8px;text-decoration:none;font-size:10px;font-weight:750}
+.help-image-tools button:hover,.help-image-tools a:hover{background:#e3f5f0}
+.help-attachment-chip{display:flex;align-items:center;gap:7px;max-width:260px;min-height:38px;
+  border-radius:10px;background:#ffffff2b;padding:8px;color:inherit;margin:0 0 8px;font-size:10px}
+.help-attachment-chip span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px}
+.help-rich-link{display:inline!important;min-width:0!important;min-height:0!important;flex:auto!important;
+  border:0!important;box-shadow:none!important;background:transparent!important;color:#007c72!important;
+  font:inherit!important;font-weight:800!important;text-decoration:underline;text-decoration-style:dotted;
+  text-decoration-thickness:1px;text-underline-offset:3px;padding:0 1px!important;margin:0!important;line-height:inherit!important;vertical-align:baseline;cursor:pointer}
+.help-rich-link:hover{text-decoration-style:solid;color:#06514c!important}
+.help-message.mine .help-rich-link{color:#fff!important}
+.help-rich-link strong{font:inherit;font-weight:800}
+.help-image-lightbox{position:fixed;inset:0;z-index:180;background:rgba(7,27,36,.86);display:flex;
+  align-items:center;justify-content:center;padding:60px 18px 25px;cursor:zoom-out}
+.help-image-lightbox img{max-width:min(95vw,1080px);max-height:calc(100dvh - 100px);object-fit:contain;border-radius:10px;cursor:default}
+.help-lightbox-close{position:absolute;right:22px;top:17px;display:grid;place-items:center;color:white;background:#ffffff22;
+  border:1px solid #ffffff40;border-radius:50%;width:42px;height:42px}
+.help-schedule-card{background:white;border-radius:14px;border:1px solid #bde5dc;padding:12px;display:flex;flex-direction:column;gap:9px}
+.help-schedule-header{display:flex;align-items:center;gap:7px;color:#10685e;font-size:12px}
+.help-schedule-header span{margin-left:auto;background:#e9f8f3;border-radius:20px;padding:5px 9px;font-size:10px}
+.help-schedule-context{color:#607d81;font-size:10px;margin:0;line-height:1.6}
+.help-schedule-list{display:flex;flex-direction:column;gap:10px;max-height:300px;overflow-y:auto;min-height:0}
+.help-schedule-item{background:#f7fbfb;border:1px solid #e0eded;border-radius:10px;padding:10px}
+.help-schedule-item-head{display:flex;align-items:center;justify-content:space-between;font-size:10px;color:#38606a;margin-bottom:8px}
+.help-schedule-item-head button{display:grid;place-items:center;border:none;background:none;color:#ad5454;padding:4px}
+.help-schedule-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.help-schedule-grid label{display:flex;flex-direction:column;gap:5px;font-size:9px;font-weight:700;color:#627981;min-width:0}
+.help-schedule-grid label.wide{grid-column:1/-1}
+.help-schedule-grid input{min-width:0;width:100%;font-size:11px;min-height:36px;border-radius:8px;border:1px solid #d1e4e4;padding:7px 8px;background:white}
+.help-schedule-actions{display:flex;justify-content:flex-end;gap:8px}
+.help-schedule-actions button{display:flex;align-items:center;justify-content:center;gap:6px;border:1px solid #d1e1e2;border-radius:9px;
+  padding:10px 12px;font-size:10px;font-weight:800;background:white;color:#385962}
+.help-schedule-actions button.primary{background:#0d8b7c;border-color:#0d8b7c;color:white}
+.help-schedule-actions button:disabled{opacity:.5}
+@media(max-width:620px){
+  .help-panel{width:calc(100vw - 24px);height:min(730px,calc(100dvh - 65px))}
+  .help-mode-row button{font-size:9px;padding:8px 3px}
+}
