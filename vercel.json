@@ -8,6 +8,9 @@
     },
     "api/help.js": {
       "maxDuration": 60
+    },
+    "api/help-actions.js": {
+      "maxDuration": 60
     }
   },
   "rewrites": [
