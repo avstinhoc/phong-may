@@ -212,7 +212,7 @@ function App() {
         </div>
         <footer>IC3 GS6 Computer Lab <span>•</span> Dữ liệu được lưu trên Supabase</footer>
       </main>
-      <HelpAssistant key={profile.id} profile={profile} page={page} onNavigate={id=>{setPage(id);setMobileNav(false);}} />
+      <HelpAssistant key={profile.id} profile={profile} page={page} onSaved={reload} onNavigate={id=>{setPage(id);setMobileNav(false);}} />
     </div>
   );
 }
