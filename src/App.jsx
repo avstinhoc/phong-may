@@ -293,6 +293,8 @@ function PublicStudentRegister({ ping }) {
   async function submit(e) {
     e.preventDefault();
     setBusy(true);
+    const {error:classError}=await supabase.rpc('get_student_class_portal',{p_code:code.trim().toUpperCase(),p_secret:null});
+    if(classError){setBusy(false);ping('Mã lớp chưa tồn tại. Hãy nhập mã chính xác trong mục Lớp & mã đăng ký.');return;}
     const { error } = await supabase.from("student_registrations").insert({
       registration_code: code.trim().toUpperCase(),
       full_name: properName(name),
