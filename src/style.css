@@ -208,3 +208,7 @@
 .account-confirm-delete:disabled{background:#d8a3a3!important;opacity:.65;cursor:not-allowed}
 .account-delete-modal .form-stack label{font-size:11px;display:flex;flex-direction:column;gap:7px}
 .account-delete-modal .form-stack input{padding:11px;border:1px solid #d7e4e7;border-radius:9px;min-height:42px}
+
+/* Visible guidance for project-wide Auth email-sending limits */
+.auth-limit-help{padding:14px 16px;margin:12px 0;border:1px solid #edcf9a;border-radius:12px;background:#fff9ec;color:#6d5133;font-size:12px;line-height:1.65}
+.auth-limit-help b{font-size:13px;color:#7c4d24}.auth-limit-help p{margin:7px 0}.auth-limit-help a{color:#0b7771;font-weight:700;text-decoration:underline}
