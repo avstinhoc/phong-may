@@ -726,11 +726,20 @@ function RollCallView({profile,refresh,reload,ping,focusDate,setFocusDate}){
 function Attendance({ profile, refresh, reload, ping, focusDate, setFocusDate, onImported }) {
   const { rows, error: scheduleError } = useRows("class_sessions", profile, refresh);
   const classes = useRows("classes", profile, refresh);
+  const [teacherChoices,setTeacherChoices]=useState([{id:profile.id,full_name:profile.full_name||"Giáo viên"}]);
+  useEffect(()=>{
+    let live=true;
+    supabase.from("profiles").select("id,full_name,role,is_active").eq("is_active",true)
+      .in("role",["admin","teacher","staff"]).order("full_name").then(({data,error})=>{
+        if(live&&!error&&data?.length)setTeacherChoices(data);
+      });
+    return ()=>{live=false;};
+  },[profile.school_id,profile.id]);
   const [editingId, setEditingId] = useState(null);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     class_name: "", session_date: today(), start_time: "17:00",
-    end_time: "19:00", teacher_name: profile.full_name || "",
+    end_time: "19:00", teacher_name: profile.full_name || "", teacher_id:profile.id,
     period_count: 1
   });
 
@@ -741,7 +750,8 @@ function Attendance({ profile, refresh, reload, ping, focusDate, setFocusDate, o
     const payload = {
       ...form,
       school_id: profile.school_id,
-      teacher_id: profile.id,
+      teacher_id: form.teacher_id || profile.id,
+      teacher_name:teacherChoices.find(t=>t.id===form.teacher_id)?.full_name||form.teacher_name,
       created_by: profile.id,
       period_count: Number(form.period_count)
     };
@@ -780,7 +790,11 @@ function Attendance({ profile, refresh, reload, ping, focusDate, setFocusDate, o
             <label>Giờ bắt đầu<input type="time" value={form.start_time} onChange={e => setForm({ ...form, start_time: e.target.value })} /></label>
             <label>Giờ kết thúc<input type="time" value={form.end_time} onChange={e => setForm({ ...form, end_time: e.target.value })} /></label>
           </div>
-          <label>Giáo viên<input value={form.teacher_name} onChange={e => setForm({ ...form, teacher_name: e.target.value })} /></label>
+          <label>Giáo viên phụ trách
+            <select value={form.teacher_id} onChange={e=>{const teacher=teacherChoices.find(t=>t.id===e.target.value);setForm({...form,teacher_id:e.target.value,teacher_name:teacher?.full_name||""});}}>
+              {teacherChoices.map(t=><option key={t.id} value={t.id}>{t.full_name}</option>)}
+            </select>
+          </label>
 
           <label>Số tiết<input type="number" min="1" value={form.period_count} onChange={e => setForm({ ...form, period_count: e.target.value })} /></label>
           <button className="btn primary full" disabled={saving}>{saving ? "Đang lưu..." : "Lưu lịch học"}</button>{editingId && <button type="button" className="btn outline" onClick={()=>setEditingId(null)}>Hủy sửa</button>}
@@ -801,7 +815,7 @@ function Attendance({ profile, refresh, reload, ping, focusDate, setFocusDate, o
       <table>
         <thead><tr><th>NGÀY</th><th>LỚP</th><th>GIÁO VIÊN</th><th>GIỜ</th><th>SỐ TIẾT</th><th></th></tr></thead>
         <tbody>{rows.map(r => (
-          <tr key={r.id}><td>{dateText(r.session_date)}</td><td>{r.class_name}</td><td>{r.teacher_name}</td><td>{r.start_time} – {r.end_time}</td><td>{r.period_count}</td><td><button className="btn outline" onClick={()=>{setEditingId(r.id);setForm({class_name:r.class_name,session_date:r.session_date,start_time:r.start_time.slice(0,5),end_time:r.end_time.slice(0,5),teacher_name:r.teacher_name||"",period_count:r.period_count});}}>Sửa</button><button className="btn outline" onClick={()=>removeSession(r)}>Xóa</button></td></tr>
+          <tr key={r.id}><td>{dateText(r.session_date)}</td><td>{r.class_name}</td><td>{r.teacher_name}</td><td>{r.start_time} – {r.end_time}</td><td>{r.period_count}</td><td><button className="btn outline" onClick={()=>{setEditingId(r.id);setForm({class_name:r.class_name,session_date:r.session_date,start_time:r.start_time.slice(0,5),end_time:r.end_time.slice(0,5),teacher_name:r.teacher_name||"",teacher_id:r.teacher_id||profile.id,period_count:r.period_count});}}>Sửa</button><button className="btn outline" onClick={()=>removeSession(r)}>Xóa</button></td></tr>
         ))}</tbody>
       </table>
       {!rows.length && <Empty text="Chưa có lịch học." />}
