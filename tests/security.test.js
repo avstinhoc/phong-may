@@ -17,9 +17,7 @@ test("RLS, signup, multiple schools, admin and atomic import", async () => {
     "utf8",
   );
   await db.exec(schema.replace("create extension if not exists pgcrypto;", ""));
-  await db.exec(
-    "grant all on all tables in schema public to authenticated,anon;",
-  );
+
   const migration = await readFile(
     new URL(
       "../supabase/migrations/20261115_auth_roles_schools.sql",
@@ -29,6 +27,8 @@ test("RLS, signup, multiple schools, admin and atomic import", async () => {
   );
   await db.exec(migration);
   await db.exec(migration);
+  await db.exec(await readFile(new URL("../supabase/migrations/20261115_table_access_pc_defaults.sql", import.meta.url),"utf8"));
+  await db.exec(await readFile(new URL("../supabase/migrations/20261115_registration_attendance.sql",import.meta.url),"utf8"));
   await db.exec(
     `insert into auth.users(id,email,raw_user_meta_data) values ('${a}','a@example.test','{"role":"admin","full_name":"A"}'),('${b}','b@example.test','{}'),('${admin}','admin@example.test','{}'),('${pending}','pending@example.test','{}');`,
   );
@@ -119,6 +119,24 @@ test("RLS, signup, multiple schools, admin and atomic import", async () => {
     before,
     "rollback schools and schedules",
   );
+  assert.equal((await db.query(`select count(*)::int n from computers where school_id='${sid}'`)).rows[0].n,40);
+  const ca=(await db.query(`insert into classes(school_id,class_name,registration_code) values('${sid}','6.1','PUBLIC61') returning id`)).rows[0].id;
+  await db.exec("reset role;set role anon;");
+  await db.query(`insert into student_registrations(registration_code,full_name,computer_code) values('PUBLIC61','Thảo Nguyên','PC1')`);
+  await assert.rejects(db.query('select * from student_registrations'));
+  await assert.rejects(db.query('truncate students'));
+  await as(a);
+  const reg=(await db.query(`select id from student_registrations where registration_code='PUBLIC61'`)).rows[0].id;
+  const student=(await db.query(`select approve_registration('${reg}') id`)).rows[0].id;
+  await assert.rejects(db.query(`select approve_registration('${reg}')`));
+  const lesson=(await db.query(`insert into class_sessions(school_id,class_id,class_name,session_date,start_time,end_time,teacher_id) values('${sid}','${ca}','6.1','2026-11-16','14:00','14:45','${a}') returning id`)).rows[0].id;
+  const marks=JSON.stringify([{student_id:student,status:'present',note:''}]);
+  await db.query('select save_roll_call($1,$2::jsonb)',[lesson,marks]);
+  await db.query('select save_roll_call($1,$2::jsonb)',[lesson,marks]);
+  assert.equal((await db.query(`select count(*)::int n from attendance where session_id='${lesson}'`)).rows[0].n,1);
+  await as(b);
+  await assert.rejects(db.query('select save_roll_call($1,$2::jsonb)',[lesson,marks]));
+  await as(a);
   for (let i = 0; i < 20; i++)
     await db.query("select consume_timetable_quota()");
   await assert.rejects(db.query("select consume_timetable_quota()"));
@@ -141,7 +159,7 @@ test("RLS, signup, multiple schools, admin and atomic import", async () => {
   await assert.rejects(imp(rows));
   await db.exec("reset role; set role anon;");
   await assert.rejects(db.query("select create_my_school('Anon')"));
-  assert.equal((await db.query("select * from class_sessions")).rows.length, 0);
+  await assert.rejects(db.query("select * from class_sessions"));
   await db.close();
 });
 test("review validation, real dates, repeats and conflicting rows", () => {

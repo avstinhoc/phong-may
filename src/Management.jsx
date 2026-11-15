@@ -1,3 +1,4 @@
+import { readLocalTimetable } from "./lib/ocr";
 import React, { useState, useEffect } from "react";
 import { supabase } from "./lib/supabase";
 import { validateRows, repeatRows } from "./lib/timetable";
@@ -22,8 +23,9 @@ export function SchoolManager({ schools, onCreated, ping }) {
     }
   }
   return (
-    <details className="panel school-manager" open={!schools.length}>
-      <summary>Trường công tác · {schools.length} trường — Thêm trường</summary>
+    <details className="panel school-manager" open>
+      <summary>Trường công tác · {schools.length} trường</summary>
+      <ul>{schools.map(s=><li key={s.id}>{s.name}</li>)}</ul>
       <form className="form-row" onSubmit={add}>
         <label>
           Tên trường
@@ -205,7 +207,7 @@ const initialMonday = () => {
   d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
-export function TimetableImport({ profile, reload }) {
+export function TimetableImport({ profile, reload, onImported }) {
   const [file, setFile] = useState(null),
     [preview, setPreview] = useState(""),
     [week, setWeek] = useState(initialMonday),
@@ -214,7 +216,9 @@ export function TimetableImport({ profile, reload }) {
     [warnings, setWarnings] = useState([]),
     [message, setMessage] = useState(""),
     [busy, setBusy] = useState(false),
-    [consent, setConsent] = useState(false);
+    [consent, setConsent] = useState(false),
+    [ocrMode,setOcrMode] = useState("local"),
+    [ocrText,setOcrText] = useState("");
   useEffect(() => {
     if (!file) {
       setPreview("");
@@ -238,6 +242,12 @@ export function TimetableImport({ profile, reload }) {
         throw new Error("Chọn ảnh JPG, PNG hoặc WebP tối đa 3 MB.");
       if (!week || new Date(week + "T12:00:00").getDay() !== 1)
         throw new Error("Chọn ngày thứ Hai của tuần áp dụng.");
+      if (ocrMode === "local") {
+        const result=await readLocalTimetable(file,week,profile.school_name,setMessage);
+        setRows(result.rows);setWarnings(result.warnings);setOcrText(result.text);
+        setMessage(result.rows.length ? `Đã nhận diện ${result.rows.length} buổi. Kiểm tra trước khi lưu.` : "Đã đọc văn bản, cần kiểm tra và nhập các dòng lịch bên dưới.");
+        return;
+      }
       const base64 = await new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(reader.result.split(",")[1]);
@@ -284,6 +294,7 @@ export function TimetableImport({ profile, reload }) {
       const items = repeatRows(validateRows(rows), weeks);
       const { data, error } = await supabase.rpc("import_timetable", { items });
       if (error) throw error;
+      await onImported?.(items[0].session_date,items[0].school_name);
       setRows([]);
       setMessage(
         `Đã tạo ${data.created} buổi; bỏ qua ${data.skipped} buổi đã có.`,
@@ -335,17 +346,19 @@ export function TimetableImport({ profile, reload }) {
           style={{ maxWidth: "100%", maxHeight: 300, objectFit: "contain" }}
         />
       )}
-      <label className="consent">
+      <label className="field-inline">Cách đọc ảnh <select value={ocrMode} disabled={busy} onChange={e=>setOcrMode(e.target.value)}><option value="local">Đọc trên thiết bị · không cần API key</option><option value="gemini">Google Gemini · cần cấu hình</option></select></label>
+      <p className="muted">Đọc trên thiết bị hỗ trợ bảng có cột thứ và giờ bắt đầu/kết thúc. Ảnh được xử lý trong trình duyệt; lần đầu cần tải bộ nhận diện.</p>
+      {ocrMode === "gemini" && <label className="consent">
         <input
           type="checkbox"
           checked={consent}
           onChange={(e) => setConsent(e.target.checked)}
         />{" "}
         Tôi đồng ý gửi ảnh này tới Google Gemini để nhận diện lịch.
-      </label>
+      </label>}
       <button
         className="btn primary"
-        disabled={busy || !file || !consent}
+        disabled={busy || !file || (ocrMode === "gemini" && !consent)}
         onClick={read}
       >
         {busy ? "Đang xử lý..." : "Đọc ảnh"}
@@ -354,6 +367,7 @@ export function TimetableImport({ profile, reload }) {
         {message ||
           "Nếu ảnh chỉ ghi tiết học mà không có giờ, hãy điền giờ trong bảng kết quả."}
       </div>
+      {ocrText && <details><summary>Văn bản đã đọc từ ảnh</summary><pre style={{whiteSpace:"pre-wrap"}}>{ocrText}</pre></details>}
       {warnings.map((w, i) => (
         <p key={i} className="notice-box">
           {w}
