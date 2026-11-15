@@ -90,3 +90,11 @@ Khi người dùng đăng ký và xác nhận email, trigger sẽ cấp Admin m�
 Chạy thêm hai migration `20261115_table_access_pc_defaults.sql` và `20261115_registration_attendance.sql`. Quyền CRUD được cấp rõ cho authenticated và được RLS giới hạn theo trường; anon chỉ INSERT đăng ký, không được đọc danh sách. Không cấp TRUNCATE. Mỗi trường có sẵn PC1–40, khởi tạo lại không ghi đè trạng thái. Duyệt đăng ký và gán máy chạy trong một transaction, kiểm tra sức chứa và máy hỏng.
 
 Menu chia Giảng dạy / Phòng máy / Quản lý, cuộn riêng để nút đăng xuất luôn hiện. Thêm trường chỉ trong Trường công tác. Admin mở Quản lý tài khoản để duyệt, đổi vai trò hoặc khóa giáo viên. Điểm danh chọn buổi học, lấy học sinh đã duyệt và có máy của đúng lớp. Lưu lại cập nhật bản ghi cũ. Lịch tuần có chọn ngày, tự chuyển tới ngày vừa lưu.
+
+## Danh sách theo lớp và mẫu điểm danh
+
+Migration `20261115_class_seating_roster.sql` chuẩn hóa tên riêng khi đăng ký/thêm học sinh, kiểm tra sức chứa theo lớp, thêm `student_results` có RLS theo trường. Phòng máy lọc theo lớp; trạng thái hỏng/bảo trì dùng chung, chỗ ngồi riêng theo lớp của học sinh.
+
+Danh sách học sinh tham khảo cấu trúc Google Sheet người dùng cung cấp: mã/STT/họ tên/ngày sinh/giới tính/XL, B1–B70, QT/HK/TEST/mô phỏng, nhận xét và tổng hợp vắng. Xuất Excel giữ cột SĐT/CMND/Mã DDDT trống để tương thích mẫu, không yêu cầu trẻ nhập những thông tin này. Không sao chép dữ liệu cá nhân trong mẫu. Tỷ lệ vắng tính trên số buổi đã điểm danh, gồm vắng và vắng có phép; ô chưa điểm danh để trống.
+
+Chọn **Google Gemini** trong nhập ảnh để dùng API máy chủ; cấu hình `GEMINI_API_KEY` trong Vercel Environment Variables (Production và Preview), không dùng tiền tố VITE_. `GEMINI_MODEL` tùy chọn, mặc định `gemini-2.5-flash`; phải redeploy sau khi thêm khóa. Chưa có khóa thì không thể xác minh live Gemini. Đọc trên thiết bị vẫn dùng được.

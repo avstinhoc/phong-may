@@ -29,6 +29,7 @@ test("RLS, signup, multiple schools, admin and atomic import", async () => {
   await db.exec(migration);
   await db.exec(await readFile(new URL("../supabase/migrations/20261115_table_access_pc_defaults.sql", import.meta.url),"utf8"));
   await db.exec(await readFile(new URL("../supabase/migrations/20261115_registration_attendance.sql",import.meta.url),"utf8"));
+  await db.exec(await readFile(new URL("../supabase/migrations/20261115_class_seating_roster.sql",import.meta.url),"utf8"));
   await db.exec(
     `insert into auth.users(id,email,raw_user_meta_data) values ('${a}','a@example.test','{"role":"admin","full_name":"A"}'),('${b}','b@example.test','{}'),('${admin}','admin@example.test','{}'),('${pending}','pending@example.test','{}');`,
   );
@@ -136,6 +137,19 @@ test("RLS, signup, multiple schools, admin and atomic import", async () => {
   assert.equal((await db.query(`select count(*)::int n from attendance where session_id='${lesson}'`)).rows[0].n,1);
   await as(b);
   await assert.rejects(db.query('select save_roll_call($1,$2::jsonb)',[lesson,marks]));
+  await as(a);
+  const pc1=(await db.query(`select id from computers where school_id='${sid}' and computer_code='PC1'`)).rows[0].id;
+  const sameClass=(await db.query(`insert into students(school_id,class_id,class_name,full_name,status) values('${sid}','${ca}','6.1','  nguyễn   văn AN  ','active') returning id,full_name`)).rows[0];
+  assert.equal(sameClass.full_name,'Nguyễn Văn An');
+  await db.query(`insert into computer_assignments(school_id,student_id,computer_id) values('${sid}','${sameClass.id}','${pc1}')`);
+  const third=(await db.query(`insert into students(school_id,class_name,full_name,status) values('${sid}','6.1','Third','active') returning id`)).rows[0].id;
+  await assert.rejects(db.query(`insert into computer_assignments(school_id,student_id,computer_id) values('${sid}','${third}','${pc1}')`));
+  const otherClass=(await db.query(`insert into students(school_id,class_name,full_name,status) values('${sid}','6.3','Other Class','active') returning id`)).rows[0].id;
+  await db.query(`insert into computer_assignments(school_id,student_id,computer_id) values('${sid}','${otherClass}','${pc1}')`);
+  await db.query(`insert into student_results(school_id,student_id,scores) values('${sid}','${student}','{"HK1":8}')`);
+  await as(b);
+  assert.equal((await db.query('select * from student_results')).rows.length,0);
+  await assert.rejects(db.query(`insert into student_results(school_id,student_id) values('${other}','${third}')`));
   await as(a);
   for (let i = 0; i < 20; i++)
     await db.query("select consume_timetable_quota()");

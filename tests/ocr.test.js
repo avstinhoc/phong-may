@@ -8,3 +8,6 @@ test('OCR maps weekday columns, ignores empty cells and preserves uncertain name
  assert.equal(result.rows.length,2);assert.equal(result.rows[0].session_date,'2026-11-16');assert.equal(result.rows[1].session_date,'2026-11-17');assert.equal(result.rows[1].class_name,'63');assert(result.warnings.some(w=>w.includes('mất dấu chấm')));
  assert.equal(parseTimetable({text:'random'},'2026-11-16','School').rows.length,0);
 });
+
+import {properName,comparePC,searchName} from '../src/lib/students.js';
+test('Vietnamese student names and numeric PC ordering',()=>{assert.equal(properName('  nGUYỄN   thẢo NGUYÊN '),'Nguyễn Thảo Nguyên');assert.deepEqual(['PC10','PC2','PC1','PC40'].sort(comparePC),['PC1','PC2','PC10','PC40']);assert.equal(searchName('Đặng'),'dang');});
