@@ -50,6 +50,7 @@ export function StudentPortal(){
           <button className="btn primary" disabled={busy}>{busy?'Đang tra cứu…':'Xem lớp của mình'}</button>
         </form>
         {error&&<p role="alert" className="notice-box">{error}</p>}
+        {payload&&secret.trim()&&!student&&<p className="notice-box">Mã cá nhân chưa đúng hoặc chưa được giáo viên cấp. Bạn vẫn xem được thông tin chung của lớp.</p>}
         <p className="muted">Tên các bạn trên máy hiển thị ngắn gọn theo mã lớp. Mã xem điểm chỉ dùng cho bạn, không nên chia sẻ công khai.</p>
       </section>
       {payload&&<>
