@@ -31,7 +31,7 @@ async function prepareAttachment(file){
  }
  return {name:file.name,mimeType:fileMime(file),base64:await toBase64(file)};
 }
-const normalize=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
+const normalize=s=>String(s||'').replace(/[đĐ]/g,'d').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
 const aliases={
  attendance:['lich day giao vien','thoi khoa bieu','tao buoi hoc','sua buoi hoc','luu lich hoc','doc tep','nhap lich','them lich'],
  rollcall:['diem danh hoc sinh','diem danh','co mat','vang hoc'],
