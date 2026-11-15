@@ -291,7 +291,7 @@ export function HelpAssistant({profile,page,onNavigate,onSaved}){
          <button type="button" onClick={clearFile} aria-label="Bỏ tệp đính kèm"><X size={16}/></button>
        </div>}
        <form className="help-composer" onSubmit={e=>{e.preventDefault();ask(text);}}>
-         <input ref={fileInput} type="file" style={{display:'none'}} accept={mode==='image'?'.jpg,.jpeg,.png,.webp':'.jpg,.jpeg,.png,.webp,.pdf,.xls,.xlsx,.csv,.tsv,.txt,.docx,.pptx'} onChange={e=>setFile(e.target.files?.[0]||null)}/>
+         <input ref={fileInput} type="file" style={{display:'none'}} accept={mode==='image'?'.jpg,.jpeg,.png,.webp':mode==='schedule'?'.jpg,.jpeg,.png,.webp,.pdf,.xls,.xlsx,.csv,.tsv,.txt':'.jpg,.jpeg,.png,.webp,.pdf,.xls,.xlsx,.csv,.tsv,.txt,.docx,.pptx'} onChange={e=>setFile(e.target.files?.[0]||null)}/>
          <button type="button" className="help-attach-button" onClick={()=>fileInput.current?.click()} disabled={pending} aria-label="Đính kèm ảnh hoặc file" title="Thêm ảnh hoặc file"><Paperclip size={19}/></button>
          <textarea ref={inputRef} rows={2} value={text} maxLength={1300} disabled={pending} aria-label="Nhập yêu cầu cho AI"
            placeholder={mode==='image'?'Mô tả ảnh cần tạo hoặc chỉnh sửa…':mode==='schedule'?'Yêu cầu tạo, thêm hoặc sửa buổi học…':'Nhắn tin cho Trợ lý IC3 AI…'}
