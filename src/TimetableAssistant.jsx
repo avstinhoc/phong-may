@@ -73,7 +73,7 @@ export function TimetableImport({profile,reload,onImported}){
   if(!session?.access_token)throw new Error('Phiên đăng nhập đã hết hạn.');
   const payload={action,startDate,endDate,schoolName:profile.school_name,
     instruction,rows,teacherName:profile.full_name};
-  if(file&&(action==='extract'||(action==='chat'&&/tệp|file|ảnh|bảng gốc|tài liệu/i.test(instruction))))
+  if(file)
     Object.assign(payload,await fromFile());
   const response=await fetch('/api/timetable',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+session.access_token},body:JSON.stringify(payload)});
   const result=await response.json().catch(()=>({error:'Máy chủ đọc lịch chưa phản hồi dữ liệu JSON.'}));
