@@ -1,76 +1,75 @@
-# IC3 GS6 – Computer Lab Management
+# Quản lý học sinh & phòng máy — React, Supabase, Vercel
 
-Website quản lý phòng máy IC3 GS6, React + Vite + Supabase.
+## Bản sửa đăng nhập và quản lý nhiều trường
 
-## Chức năng hiện có trong bản khởi đầu
+- Hiển thị lỗi ngay trong trang đăng nhập/đăng ký, xử lý lỗi mạng, xác nhận email và gửi lại email.
+- Tạo hồ sơ `profiles` bằng trigger sau đăng ký Auth, kể cả khi chưa xác nhận email; đồng bộ các tài khoản Auth đã có nhưng thiếu hồ sơ.
+- Admin: xem danh sách tài khoản (50/trang), sửa tên, duyệt giáo viên, đổi vai trò, khóa/mở quyền sử dụng. Không tự hạ quyền/khóa chính mình.
+- Giáo viên được duyệt: sử dụng các chức năng nghiệp vụ, tự tạo nhiều trường và chuyển trường ở thanh bên. Không đọc hoặc sửa tài khoản giáo viên khác, kể cả gọi API trực tiếp.
+- Mỗi giáo viên quản lý các trường mình tạo; trường và dữ liệu cũ được bảo toàn, thành viên cũ được chuyển từ `profiles.school_id`. Admin xem toàn bộ trường. Hai giáo viên tạo tên trường giống nhau vẫn có không gian dữ liệu riêng.
+- Nhập ảnh lịch: gửi ảnh qua API có xác thực; xem lại và sửa trường/lớp/ngày/giờ; chọn lặp 1–16 tuần; lưu trường, lớp và lịch trong một giao dịch. Bỏ qua buổi trùng hệt; lịch chồng giờ sẽ hủy toàn bộ đợt nhập.
+- Có thể thêm dòng thủ công, không cần dịch vụ AI. Đơn giá lịch nhập là 0; dùng nút **Sửa** của buổi học để cập nhật.
 
-- Đăng nhập email/mật khẩu và đăng ký tài khoản giáo viên (mặc định chờ cấp quyền).
-- Dashboard thống kê.
-- Quản lý hồ sơ học sinh, duyệt hồ sơ, tìm kiếm và xuất Excel.
-- Quản lý máy tính: tạo nhanh PC1–PC40 hoặc số lượng lớn hơn; thêm máy riêng; sức chứa 1–2 học sinh.
-- Gán học sinh vào máy.
-- Tạo lịch học, ghi nhận giờ dạy, số tiết, đơn giá tiền học/tiết và tiền công/giờ.
-- Ghi nhận điểm, thưởng, vi phạm.
-- Nhật ký vệ sinh theo máy và học sinh.
-- Nhận xét học sinh theo quy tắc từ điểm, thưởng, lỗi, chuyên cần; giáo viên lưu nhận xét.
-- Tổng hợp học phí dự kiến và tiền công; xuất Excel.
+## Chạy hoặc cập nhật
 
-## Yêu cầu
+1. Node.js 22+, `npm ci`.
+2. **Supabase đã có bảng:** chỉ chạy `supabase/migrations/20261115_auth_roles_schools.sql` trong SQL Editor.
+   **Dự án trống:** chạy `supabase/schema.sql` một lần, rồi migration trên. Không chạy lại schema cũ sau migration vì sẽ thêm lại policy cũ.
+3. Sao chép `.env.example` thành `.env.local`, điền URL dự án thật và publishable/anon key. Không dùng URL GitHub `/supabase`; đây chỉ là thư mục mã SQL.
+4. `npm run dev` để chạy giao diện. API `/api/timetable` cần Vercel hoặc `vercel dev` với biến máy chủ tương ứng.
+5. `npm test` kiểm tra phân quyền và nhập lịch trên PostgreSQL nhúng (PGlite), không dùng dữ liệu thật. `npm run build` tạo bản production.
 
-- Node.js 20+
-- Tài khoản Supabase
-- GitHub (lưu mã nguồn) và Vercel (host website) nếu muốn đưa lên Internet.
+## Vercel
 
-## Chạy thử
+Import repository, chọn Vite, Root Directory là thư mục chứa package.json. Build `npm run build`, Output `dist`; file `vercel.json` đã xử lý `/register` và API.
 
-1. Tạo project tại https://supabase.com.
-2. Mở SQL Editor trong Supabase, chạy toàn bộ `supabase/schema.sql`.
-3. Vào Project Settings → API, lấy Project URL và anon/public key.
-4. Sao chép `.env.example` thành `.env`, điền hai giá trị:
-   ```
-   VITE_SUPABASE_URL=https://....supabase.co
-   VITE_SUPABASE_ANON_KEY=...
-   ```
-5. Cài và chạy:
-   ```
-   npm install
-   npm run dev
-   ```
-6. Đăng ký tài khoản giáo viên đầu tiên trong website.
-7. Tạo trường trong SQL Editor:
-   ```
-   insert into public.schools(name) values ('Tên trường') returning id;
-   ```
-8. Gán tài khoản đầu tiên thành admin và gắn trường:
-   ```
-   update public.profiles
-   set role='admin', school_id='UUID_TRUONG', school_name='Tên trường'
-   where email='email_dang_ky';
-   ```
-9. Đăng xuất/đăng nhập lại.
+Thêm biến cho môi trường sử dụng (Production và Preview nếu cần):
 
-## Đưa website lên Internet
+| Biến | Giá trị |
+| --- | --- |
+| `VITE_SUPABASE_URL` | Project URL trong Supabase Settings / API |
+| `VITE_SUPABASE_ANON_KEY` | Publishable hoặc legacy anon key của đúng project |
+| `GEMINI_API_KEY` | Khóa Google AI Studio, chỉ ở server, cần cho đọc ảnh |
+| `GEMINI_MODEL` | ID model có hỗ trợ ảnh và `generateContent` trong tài khoản AI Studio |
 
-- Đẩy source code lên GitHub.
-- Tạo project mới trên Vercel, import repository.
-- Thêm Environment Variables `VITE_SUPABASE_URL` và `VITE_SUPABASE_ANON_KEY`.
-- Deploy.
-- Trong Supabase Authentication → URL Configuration, thêm domain Vercel vào Site URL và Redirect URLs.
+Có thể dùng `VITE_SUPABASE_PUBLISHABLE_KEY` thay `VITE_SUPABASE_ANON_KEY`. Nếu đặt cả hai, publishable key được ưu tiên.
+Sau khi đổi biến `VITE_*`, **Redeploy**: Vite nhúng các giá trị này lúc build. Không đưa service_role hoặc Gemini API key vào biến bắt đầu bằng `VITE_`.
 
-## Những việc cần cấu hình trước khi dùng thật
+Trong Supabase Authentication / URL Configuration đặt Site URL là domain production và cho phép đúng URL callback của các domain dùng để đăng ký/xác nhận. Giữ xác nhận email; người dùng cần mở email trước khi đăng nhập. Kiểm tra Authentication / Users, không chỉ bảng `profiles`.
 
-Đây là bản nền có giao diện và các luồng quản lý chính, chưa phải hệ thống đã được triển khai/kiểm thử trên tài khoản Supabase của bạn. Cần cấu hình và kiểm thử dữ liệu trước khi dùng chính thức.
+## Admin đầu tiên
 
-1. **Quy trình đăng ký học sinh:** đã có trang công khai `/register` để học sinh nhập mã lớp, họ tên, mã học sinh, số điện thoại và máy mong muốn; giáo viên xem hồ sơ chờ duyệt trong mục Học sinh. Sau khi duyệt, hồ sơ được đưa vào danh sách chính thức. Mã lớp phải được giáo viên tạo trước.
-2. **Phân quyền quản trị:** tài khoản đầu tiên phải được gán `admin` thủ công bằng SQL. Không cấp quyền admin qua form đăng ký công khai.
-3. **AI tạo sinh:** phần đánh giá hiện dùng quy tắc tự động, chưa gọi API mô hình AI. Muốn có AI viết nhận xét tự nhiên cần thêm backend/Edge Function và khóa API ở server, không đặt khóa bí mật trong frontend.
-4. **Tính phí:** hiện tính học phí dự kiến theo số học sinh trong lớp × đơn giá/tiết × số tiết; tiền công theo giờ bắt đầu/kết thúc. Cần bổ sung quy tắc miễn giảm, buổi nghỉ, thanh toán và công nợ nếu đơn vị cần.
-5. **Chấm công:** hiện có tạo buổi học và dữ liệu lịch; cần hoàn thiện giao diện điểm danh từng học sinh và check-in/check-out giáo viên theo quy trình thực tế.
-6. **RLS:** rà soát lại chính sách bảo mật theo mô hình nhiều trường, nhất là phân quyền admin, giáo viên và học sinh. Không dùng dữ liệu thật trước khi kiểm thử các trường hợp truy cập chéo.
+Đăng ký bằng email của người quản trị, xác nhận email. Người có quyền SQL Editor chạy (thay email chính xác):
 
-## Cấu trúc
+```sql
+update public.profiles
+set role = 'admin', is_active = true
+where email = 'EMAIL_ADMIN_DA_DANG_KY';
+```
 
-- `src/App.jsx`: giao diện và luồng chức năng
-- `src/style.css`: giao diện responsive
-- `supabase/schema.sql`: cấu trúc dữ liệu và Row Level Security
-- `.env.example`: cấu hình kết nối
+Kiểm tra câu lệnh cập nhật đúng **1 dòng**, rồi đăng nhập lại. Không tự phong tài khoản đăng ký đầu tiên thành Admin. Các giáo viên tiếp theo do Admin duyệt tại **Quản lý tài khoản**.
+Khóa tài khoản ở đây là khóa quyền truy cập dữ liệu ứng dụng, không xóa tài khoản Auth hay dữ liệu đã tạo. Không có chức năng xóa vĩnh viễn tài khoản.
+
+## Dùng ảnh thời khóa biểu
+
+1. Tạo trường đầu tiên, mở **Điểm danh & lịch → Nhập thời khóa biểu từ ảnh**.
+2. Chọn JPG/PNG/WebP tối đa 3 MB và thứ Hai của tuần áp dụng.
+3. Đồng ý gửi ảnh tới Google Gemini, bấm **Đọc ảnh**. Không lưu ảnh gốc vào database.
+4. Kiểm tra từng dòng, sửa giờ nếu ảnh chỉ ghi số tiết, bỏ dòng của giáo viên khác. AI có thể đọc sai; kết quả chưa tự ghi vào database.
+5. Chọn số tuần và **Xác nhận lưu trường, lớp và lịch**. Tối đa 500 buổi/lần, 20 yêu cầu đọc ảnh/tài khoản/ngày. Yêu cầu AI lỗi sau khi lấy hạn mức vẫn tính một lần.
+
+Chưa cấu hình AI, hết hạn mức hoặc lỗi dịch vụ: website hiển thị nguyên nhân, vẫn nhập lịch bằng tay. Chưa có ảnh thật và khóa AI thì chưa thể kiểm chứng độ chính xác nhận diện thực tế.
+
+## Chẩn đoán đăng nhập
+
+- Không có request trong Network: xem lỗi console và cấu hình frontend.
+- Request tới sai hostname: sửa Project URL và khóa cùng dự án, Redeploy.
+- 401 / Invalid login credentials: email/mật khẩu chưa đúng hoặc chưa đăng ký.
+- Email not confirmed: xác nhận email, kiểm tra thư rác hoặc gửi lại.
+- Database error saving new user: xem Auth/Postgres logs và trigger `on_auth_user_created`.
+- Auth có user nhưng thiếu profile: migration có câu đồng bộ, không cần tạo lại tài khoản.
+- Chờ cấp quyền: Auth đã thành công; Admin cần duyệt. Không phải lỗi mật khẩu.
+
+## Ghi chú kiểm thử và quyền
+
+`tests/security.test.js` kiểm tra trigger không nhận vai trò từ metadata; RLS đọc/ghi; tự nâng quyền; trường chéo; tài khoản khóa/chờ; Admin; nhập lặp; rollback; giới hạn AI; ngày/giờ/lặp tuần. Các hàm RPC đặc quyền kiểm tra vai trò từ bảng profiles, không tin metadata/JWT role tự khai. Bảng hạn mức không cho trình duyệt truy cập trực tiếp; chỉ qua RPC. Supabase Advisor có thể nêu các RPC SECURITY DEFINER được cấp cho authenticated: đây là quyền có chủ đích, có kiểm tra trong hàm; không có quyền gọi các RPC quản trị từ anon.

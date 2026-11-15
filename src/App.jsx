@@ -1,6 +1,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
-import { createClient } from "@supabase/supabase-js";
+import { supabase, configurationError, authMessage } from "./lib/supabase";
+import { SchoolManager, Accounts, TimetableImport } from "./Management";
 import * as XLSX from "xlsx";
 import {
   LayoutDashboard, Users, Monitor, ClipboardList, CalendarDays, Wallet,
@@ -9,12 +10,6 @@ import {
   ShieldCheck, Trash2, FileSpreadsheet, ClipboardCheck, FileText,
   ChevronLeft, ChevronRight, Printer, UserCheck
 } from "lucide-react";
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const supabase = supabaseUrl && supabaseKey
-  ? createClient(supabaseUrl, supabaseKey)
-  : null;
 
 const nav = [
   ["dashboard", "Tổng quan", LayoutDashboard],
@@ -26,7 +21,8 @@ const nav = [
   ["finance", "Học phí & tiền công", Wallet],
   ["evaluation", "Đánh giá học sinh", Sparkles],
   ["reports", "Báo cáo PDF", FileText],
-  ["settings", "Thiết lập", Settings]
+  ["settings", "Thiết lập", Settings],
+  ["accounts", "Quản lý tài khoản", ShieldCheck]
 ];
 
 const money = n =>
@@ -45,7 +41,12 @@ const dateText = value => {
 
 function App() {
   const [session, setSession] = useState(null);
-  const [profile, setProfile] = useState(null);
+  const [account, setProfile] = useState(null);
+  const [schools, setSchools] = useState([]);
+  const [schoolId, setSchoolId] = useState("");
+  const [profileError, setProfileError] = useState("");
+  const school = schools.find(s => s.id === schoolId);
+  const profile = account ? {...account, school_id: school?.id || null, school_name: school?.name || ""} : null;
   const [page, setPage] = useState("dashboard");
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState("");
@@ -58,7 +59,7 @@ function App() {
       setLoading(false);
       return;
     }
-    supabase.auth.getSession().then(({ data }) => setSession(data.session));
+    supabase.auth.getSession().then(({ data, error }) => { if (error) setProfileError(authMessage(error)); setSession(data.session); }).catch(e => { setProfileError(authMessage(e)); setLoading(false); });
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, s) => setSession(s)
     );
@@ -75,6 +76,8 @@ function App() {
         }
         return;
       }
+      if (!account || account.id !== session.user.id) setLoading(true);
+      try {
       const { data, error } = await supabase
         .from("profiles")
         .select("*")
@@ -83,8 +86,15 @@ function App() {
 
       if (live) {
         setProfile(error ? null : data);
+        setProfileError(error?.message || (!data ? "Chưa có hồ sơ. Hãy chạy migration để đồng bộ tài khoản Auth sang profiles." : ""));
+        const result = await supabase.from("schools").select("id,name").order("name");
+        if (!live) return;
+        if (result.error) setProfileError(result.error.message);
+        setSchools(result.data || []);
+        setSchoolId(current => (result.data || []).some(s => s.id === current) ? current : result.data?.[0]?.id || "");
         setLoading(false);
       }
+      } catch(e) { if(live) { setProfileError(authMessage(e)); setLoading(false); } }
     }
     loadProfile();
     return () => { live = false; };
@@ -98,11 +108,12 @@ function App() {
   const signOut = async () => {
     await supabase.auth.signOut();
     setProfile(null);
+    setSchools([]); setSchoolId(""); setPage("dashboard");
   };
 
   if (!supabase) return <SetupScreen />;
   if (window.location.pathname === "/register") {
-    return <PublicStudentRegister ping={ping} />;
+    return <><PublicStudentRegister ping={ping} />{notice && <div role="status" className="toast">{notice}</div>}</>;
   }
   if (loading) {
     return <div className="center-screen"><div className="spinner" />Đang tải hệ thống...</div>;
@@ -110,13 +121,9 @@ function App() {
   if (!session) {
     return <AuthScreen mode={authMode} setMode={setAuthMode} ping={ping} />;
   }
-  if (!profile) {
-    return <PendingProfile user={session.user} ping={ping} />;
-  }
-
-  const isTeacher = ["admin", "teacher"].includes(profile.role);
-  if (!isTeacher && profile.role !== "student") {
-    return <PendingProfile user={session.user} ping={ping} />;
+  const isTeacher = profile?.is_active && ["admin", "teacher", "staff"].includes(profile?.role);
+  if (!profile || !isTeacher || profileError) {
+    return <div className="auth-wrap"><div className="auth-card"><h1>{profile?.is_active === false ? "Tài khoản đã bị khóa" : "Tài khoản đang chờ cấp quyền"}</h1><p>{profileError || "Admin cần duyệt tài khoản giáo viên. Bạn không cần đăng ký lại."}</p><button className="btn primary" onClick={reload}>Kiểm tra lại</button> <button className="btn outline" onClick={signOut}>Đăng xuất</button></div></div>;
   }
 
   return (
@@ -128,11 +135,11 @@ function App() {
           <button className="mobile-close" onClick={() => setMobileNav(false)}><X size={18} /></button>
         </div>
         <div className="school-chip">
-          <School size={16} /><span>{profile.school_name || "Chưa gán trường"}</span>
+          <School size={16} /><select aria-label="Trường đang quản lý" value={schoolId} onChange={e => setSchoolId(e.target.value)}><option value="" disabled>Chọn trường</option>{schools.map(s => <option value={s.id} key={s.id}>{s.name}</option>)}</select>
         </div>
         <div className="nav-label">MENU CHÍNH</div>
         {nav.filter(([id]) =>
-          isTeacher || ["dashboard", "computers", "evaluation"].includes(id)
+          id !== "accounts" || profile.role === "admin"
         ).map(([id, label, Icon]) => (
           <button
             key={id}
@@ -170,7 +177,11 @@ function App() {
 
         {notice && <div className="toast"><CheckCircle2 size={17} />{notice}</div>}
 
-        <div className="content">
+        <div className="content" key={schoolId}>
+          <SchoolManager schools={schools} onCreated={id => {setSchoolId(id); reload();}} ping={ping} />
+          {page === "accounts" && profile.role === "admin" && <Accounts profile={profile} />}
+          {!schoolId && <div className="notice-box">Thêm trường đầu tiên để bắt đầu quản lý học sinh và lịch dạy.</div>}
+          {schoolId && <>
           {page === "dashboard" && <Dashboard profile={profile} refresh={refresh} setPage={setPage} />}
           {page === "students" && isTeacher && <Students profile={profile} refresh={refresh} reload={reload} ping={ping} />}
           {page === "computers" && <Computers profile={profile} refresh={refresh} reload={reload} ping={ping} />}
@@ -181,6 +192,7 @@ function App() {
           {page === "evaluation" && <Evaluation profile={profile} refresh={refresh} reload={reload} ping={ping} />}
           {page === "reports" && isTeacher && <Reports profile={profile} refresh={refresh} ping={ping} />}
           {page === "settings" && isTeacher && <SettingsPage profile={profile} ping={ping} />}
+          </>}
         </div>
         <footer>IC3 GS6 Computer Lab <span>•</span> Dữ liệu được lưu trên Supabase</footer>
       </main>
@@ -193,7 +205,7 @@ function SetupScreen() {
     <div className="center-screen">
       <div className="setup-card">
         <div className="brand-mark large">IC3</div>
-        <h1>Chưa kết nối cơ sở dữ liệu</h1>
+        <h1>Chưa kết nối cơ sở dữ liệu</h1><div role="alert" className="notice-box">{configurationError}</div>
         <p>Hãy tạo dự án Supabase, chạy tệp <b>supabase/schema.sql</b>, sau đó điền URL và anon key vào biến môi trường Vercel.</p>
         <ol>
           <li>Mở <a href="https://supabase.com" target="_blank" rel="noreferrer">supabase.com</a> và tạo project.</li>
@@ -211,25 +223,27 @@ function AuthScreen({ mode, setMode, ping }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
-  const [school, setSchool] = useState("");
+  const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
 
   async function submit(e) {
-    e.preventDefault();
+    e.preventDefault(); setBusy(true); setMessage("");
+    try {
+      if (mode === "login") {
+        const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase.auth.signUp({email:email.trim(),password, options:{emailRedirectTo:window.location.origin, data:{full_name:name.trim()}}});
+        if(error) throw error;
+        setMessage(data.session ? "Đã đăng ký. Chờ Admin cấp quyền giáo viên." : "Đã gửi yêu cầu. Kiểm tra email xác nhận (kể cả thư rác), sau đó đăng nhập. Nếu email đã có tài khoản, hãy dùng mật khẩu hiện tại.");
+      }
+    } catch(e) {setMessage(authMessage(e));} finally {setBusy(false);}
+  }
+  async function resend() {
+    if(!email.trim()) {setMessage("Nhập email trước khi gửi lại."); return;}
     setBusy(true);
-    if (mode === "login") {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) ping(error.message);
-    } else {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { data: { full_name: name, school_name: school, requested_role: "teacher" } }
-      });
-      if (error) ping(error.message);
-      else ping("Đã gửi đăng ký. Kiểm tra email xác nhận nếu được yêu cầu.");
-    }
-    setBusy(false);
+    try {const {error}=await supabase.auth.resend({type:'signup',email:email.trim(),options:{emailRedirectTo:window.location.origin}}); if(error) throw error; setMessage("Đã gửi yêu cầu gửi lại email xác nhận.");}
+    catch(e){setMessage(authMessage(e));} finally{setBusy(false);}
   }
 
   return (
@@ -238,10 +252,11 @@ function AuthScreen({ mode, setMode, ping }) {
         <div className="auth-logo"><div className="brand-mark large">IC3</div><span>COMPUTER LAB MANAGEMENT</span></div>
         <h1>{mode === "login" ? "Đăng nhập hệ thống" : "Đăng ký tài khoản giáo viên"}</h1>
         <p className="muted">Quản lý lớp học, học sinh và phòng máy IC3 GS6</p>
+        <div role="status" aria-live="polite">{message && <p className="notice-box">{message}</p>}</div>
         <form onSubmit={submit} className="form-stack">
           {mode === "register" && <>
             <label>Họ và tên<input required value={name} onChange={e => setName(e.target.value)} placeholder="Nguyễn Văn A" /></label>
-            <label>Trường công tác<input required value={school} onChange={e => setSchool(e.target.value)} placeholder="Tên trường" /></label>
+            <p className="muted">Sau khi được duyệt, bạn có thể tự thêm nhiều trường và lịch dạy.</p>
           </>}
           <label>Email<input type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="email@example.com" /></label>
           <label>Mật khẩu<input type="password" required minLength="6" value={password} onChange={e => setPassword(e.target.value)} placeholder="Tối thiểu 6 ký tự" /></label>
@@ -251,6 +266,7 @@ function AuthScreen({ mode, setMode, ping }) {
           {mode === "login" ? "Chưa có tài khoản giáo viên?" : "Đã có tài khoản?"}
           {" "}<button onClick={() => setMode(mode === "login" ? "register" : "login")}>{mode === "login" ? "Đăng ký" : "Đăng nhập"}</button>
         </div>
+        <button className="btn outline full" type="button" disabled={busy} onClick={resend}>Gửi lại email xác nhận</button>
         <div className="auth-foot">Tài khoản giáo viên mới cần quản trị viên cấp quyền trước khi sử dụng.</div>
       </div>
     </div>
@@ -304,38 +320,6 @@ function PublicStudentRegister({ ping }) {
             <button className="btn primary full" disabled={busy}>{busy ? "Đang gửi..." : "Gửi đăng ký"}</button>
           </form>
         </>}
-      </div>
-    </div>
-  );
-}
-
-function PendingProfile({ user, ping }) {
-  const [name, setName] = useState(user.user_metadata?.full_name || "");
-  const [school, setSchool] = useState(user.user_metadata?.school_name || "");
-  async function save(e) {
-    e.preventDefault();
-    const { error } = await supabase.from("profiles").upsert({
-      id: user.id,
-      email: user.email,
-      full_name: name,
-      school_name: school,
-      role: "pending"
-    });
-    if (error) ping(error.message);
-    else ping("Đã gửi hồ sơ. Quản trị viên cần duyệt quyền truy cập.");
-  }
-  return (
-    <div className="auth-wrap">
-      <div className="auth-card">
-        <div className="brand-mark large">IC3</div>
-        <h1>Hoàn tất hồ sơ</h1>
-        <p className="muted">Tài khoản của bạn cần được quản trị viên cấp quyền trước khi sử dụng.</p>
-        <form className="form-stack" onSubmit={save}>
-          <label>Họ và tên<input required value={name} onChange={e => setName(e.target.value)} /></label>
-          <label>Trường<input value={school} onChange={e => setSchool(e.target.value)} /></label>
-          <button className="btn primary full">Gửi hồ sơ</button>
-        </form>
-        <p className="auth-foot">Nếu đã được duyệt, hãy tải lại trang hoặc đăng nhập lại.</p>
       </div>
     </div>
   );
@@ -799,6 +783,8 @@ function Computers({ profile, refresh, reload, ping }) {
 function Attendance({ profile, refresh, reload, ping }) {
   const { rows } = useRows("class_sessions", profile, refresh);
   const classes = useRows("classes", profile, refresh);
+  const [editingId, setEditingId] = useState(null);
+  const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     class_name: "", session_date: today(), start_time: "17:00",
     end_time: "19:00", teacher_name: profile.full_name || "",
@@ -807,7 +793,9 @@ function Attendance({ profile, refresh, reload, ping }) {
 
   async function save(e) {
     e.preventDefault();
-    const { error } = await supabase.from("class_sessions").insert({
+    if(saving) return;
+    setSaving(true);
+    const payload = {
       ...form,
       school_id: profile.school_id,
       teacher_id: profile.id,
@@ -815,9 +803,11 @@ function Attendance({ profile, refresh, reload, ping }) {
       hourly_rate: Number(form.hourly_rate),
       student_fee_per_period: Number(form.student_fee_per_period),
       period_count: Number(form.period_count)
-    });
+    };
+    const { error } = editingId ? await supabase.from("class_sessions").update(payload).eq("id",editingId) : await supabase.from("class_sessions").insert(payload);
+    setSaving(false);
     if (error) ping(error.message);
-    else { ping("Đã lưu buổi học"); reload(); }
+    else { ping("Đã lưu buổi học"); setEditingId(null); reload(); }
   }
 
   const minutes = Math.max(0,
@@ -826,10 +816,11 @@ function Attendance({ profile, refresh, reload, ping }) {
   );
 
   return <>
+    <TimetableImport profile={profile} reload={reload} />
     <SectionHead title="Lịch học & chấm công" desc="Lập lịch theo lớp, ghi nhận giờ dạy và số tiết học" />
     <div className="two-col">
       <div className="panel">
-        <h3>Tạo buổi học / chấm công</h3>
+        <h3>{editingId ? "Sửa buổi học" : "Tạo buổi học / chấm công"}</h3>
         <form className="form-stack" onSubmit={save}>
           <label>Lớp
             <input list="class-options" required value={form.class_name} onChange={e => setForm({ ...form, class_name: e.target.value })} placeholder="Chọn hoặc nhập tên lớp" />
@@ -846,7 +837,7 @@ function Attendance({ profile, refresh, reload, ping }) {
             <label>Tiền / tiết / học sinh<input type="number" min="0" value={form.student_fee_per_period} onChange={e => setForm({ ...form, student_fee_per_period: e.target.value })} /></label>
           </div>
           <label>Số tiết<input type="number" min="1" value={form.period_count} onChange={e => setForm({ ...form, period_count: e.target.value })} /></label>
-          <button className="btn primary full">Lưu lịch học</button>
+          <button className="btn primary full" disabled={saving}>{saving ? "Đang lưu..." : "Lưu lịch học"}</button>{editingId && <button type="button" className="btn outline" onClick={()=>setEditingId(null)}>Hủy sửa</button>}
         </form>
       </div>
       <div className="panel">
@@ -864,9 +855,9 @@ function Attendance({ profile, refresh, reload, ping }) {
     <div className="panel table-panel">
       <h3>Buổi học đã tạo</h3>
       <table>
-        <thead><tr><th>NGÀY</th><th>LỚP</th><th>GIÁO VIÊN</th><th>GIỜ</th><th>SỐ TIẾT</th></tr></thead>
+        <thead><tr><th>NGÀY</th><th>LỚP</th><th>GIÁO VIÊN</th><th>GIỜ</th><th>SỐ TIẾT</th><th></th></tr></thead>
         <tbody>{rows.map(r => (
-          <tr key={r.id}><td>{dateText(r.session_date)}</td><td>{r.class_name}</td><td>{r.teacher_name}</td><td>{r.start_time} – {r.end_time}</td><td>{r.period_count}</td></tr>
+          <tr key={r.id}><td>{dateText(r.session_date)}</td><td>{r.class_name}</td><td>{r.teacher_name}</td><td>{r.start_time} – {r.end_time}</td><td>{r.period_count}</td><td><button className="btn outline" onClick={()=>{setEditingId(r.id);setForm({class_name:r.class_name,session_date:r.session_date,start_time:r.start_time.slice(0,5),end_time:r.end_time.slice(0,5),teacher_name:r.teacher_name||"",hourly_rate:r.hourly_rate,student_fee_per_period:r.student_fee_per_period,period_count:r.period_count});}}>Sửa</button></td></tr>
         ))}</tbody>
       </table>
       {!rows.length && <Empty text="Chưa có lịch học." />}
@@ -1388,8 +1379,7 @@ function SettingsPage({ profile, ping }) {
             .catch(() => ping("Không thể sao chép mã trên trình duyệt này"));
         }}>Sao chép mã lớp</button>
         <hr />
-        <h3>Quản lý tài khoản</h3>
-        <p className="muted">Tài khoản giáo viên mới mặc định chờ cấp quyền. Quản trị viên cần duyệt vai trò và gán trường trong bảng profiles. Không tự cấp quyền admin từ trình duyệt.</p>
+        <h3>Trường công tác</h3><p className="muted">Dùng danh sách ở thanh bên để đổi trường. Mỗi trường có lớp, học sinh và lịch riêng.</p>
       </div>
     </div>
   </>;
