@@ -73,3 +73,14 @@ Chưa cấu hình AI, hết hạn mức hoặc lỗi dịch vụ: website hiển
 ## Ghi chú kiểm thử và quyền
 
 `tests/security.test.js` kiểm tra trigger không nhận vai trò từ metadata; RLS đọc/ghi; tự nâng quyền; trường chéo; tài khoản khóa/chờ; Admin; nhập lặp; rollback; giới hạn AI; ngày/giờ/lặp tuần. Các hàm RPC đặc quyền kiểm tra vai trò từ bảng profiles, không tin metadata/JWT role tự khai. Bảng hạn mức không cho trình duyệt truy cập trực tiếp; chỉ qua RPC. Supabase Advisor có thể nêu các RPC SECURITY DEFINER được cấp cho authenticated: đây là quyền có chủ đích, có kiểm tra trong hàm; không có quyền gọi các RPC quản trị từ anon.
+
+### Cấp Admin theo email đã xác minh
+
+Migration tùy chọn `supabase/migrations/20261115_verified_initial_admin.sql` hỗ trợ chuẩn bị một email Admin trước khi đăng ký. Chủ dự án chạy migration, sau đó thêm email chính xác vào bảng riêng (không đưa email cá nhân vào mã GitHub):
+
+```sql
+insert into private.initial_admin_claims(email)
+values ('email-admin@example.com') on conflict(email) do nothing;
+```
+
+Khi người dùng đăng ký và xác nhận email, trigger sẽ cấp Admin một lần. Tài khoản chưa xác nhận không được cấp quyền; giáo viên không truy cập được danh sách này. Nếu tài khoản đã xác nhận trước khi chuẩn bị email, cấp quyền bằng SQL theo mục Admin đầu tiên. Kiểm thử cơ chế này: `tests/bootstrap.test.js`.
