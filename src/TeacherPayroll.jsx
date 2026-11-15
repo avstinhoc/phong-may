@@ -6,7 +6,7 @@ const monthEnds=month=>{const [y,m]=month.split('-').map(Number);return {from:mo
 export function TeacherPayroll({profile,refresh,ping,schools=[]}){
  const [month,setMonth]=useState(initialMonth);
  const [payrollSchool,setPayrollSchool]=useState('');
- const selectedSchool=schools.find(sc=>sc.id===payrollSchool);
+ const selectedSchool=schools.find(sc=>sc.id===payrollSchool)||(schools.length===1?schools[0]:null);
  const schoolLabel=selectedSchool?.name||'Tổng hợp các trường';
  const schoolLogo=selectedSchool?.logo_data||null;
  const [lessons,setLessons]=useState([]),[rates,setRates]=useState([]);
