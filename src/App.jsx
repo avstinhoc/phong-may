@@ -262,11 +262,18 @@ function AuthScreen({ mode, setMode, ping }) {
 
   async function submit(e) {
     e.preventDefault();
-    if (mode === "register" && cooldownSeconds > 0) return;
+    if ((mode === "register"||mode==="forgot") && cooldownSeconds > 0) return;
     setBusy(true); setMessage("");
     setEmailLimited(false);
     try {
-      if (mode === "login") {
+      if (mode === "forgot") {
+        const {error}=await supabase.auth.resetPasswordForEmail(email.trim(),{
+          redirectTo:emailCallbackUrl()+'?recovery=1'
+        });
+        if(error)throw error;
+        setMessage("Nếu email đã đăng ký trong IC3 GS6, hệ thống sẽ gửi liên kết đặt lại mật khẩu. Kiểm tra Hộp thư đến, Quảng cáo và Thư rác.");
+        setCooldownUntil(Date.now()+60000);
+      } else if (mode === "login") {
         const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
         if (error) throw error;
       } else {
@@ -288,7 +295,7 @@ function AuthScreen({ mode, setMode, ping }) {
     <div className="auth-wrap">
       <div className="auth-card">
         <div className="auth-logo"><div className="brand-mark large">IC3</div><span>COMPUTER LAB MANAGEMENT</span></div>
-        <h1>{mode === "login" ? "Đăng nhập hệ thống" : "Đăng ký tài khoản giáo viên"}</h1>
+        <h1>{mode==="forgot"?"Quên mật khẩu":mode === "login" ? "Đăng nhập hệ thống" : "Đăng ký tài khoản giáo viên"}</h1>
         <p className="muted">Quản lý lớp học, học sinh và phòng máy IC3 GS6</p>
         <div role="status" aria-live="polite">{message && <p className="notice-box">{message}</p>}</div>
         {emailLimited && mode === "register" && <div className="auth-limit-help">
@@ -303,14 +310,16 @@ function AuthScreen({ mode, setMode, ping }) {
             <p className="muted">Sau khi được duyệt, bạn có thể tự thêm nhiều trường và lịch dạy.</p>
           </>}
           <label>Email<input type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="email@example.com" /></label>
-          <label>Mật khẩu<input type="password" required minLength="6" value={password} onChange={e => setPassword(e.target.value)} placeholder="Tối thiểu 6 ký tự" /></label>
-          <button className="btn primary full" disabled={busy || (mode === "register" && cooldownSeconds > 0)}>{busy ? "Đang xử lý..." : mode === "login" ? "Đăng nhập" : cooldownSeconds > 0 ? `Tạm dừng gửi (${cooldownSeconds}s)` : "Gửi đăng ký giáo viên"}</button>
+          {mode!=="forgot"&&<label>Mật khẩu<input type="password" required minLength="6" value={password} onChange={e => setPassword(e.target.value)} placeholder="Tối thiểu 6 ký tự" /></label>}
+          <button className="btn primary full" disabled={busy || ((mode === "register"||mode==="forgot") && cooldownSeconds > 0)}>{busy ? "Đang xử lý..." : mode === "login" ? "Đăng nhập" : cooldownSeconds > 0 ? `Tạm dừng gửi (${cooldownSeconds}s)` : mode==="forgot"?"Gửi liên kết đặt lại mật khẩu":"Gửi đăng ký giáo viên"}</button>
         </form>
         <div className="auth-switch">
-          {mode === "login" ? "Chưa có tài khoản giáo viên?" : "Đã có tài khoản?"}
-          {" "}<button onClick={() => setMode(mode === "login" ? "register" : "login")}>{mode === "login" ? "Đăng ký" : "Đăng nhập"}</button>
+          {mode==="forgot"?"Đã nhớ mật khẩu?":mode === "login" ? "Chưa có tài khoản giáo viên?" : "Đã có tài khoản?"}
+          {" "}<button type="button" onClick={() => {setMessage("");setMode(mode==="login"?"register":"login");}}>{mode === "login" ? "Đăng ký" : "Đăng nhập"}</button>
         </div>
-        <button className="btn outline full" type="button" disabled={busy || cooldownSeconds > 0} onClick={resend}>{cooldownSeconds > 0 ? `Không gửi lại email trong ${cooldownSeconds}s` : "Gửi lại email xác nhận"}</button>
+        {mode==="login"&&<button className="btn outline full" type="button" onClick={()=>{setMode("forgot");setMessage("");}}>Quên mật khẩu?</button>}
+        {mode!=="forgot"&&<button className="btn outline full" type="button" disabled={busy || cooldownSeconds > 0} onClick={resend}>{cooldownSeconds > 0 ? `Không gửi lại email trong ${cooldownSeconds}s` : "Gửi lại email xác nhận"}</button>}
+        {mode==="forgot"&&<p className="muted">Chức năng áp dụng cho cả Admin và giáo viên. Email xác thực có thể nằm trong tab Quảng cáo hoặc Thư rác tùy nhà cung cấp.</p>
         <div className="auth-foot">Tài khoản giáo viên mới cần quản trị viên cấp quyền trước khi sử dụng.</div>
       </div>
     </div>
