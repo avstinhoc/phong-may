@@ -37,7 +37,8 @@ export function validateExtractedRows(kind,items,{limit=120}={}){
    for(const [key,value] of Object.entries(item.scores||{})){
     const normalized=normalizeScoreKey(key);
     if(!normalized){warnings.push('Dòng '+(i+1)+': cột '+key+' không được nhận diện');continue;}
-    const num=typeof value==='number'?value:Number(String(value||'').replace(',','.'));
+    const raw=typeof value==='number'?String(value):String(value??'').trim();
+    const num=raw?Number(raw.replace(',','.')):NaN;
     if(!Number.isFinite(num)||num<0||num>10||Math.abs(Math.round(num*100)-num*100)>1e-7){
       warnings.push('Dòng '+(i+1)+': điểm '+normalized+' không hợp lệ (0–10)');continue;
     }
