@@ -64,6 +64,7 @@ function App() {
   const school = schools.find(s => s.id === schoolId);
   const profile = account ? {...account, school_id: school?.id || null, school_name: school?.name || "", school_logo:school?.logo_data||null} : null;
   const [page, setPage] = useState("dashboard");
+  const [adminScheduleTeacher,setAdminScheduleTeacher]=useState(null);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState("");
   const [authMode, setAuthMode] = useState("login");
@@ -207,7 +208,7 @@ function App() {
           {page === "computers" && <Computers profile={profile} refresh={refresh} reload={reload} ping={ping} />}
           {page === "rollcall" && isTeacher && <RollCallView profile={profile} refresh={refresh} reload={reload} ping={ping} focusDate={calendarDate} setFocusDate={setCalendarDate} />}
           {page === "attendance" && isTeacher && <Attendance profile={profile} refresh={refresh} reload={reload} ping={ping} focusDate={calendarDate} setFocusDate={setCalendarDate} onImported={async(date,name)=>{setCalendarDate(date);const {data,error}=await supabase.rpc("create_my_school",{school_name:name});if(!error)setSchoolId(data);reload();}} />}
-          {page === "teacherSchedules" && profile.role === "admin" && <Attendance adminView profile={profile} refresh={refresh} reload={reload} ping={ping} focusDate={calendarDate} setFocusDate={setCalendarDate} />}
+          {page === "teacherSchedules" && profile.role === "admin" && <Attendance adminView adminSelection={adminScheduleTeacher} onAdminSelection={setAdminScheduleTeacher} profile={profile} refresh={refresh} reload={reload} ping={ping} focusDate={calendarDate} setFocusDate={setCalendarDate} />}
           {page === "records" && isTeacher && <Records profile={profile} refresh={refresh} reload={reload} ping={ping} />}
           {page === "cleaning" && isTeacher && <Cleaning profile={profile} refresh={refresh} reload={reload} ping={ping} />}
           {page === "evaluation" && <Evaluation profile={profile} refresh={refresh} reload={reload} ping={ping} />}
@@ -215,7 +216,11 @@ function App() {
         </div>
         <footer>IC3 GS6 Computer Lab <span>•</span> Dữ liệu được lưu trên Supabase</footer>
       </main>
-      <HelpAssistant key={profile.id} profile={profile} page={page} onSaved={reload} onNavigate={id=>{setPage(id);setMobileNav(false);}} />
+      <HelpAssistant key={profile.id} profile={profile} page={page} scheduleTeacher={
+        page==="teacherSchedules"&&profile.role==="admin"?
+        (adminScheduleTeacher?.id?adminScheduleTeacher:{id:profile.id,name:profile.full_name}):
+        {id:profile.id,name:profile.full_name}
+      } onSaved={reload} onNavigate={id=>{setPage(id);setMobileNav(false);}} />
     </div>
   );
 }
@@ -904,14 +909,16 @@ function RollCallView({profile,refresh,reload,ping,focusDate,setFocusDate}){
   </>;
 }
 
-function Attendance({ profile, refresh, reload, ping, focusDate, setFocusDate, onImported, adminView=false }) {
+function Attendance({ profile, refresh, reload, ping, focusDate, setFocusDate, onImported, adminView=false,
+  adminSelection=null,onAdminSelection=()=>{} }) {
   const { rows, error: scheduleError } = useRows("class_sessions", profile, refresh);
   const classes = useRows("classes", profile, refresh);
   const [teacherChoices,setTeacherChoices]=useState([{id:profile.id,full_name:profile.full_name||"Giáo viên"}]);
   // Every personal calendar is scoped to its signed-in teacher. Admin can use
   // the separate management view to inspect/edit one teacher at a time.
-  const [selectedTeacher,setSelectedTeacher]=useState(profile.id);
+  const selectedTeacher=adminView?(adminSelection?.id||profile.id):profile.id;
   const targetTeacher=adminView?selectedTeacher:profile.id;
+  const [editorMode,setEditorMode]=useState("manual");
   const visibleRows=rows.filter(r=>targetTeacher==="unassigned"?
     (!r.teacher_id&&!r.created_by):
     (r.teacher_id===targetTeacher||(!r.teacher_id&&r.created_by===targetTeacher)));
@@ -977,7 +984,7 @@ function Attendance({ profile, refresh, reload, ping, focusDate, setFocusDate, o
         <select aria-label="Chọn giáo viên để xem lịch" value={selectedTeacher}
           onChange={e=>{
             const id=e.target.value;
-            setSelectedTeacher(id);
+            onAdminSelection({id,name:teacherChoices.find(t=>t.id===id)?.full_name||""});
             setEditingId(null);
             const found=teacherChoices.find(t=>t.id===id);
             setForm(old=>({...old,teacher_id:id==="unassigned"?profile.id:id,
@@ -988,12 +995,27 @@ function Attendance({ profile, refresh, reload, ping, focusDate, setFocusDate, o
         </select>
       </label>
       <p className="muted">{visibleRows.length} buổi học đang hiển thị của {viewingName}.</p>
-    </section>:<div className="notice-box">Đây là <b>lịch cá nhân</b> của {profile.full_name}. Admin có thể mở mục <b>Lịch giáo viên khác</b> ở nhóm Quản lý để xem người khác.</div>}
+    </section>:null}
     <TeachingCalendar rows={visibleRows} focusDate={focusDate} onDateChange={setFocusDate} school={profile.school_name} teacher={viewingName} />
     {scheduleError && <p role="alert" className="notice-box">Không tải được lịch: {scheduleError}</p>}
-{!adminView&&<TimetableImport profile={profile} reload={reload} onImported={onImported} />}
-    <SectionHead title="Lịch học & chấm công" desc="Lập lịch theo lớp, ghi nhận giờ dạy và số tiết học" />
-    <div className="two-col">
+    <section className="panel schedule-workspace">
+      <div className="schedule-workspace-heading">
+        <div><h2>Thêm hoặc điều chỉnh lịch dạy</h2>
+          <p>Nhập trực tiếp hoặc tải ảnh, Excel, PDF rồi nhờ AI tạo bản nháp. Chỉ lưu sau khi bạn xác nhận.</p>
+          {adminView&&<p><b>Đang thao tác cho:</b> {viewingName}. Lịch sẽ xuất hiện trong tài khoản giáo viên này.</p>}
+        </div>
+        <div className="schedule-entry-tabs" role="group" aria-label="Chọn cách nhập lịch">
+          <button type="button" className={editorMode==="manual"?"active":""} onClick={()=>setEditorMode("manual")}>Nhập thủ công</button>
+          <button type="button" className={editorMode==="import"?"active":""} onClick={()=>setEditorMode("import")}>Ảnh, tệp & AI</button>
+        </div>
+      </div>
+      {editorMode==="import"?
+        (adminView&&targetTeacher==="unassigned"?
+          <p className="notice-box">Hãy chọn một giáo viên cụ thể trước khi nhập lịch.</p>:
+          <TimetableImport key={adminView?targetTeacher:'self'} embedded adminView={adminView}
+            targetTeacherId={targetTeacher} targetTeacherName={viewingName}
+            profile={profile} reload={reload} onImported={onImported}/>):
+        <div className="two-col">
       <div className="panel">
         <h3>{editingId ? "Sửa buổi học" : "Tạo buổi học / chấm công"}</h3>
         {adminView&&targetTeacher==="unassigned"&&<p className="muted">Các buổi cũ chưa có giáo viên. Bấm Sửa tại một dòng rồi chọn giáo viên phụ trách để gán lại.</p>}
@@ -1030,7 +1052,8 @@ function Attendance({ profile, refresh, reload, ping, focusDate, setFocusDate, o
         </div>
         <p className="muted">Mức tiền công của từng giáo viên được điều chỉnh riêng tại mục Chấm công & tiền công. Không tính hoặc hiển thị học phí học sinh.</p>
       </div>
-    </div>
+    </div>}
+    </section>
 
     <div className="panel table-panel">
       <h3>Buổi học đã tạo</h3>
