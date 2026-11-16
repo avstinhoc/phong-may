@@ -196,7 +196,7 @@ function App() {
         <div className="content" key={["schools","settings","finance","reports","accounts"].includes(page)?page:schoolId}>
           {(page === "schools" || !schools.length) && <SchoolManager schools={schools} role={profile.role} onCreated={id => {setSchoolId(id); reload();}} onChanged={deletedId => {if(deletedId === schoolId) setSchoolId(""); reload();}} ping={ping} />}
           {page === "accounts" && profile.role === "admin" && <Accounts profile={profile} />}
-          {page === "settings" && <ClassSettings profile={profile} ping={ping} schools={schools} />}
+          {page === "settings" && <ClassSettings profile={profile} ping={ping} schools={schools} onChanged={reload} />}
           {page === "finance" && <TeacherPayroll profile={profile} refresh={refresh} ping={ping} schools={schools} />}
           {page === "reports" && <ReportsCenter profile={profile} refresh={refresh} ping={ping} schools={schools} />}
           {!schoolId && !["schools","settings","finance","reports","accounts"].includes(page) && <div className="notice-box">Thêm trường đầu tiên để bắt đầu quản lý học sinh và lịch dạy.</div>}
@@ -567,10 +567,14 @@ function Students({ profile, refresh, reload, ping, navigate }) {
     student_code: "", phone: "", date_of_birth:"", status: "active"
   });
 
-  const filtered = rows.filter(s =>
-    `${s.full_name} ${s.class_name} ${s.student_code}`.toLowerCase().includes(search.toLowerCase())
-  );
-  const waiting = registrations.rows.filter(r => r.status === "pending" && schoolClasses.rows.some(c=>c.registration_code===r.registration_code));
+  const filtered = rows.filter(s=>
+    s.status!=="inactive" &&
+    `${s.full_name} ${s.class_name} ${s.student_code||""}`.toLowerCase().includes(search.toLowerCase())
+  ).sort((a,b)=>a.full_name.localeCompare(b.full_name,'vi',{sensitivity:'base'})||
+    String(a.class_name||"").localeCompare(String(b.class_name||""),'vi',{numeric:true}));
+  const ownedClassCodes=new Set(schoolClasses.rows.filter(c=>c.created_by===profile.id).map(c=>c.registration_code));
+  const waiting = registrations.rows.filter(r=>r.status==="pending" && ownedClassCodes.has(r.registration_code))
+    .sort((a,b)=>a.full_name.localeCompare(b.full_name,'vi',{sensitivity:'base'}));
 
   async function save(e) {
     e.preventDefault();
@@ -605,6 +609,15 @@ function Students({ profile, refresh, reload, ping, navigate }) {
     if(error) ping(error.message); else {ping("Đã duyệt học sinh và gán máy đăng ký");reload();}
   }
 
+  async function archiveDuplicates(){
+    if(!window.confirm("Ẩn hồ sơ học sinh bị trùng tên trong cùng lớp do bạn tạo? Dữ liệu điểm, điểm danh và lịch sử cũ vẫn được giữ. Hãy kiểm tra trước nếu lớp có hai học sinh trùng họ tên thật."))return;
+    const {data,error}=await supabase.rpc('ic3_archive_duplicate_students',{
+      p_school_id:profile.school_id,p_owner:profile.id
+    });
+    if(error)ping(error.message);
+    else{ping('Đã ẩn '+data.archived+' hồ sơ trùng trong '+data.groups+' nhóm, giữ nguyên lịch sử.');reload();}
+  }
+
   async function rejectRegistration(r) {
     if (!confirm("Từ chối đăng ký của " + r.full_name + "?")) return;
     const { error } = await supabase.from("student_registrations")
@@ -633,7 +646,7 @@ function Students({ profile, refresh, reload, ping, navigate }) {
           <span className="task-icon blue"><UserPlus /></span>
           <div>
             <b>{r.full_name}</b>
-            <small>Mã lớp: {r.registration_code} · Máy mong muốn: {r.computer_code || "Chưa chọn"} · {r.phone || "Không có SĐT"}</small>
+            <small>Mã lớp: {r.registration_code} · {r.gender||"Chưa có giới tính"} · Máy mong muốn: {r.computer_code||"Chưa chọn"}</small>
           </div>
           <button className="mini-btn success" onClick={() => approveRegistration(r)}>Duyệt</button>
           <button className="mini-btn danger" onClick={() => rejectRegistration(r)}>Từ chối</button>
@@ -644,18 +657,20 @@ function Students({ profile, refresh, reload, ping, navigate }) {
 
     <div className="toolbar">
       <div className="searchbox"><Search size={17} /><input placeholder="Tìm tên, lớp, mã học sinh..." value={search} onChange={e => setSearch(e.target.value)} /></div>
-      <button className="btn outline" onClick={() => exportRows(filtered, "Danh_sach_hoc_sinh")}><Download size={16} />Xuất Excel</button>
+      <button className="btn outline" onClick={archiveDuplicates} title="Ẩn các hồ sơ trùng sau khi xác nhận, không xóa điểm hay lịch sử">Dọn hồ sơ trùng</button>
+      <button className="btn outline" onClick={() => exportRows(filtered.map((s,i)=>({STT:i+1,...s})), "Danh_sach_hoc_sinh")}><Download size={16} />Xuất Excel</button>
     </div>
 
     <div className="panel table-panel">
       <div className="table-wrap">
         <table>
-          <thead><tr><th>HỌC SINH</th><th>MÃ HS</th><th>LỚP</th><th>TRƯỜNG</th><th>TRẠNG THÁI</th><th>THAO TÁC</th></tr></thead>
+          <thead><tr><th>STT</th><th>HỌC SINH (A–Z)</th><th>GIỚI TÍNH</th><th>LỚP</th><th>TRƯỜNG</th><th>TRẠNG THÁI</th><th>THAO TÁC</th></tr></thead>
           <tbody>
-            {filtered.map(s => (
+            {filtered.map((s,index) => (
               <tr key={s.id}>
-                <td><b>{s.full_name}</b><small>{s.phone || "Chưa có SĐT"}</small></td>
-                <td>{s.student_code || "—"}</td>
+                <td>{index+1}</td>
+                <td><b>{s.full_name}</b></td>
+                <td>{s.gender||"—"}</td>
                 <td>{s.class_name || "—"}</td>
                 <td>{s.school_name || "—"}</td>
                 <td><span className={`status ${s.status === "pending" ? "pending" : "active"}`}>{s.status === "pending" ? "Chờ duyệt" : s.status === "rejected" ? "Từ chối" : "Đang học"}</span></td>
