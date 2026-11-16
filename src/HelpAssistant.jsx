@@ -340,8 +340,17 @@ export function HelpAssistant({profile,page,onNavigate,onSaved,scheduleTeacher=n
          </div>)}
          {draft?.items?.length>0&&<div className="help-schedule-card">
            <div className="help-schedule-header"><CalendarDays size={16}/><strong>Bản nháp lịch học</strong><span>{draft.items.length} buổi</span></div>
-           <p className="help-schedule-context">Trường: <strong>{draft.schoolName}</strong> · Giáo viên: <strong>{draft.teacherName}</strong>. Kiểm tra từng ô trước khi lưu.</p>
-           <div className="help-schedule-list">{draft.items.map((r,i)=><div className="help-schedule-item" key={(r.target_id||'new')+'-'+i}>
+           <p className="help-schedule-context">Trường: <strong>{draft.schoolName}</strong> · Giáo viên: <strong>{draft.teacherName}</strong> · Từ <strong>{draft.rangeStart||draft.items[0]?.session_date}</strong> đến <strong>{draft.rangeEnd||draft.items.at(-1)?.session_date}</strong>.</p>
+           {draft.replaceScope&&<p className="help-schedule-replace-warning">Thay lịch cũ trong khoảng {draft.replaceScope.start} đến {draft.replaceScope.end}. Chỉ khi bạn xác nhận, lịch cũ cùng dữ liệu điểm danh mới bị xóa.</p>}
+           {!!draft.warnings?.length&&<div className="help-schedule-warning">
+             <strong>AI chưa chắc chắn về {draft.warnings.length} điểm:</strong>
+             <ul>{draft.warnings.slice(0,8).map((w,i)=><li key={i}>{w}</li>)}</ul>
+             <label><input type="checkbox" checked={partialAck} onChange={e=>setPartialAck(e.target.checked)}/> Tôi đã đọc cảnh báo và chỉ muốn lưu các buổi xác định được.</label>
+           </div>}
+           {draft.items.length>12&&<button type="button" className="help-show-all" onClick={()=>setShowAllDraft(v=>!v)}>
+             {showAllDraft?'Thu gọn bản nháp':'Xem đủ '+draft.items.length+' buổi để kiểm tra và sửa'}
+           </button>}
+           <div className="help-schedule-list">{(showAllDraft?draft.items:draft.items.slice(0,12)).map((r,i)=><div className="help-schedule-item" key={(r.target_id||'new')+'-'+i}>
              <div className="help-schedule-item-head"><b>{r.operation==='edit'?'Sửa buổi có sẵn':'Thêm buổi mới'}</b><button type="button" title="Bỏ buổi này" onClick={()=>setDraft(d=>({...d,items:d.items.filter((_,j)=>i!==j)}))}><X size={14}/></button></div>
              <div className="help-schedule-grid">
                <label className="wide">Lớp<input value={r.class_name} maxLength={120} onChange={e=>updateDraft(i,'class_name',e.target.value)}/></label>
@@ -352,7 +361,10 @@ export function HelpAssistant({profile,page,onNavigate,onSaved,scheduleTeacher=n
              </div>
            </div>)}</div>
            <div className="help-schedule-actions"><button type="button" onClick={()=>setDraft(null)} disabled={saving}>Hủy</button>
-             <button className="primary" type="button" onClick={saveDraft} disabled={saving||!draft.items.length}><CheckCircle2 size={14}/>{saving?'Đang lưu…':'Xác nhận lưu lịch'}</button>
+             <button className="primary" type="button" onClick={saveDraft}
+               disabled={saving||!draft.items.length||(!!draft.warnings?.length&&!partialAck)}>
+               <CheckCircle2 size={14}/>{saving?'Đang lưu…':draft.replaceScope?'Xác nhận thay lịch cũ':'Xác nhận lưu lịch'}
+             </button>
            </div>
          </div>}
          {pending&&<div className="help-message theirs"><span className="help-speaker">Trợ lý IC3 AI</span><p>Đang xử lý yêu cầu của bạn…</p></div>}
