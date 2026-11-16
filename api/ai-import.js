@@ -128,7 +128,7 @@ export default async function handler(req,res){
   const classroom=resolved.classroom;
   let parsed;
   try{parsed=validateExtractedRows(kind,extracted.rows);}
-  catch(e){return res.status(200).json({kind,classId,className:classroom.class_name,rows:[],
+  catch(e){return res.status(200).json({kind,classId:classroom.id,className:classroom.class_name,rows:[],
       warnings:[e.message,...(Array.isArray(extracted.warnings)?extracted.warnings:[]).slice(0,15)]});}
   const warnings=[...(resolved.warning?[resolved.warning]:[]),...parsed.warnings,
    ...(Array.isArray(extracted.warnings)?extracted.warnings:[]).map(v=>String(v).slice(0,230))];
@@ -154,7 +154,7 @@ export default async function handler(req,res){
    warnings.push('Có tên đã tồn tại trong lớp: hệ thống sẽ bỏ qua, không tạo trùng.');
   if(kind==='grades'&&rows.some(r=>r.check!=='matched'))
    warnings.push('Có học sinh chưa khớp danh sách lớp. Điểm của các dòng đó sẽ không được lưu.');
-  return res.status(200).json({kind,classId,className:classroom.class_name,
+  return res.status(200).json({kind,classId:classroom.id,className:classroom.class_name,
    schoolName:school?.name||'',rows,warnings:warnings.slice(0,35),observed_count:counted||0,
    answer:'Đã nhận diện '+rows.length+' dòng '+(kind==='students'?'học sinh':'điểm')+
      '. Kiểm tra bản nháp trước khi lưu.'});
