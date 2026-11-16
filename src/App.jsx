@@ -262,11 +262,18 @@ function AuthScreen({ mode, setMode, ping }) {
 
   async function submit(e) {
     e.preventDefault();
-    if (mode === "register" && cooldownSeconds > 0) return;
+    if ((mode === "register"||mode==="forgot") && cooldownSeconds > 0) return;
     setBusy(true); setMessage("");
     setEmailLimited(false);
     try {
-      if (mode === "login") {
+      if (mode === "forgot") {
+        const {error}=await supabase.auth.resetPasswordForEmail(email.trim(),{
+          redirectTo:emailCallbackUrl()+'?recovery=1'
+        });
+        if(error)throw error;
+        setMessage("Nếu email đã đăng ký trong IC3 GS6, hệ thống sẽ gửi liên kết đặt lại mật khẩu. Kiểm tra Hộp thư đến, Quảng cáo và Thư rác.");
+        setCooldownUntil(Date.now()+60000);
+      } else if (mode === "login") {
         const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
         if (error) throw error;
       } else {
@@ -288,7 +295,7 @@ function AuthScreen({ mode, setMode, ping }) {
     <div className="auth-wrap">
       <div className="auth-card">
         <div className="auth-logo"><div className="brand-mark large">IC3</div><span>COMPUTER LAB MANAGEMENT</span></div>
-        <h1>{mode === "login" ? "Đăng nhập hệ thống" : "Đăng ký tài khoản giáo viên"}</h1>
+        <h1>{mode==="forgot"?"Quên mật khẩu":mode === "login" ? "Đăng nhập hệ thống" : "Đăng ký tài khoản giáo viên"}</h1>
         <p className="muted">Quản lý lớp học, học sinh và phòng máy IC3 GS6</p>
         <div role="status" aria-live="polite">{message && <p className="notice-box">{message}</p>}</div>
         {emailLimited && mode === "register" && <div className="auth-limit-help">
@@ -303,14 +310,16 @@ function AuthScreen({ mode, setMode, ping }) {
             <p className="muted">Sau khi được duyệt, bạn có thể tự thêm nhiều trường và lịch dạy.</p>
           </>}
           <label>Email<input type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="email@example.com" /></label>
-          <label>Mật khẩu<input type="password" required minLength="6" value={password} onChange={e => setPassword(e.target.value)} placeholder="Tối thiểu 6 ký tự" /></label>
-          <button className="btn primary full" disabled={busy || (mode === "register" && cooldownSeconds > 0)}>{busy ? "Đang xử lý..." : mode === "login" ? "Đăng nhập" : cooldownSeconds > 0 ? `Tạm dừng gửi (${cooldownSeconds}s)` : "Gửi đăng ký giáo viên"}</button>
+          {mode!=="forgot"&&<label>Mật khẩu<input type="password" required minLength="6" value={password} onChange={e => setPassword(e.target.value)} placeholder="Tối thiểu 6 ký tự" /></label>}
+          <button className="btn primary full" disabled={busy || ((mode === "register"||mode==="forgot") && cooldownSeconds > 0)}>{busy ? "Đang xử lý..." : mode === "login" ? "Đăng nhập" : cooldownSeconds > 0 ? `Tạm dừng gửi (${cooldownSeconds}s)` : mode==="forgot"?"Gửi liên kết đặt lại mật khẩu":"Gửi đăng ký giáo viên"}</button>
         </form>
         <div className="auth-switch">
-          {mode === "login" ? "Chưa có tài khoản giáo viên?" : "Đã có tài khoản?"}
-          {" "}<button onClick={() => setMode(mode === "login" ? "register" : "login")}>{mode === "login" ? "Đăng ký" : "Đăng nhập"}</button>
+          {mode==="forgot"?"Đã nhớ mật khẩu?":mode === "login" ? "Chưa có tài khoản giáo viên?" : "Đã có tài khoản?"}
+          {" "}<button type="button" onClick={() => {setMessage("");setMode(mode==="login"?"register":"login");}}>{mode === "login" ? "Đăng ký" : "Đăng nhập"}</button>
         </div>
-        <button className="btn outline full" type="button" disabled={busy || cooldownSeconds > 0} onClick={resend}>{cooldownSeconds > 0 ? `Không gửi lại email trong ${cooldownSeconds}s` : "Gửi lại email xác nhận"}</button>
+        {mode==="login"&&<button className="btn outline full" type="button" onClick={()=>{setMode("forgot");setMessage("");}}>Quên mật khẩu?</button>}
+        {mode!=="forgot"&&<button className="btn outline full" type="button" disabled={busy || cooldownSeconds > 0} onClick={resend}>{cooldownSeconds > 0 ? `Không gửi lại email trong ${cooldownSeconds}s` : "Gửi lại email xác nhận"}</button>}
+        {mode==="forgot"&&<p className="muted">Chức năng áp dụng cho cả Admin và giáo viên. Email xác thực có thể nằm trong tab Quảng cáo hoặc Thư rác tùy nhà cung cấp.</p>}
         <div className="auth-foot">Tài khoản giáo viên mới cần quản trị viên cấp quyền trước khi sử dụng.</div>
       </div>
     </div>
@@ -702,6 +711,8 @@ function Computers({ profile, refresh, reload, ping }) {
     <div className="computer-grid">
       {[...rows].sort((a,b)=>comparePC(a.computer_code,b.computer_code)).map(c => {
         const users = classAssignments.filter(a => a.computer_id === c.id && a.active);
+        const machineViolationCount=users.reduce((total,a)=>
+          total+records.rows.filter(r=>r.student_id===a.student_id&&r.record_type==="violation").length,0);
         return (
           <div className={`computer-card ${["maintenance","broken"].includes(c.status) ? "maintenance" : users.length ? "occupied" : ""}`} key={c.id}>
             <div className="pc-top">
@@ -714,11 +725,19 @@ function Computers({ profile, refresh, reload, ping }) {
             <p>{c.location || "Chưa phân khu"}</p>
             <small>Sức chứa: {users.length}/{c.capacity || 2} học sinh</small>
             <div className="pc-users">
+              {className&&machineViolationCount>0&&<div className="pc-violation-summary">
+                <span className="pc-violation-badge">{machineViolationCount} lỗi</span>
+                {users.map(a=>{
+                  const count=records.rows.filter(r=>r.student_id===a.student_id&&r.record_type==="violation").length;
+                  const full=students.rows.find(st=>st.id===a.student_id)?.full_name||"Học sinh";
+                  return count?<small key={a.student_id}>{full.trim().split(/\s+/).slice(-2).join(" ")}: {count} lỗi</small>:null;
+                })}
+              </div>}
               {users.length ? users.map(a => (
                 <div className="pc-user-row" key={a.id}>
                   <span>• {(students.rows.find(s => s.id === a.student_id)?.full_name || "Học sinh").trim().split(/\s+/).slice(-2).join(" ")}</span>
                   <button className="mini-btn danger" onClick={() => release(a)}>Gỡ</button>
-                  {records.rows.filter(r=>r.student_id===a.student_id && r.record_type==="violation").map(r=><small className="negative" key={r.id}>{r.title}{r.note ? `: ${r.note}` : ""}</small>)}
+                  {records.rows.filter(r=>r.student_id===a.student_id && r.record_type==="violation").slice(-3).map(r=><small className="negative" key={r.id}>{r.title}</small>)}
                 </div>
               )) : <span>Chưa có học sinh</span>}
             </div>
@@ -855,55 +874,181 @@ function Attendance({ profile, refresh, reload, ping, focusDate, setFocusDate, o
 }
 
 function Records({ profile, refresh, reload, ping }) {
-  const students = useRows("students", profile, refresh);
-  const records = useRows("student_records", profile, refresh);
-  const [form, setForm] = useState({
-    student_id: "", record_type: "point", title: "Điểm thực hành",
-    points: 1, note: "", record_date: today()
+  const students=useRows("students",profile,refresh);
+  const records=useRows("student_records",profile,refresh);
+  const [selectedClass,setSelectedClass]=useState("");
+  const [selectedStudent,setSelectedStudent]=useState("");
+  const [threshold,setThreshold]=useState(3);
+  const [reports,setReports]=useState([]);
+  const [reportNote,setReportNote]=useState({});
+  const [busy,setBusy]=useState(false);
+  const [form,setForm]=useState({
+    student_id:"",record_type:"violation",title:"Nhắc 1",points:0,note:"",record_date:today()
   });
-
-  async function save(e) {
+  const classes=[...new Set(students.rows.map(x=>x.class_name).filter(Boolean))].sort();
+  const allowedStudents=students.rows.filter(st=>(!selectedClass||st.class_name===selectedClass) && st.status==="active");
+  const filteredRecords=records.rows.filter(r=>{
+    const st=students.rows.find(x=>x.id===r.student_id);
+    return st&&(!selectedClass||st.class_name===selectedClass)&&(!selectedStudent||st.id===selectedStudent);
+  }).sort((a,b)=>String(b.record_date).localeCompare(String(a.record_date))||String(b.created_at).localeCompare(String(a.created_at)));
+  const violationCounts=new Map();
+  records.rows.filter(r=>r.record_type==="violation").forEach(r=>{
+    violationCounts.set(r.student_id,(violationCounts.get(r.student_id)||0)+1);
+  });
+  useEffect(()=>{
+    let mounted=true;
+    (async()=>{
+      const [s,r]=await Promise.all([
+        supabase.from("schools").select("violation_report_threshold").eq("id",profile.school_id).maybeSingle(),
+        supabase.from("student_incident_reports").select("*").eq("school_id",profile.school_id).order("created_at",{ascending:false}).limit(200)
+      ]);
+      if(!mounted)return;
+      if(!s.error&&s.data)setThreshold(s.data.violation_report_threshold||3);
+      if(!r.error)setReports(r.data||[]);
+      else ping("Không đọc được biên bản: "+r.error.message);
+    })();
+    return()=>{mounted=false;};
+  },[profile.school_id,refresh]);
+  async function save(e){
     e.preventDefault();
-    const { error } = await supabase.from("student_records").insert({
-      ...form,
-      school_id: profile.school_id,
-      created_by: profile.id,
-      points: Number(form.points)
+    if(!form.student_id)return ping("Chọn học sinh trước khi lưu.");
+    setBusy(true);
+    const {error}=await supabase.from("student_records").insert({
+      ...form,school_id:profile.school_id,created_by:profile.id,points:Number(form.points)
     });
-    if (error) ping(error.message);
-    else { ping("Đã ghi nhận"); reload(); }
+    setBusy(false);
+    if(error)ping(error.message);
+    else{
+      ping(form.record_type==="violation"?"Đã ghi nhận một lần vi phạm. Nếu đủ ngưỡng sẽ có biên bản nháp.":"Đã lưu ghi nhận");
+      setForm(old=>({...old,note:"",record_date:today()}));reload();
+    }
   }
-
+  async function changeThreshold(value){
+    setBusy(true);
+    const {error}=await supabase.rpc("set_school_violation_threshold",{
+      p_school_id:profile.school_id,p_threshold:Number(value)
+    });
+    setBusy(false);
+    if(error)ping(error.message);
+    else{setThreshold(Number(value));ping("Đã cập nhật ngưỡng lập biên bản.");reload();}
+  }
+  async function confirmReport(r){
+    if(!window.confirm("Xác nhận biên bản của "+(students.rows.find(s=>s.id===r.student_id)?.full_name||"học sinh")+"?"))return;
+    setBusy(true);
+    const {error}=await supabase.rpc("confirm_student_incident",{
+      p_report_id:r.id,p_notes:reportNote[r.id]||""
+    });
+    setBusy(false);
+    if(error)ping(error.message);
+    else{ping("Đã xác nhận biên bản.");reload();}
+  }
+  function printReport(r){
+    const student=students.rows.find(s=>s.id===r.student_id);
+    const name=String(student?.full_name||"Học sinh");
+    const school=String(profile.school_name||"Trường học");
+    const escape=s=>String(s||"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
+    const violations=records.rows.filter(x=>x.student_id===r.student_id&&x.record_type==="violation")
+      .sort((a,b)=>String(a.record_date).localeCompare(String(b.record_date)));
+    const w=window.open("","_blank","width=850,height=700");
+    if(!w){ping("Trình duyệt đã chặn cửa sổ in. Hãy cho phép popup.");return;}
+    const html='<!doctype html><html lang="vi"><head><meta charset="UTF-8"><title>Biên bản vi phạm</title>'+
+      '<style>body{font:15px Arial,sans-serif;margin:40px 56px;color:#222}h1,h2,p{text-align:center}h2{margin-top:44px;font-size:20px}table{width:100%;border-collapse:collapse;margin:18px 0}td,th{border:1px solid #888;padding:9px;text-align:left}.sign{display:flex;justify-content:space-between;margin-top:54px;text-align:center}.sign div{width:42%}@media print{body{margin:20mm}}</style></head><body>'+
+      '<h3 style="text-align:center">'+escape(school)+'</h3><h2>BIÊN BẢN GHI NHẬN VI PHẠM</h2>'+
+      '<p>Ngày lập: '+escape(new Date().toLocaleDateString("vi-VN"))+'</p>'+
+      '<p><b>Học sinh:</b> '+escape(name)+' &nbsp; <b>Lớp:</b> '+escape(student?.class_name||"")+'</p>'+
+      '<p>Đã ghi nhận '+r.violation_count+' lần vi phạm (mốc '+r.milestone+').</p>'+
+      '<table><thead><tr><th>Ngày</th><th>Ghi nhận</th><th>Ghi chú</th></tr></thead><tbody>'+
+      violations.map(x=>'<tr><td>'+escape(x.record_date)+'</td><td>'+escape(x.title)+'</td><td>'+escape(x.note)+'</td></tr>').join("")+
+      '</tbody></table><div><b>Ý kiến giáo viên:</b> '+escape(r.notes||"Chờ xác nhận")+'</div>'+
+      '<div class="sign"><div>HỌC SINH<br/><br/><i>(Ký, ghi họ tên)</i></div><div>GIÁO VIÊN<br/><br/><i>(Ký, ghi họ tên)</i></div></div></body></html>';
+    w.document.write(html);w.document.close();w.focus();w.print();
+  }
   return <>
-    <SectionHead title="Điểm, lỗi & thưởng" desc="Ghi nhận kết quả và hành vi theo từng học sinh" />
+    <SectionHead title="Điểm, lỗi & thưởng" desc="Ghi nhận theo lớp, tổng số lần vi phạm và biên bản xác nhận của giáo viên"/>
+    <div className="toolbar record-filter-bar">
+      <label className="field-inline">Lọc theo lớp
+        <select aria-label="Lọc lớp ghi nhận" value={selectedClass} onChange={e=>{setSelectedClass(e.target.value);setSelectedStudent("");setForm(v=>({...v,student_id:""}));}}>
+          <option value="">Tất cả lớp</option>{classes.map(c=><option key={c}>{c}</option>)}
+        </select>
+      </label>
+      <label className="field-inline">Lọc học sinh
+        <select aria-label="Lọc học sinh ghi nhận" value={selectedStudent} onChange={e=>setSelectedStudent(e.target.value)}>
+          <option value="">Tất cả học sinh</option>{allowedStudents.map(x=><option key={x.id} value={x.id}>{x.full_name}</option>)}
+        </select>
+      </label>
+      <label className="field-inline">Ngưỡng lập biên bản
+        <select disabled={busy} value={threshold} onChange={e=>changeThreshold(e.target.value)} aria-label="Số lần vi phạm lập biên bản">
+          <option value="3">3 lần vi phạm</option><option value="4">4 lần vi phạm</option>
+        </select>
+      </label>
+    </div>
     <div className="two-col">
       <div className="panel">
         <h3>Ghi nhận mới</h3>
         <form className="form-stack" onSubmit={save}>
-          <label>Học sinh<select required value={form.student_id} onChange={e => setForm({ ...form, student_id: e.target.value })}><option value="">Chọn học sinh</option>{students.rows.map(s => <option value={s.id} key={s.id}>{s.full_name} – {s.class_name}</option>)}</select></label>
-          <label>Loại ghi nhận<select value={form.record_type} onChange={e => setForm({ ...form, record_type: e.target.value })}><option value="point">Điểm học tập</option><option value="reward">Thưởng</option><option value="violation">Lỗi / vi phạm</option></select></label>
-          <label>Nội dung<input required value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} /></label>
-          <label>Điểm (+/-)<input type="number" value={form.points} onChange={e => setForm({ ...form, points: e.target.value })} /></label>
-          <label>Ngày ghi nhận<input type="date" value={form.record_date} onChange={e => setForm({ ...form, record_date: e.target.value })} /></label>
-          <label>Ghi chú<textarea value={form.note} onChange={e => setForm({ ...form, note: e.target.value })} /></label>
-          <button className="btn primary full">Lưu ghi nhận</button>
+          <label>Học sinh<select required value={form.student_id} onChange={e=>setForm({...form,student_id:e.target.value})}>
+            <option value="">Chọn học sinh</option>
+            {allowedStudents.map(st=><option key={st.id} value={st.id}>{st.full_name} – {st.class_name} ({violationCounts.get(st.id)||0} lỗi)</option>)}
+          </select></label>
+          <label>Loại ghi nhận<select value={form.record_type} onChange={e=>setForm({
+            ...form,record_type:e.target.value,title:e.target.value==="violation"?"Nhắc 1":e.target.value==="reward"?"Điểm thưởng":"Điểm thực hành",
+            points:e.target.value==="violation"?0:1
+          })}>
+            <option value="violation">Lỗi / vi phạm</option><option value="reward">Thưởng</option><option value="point">Điểm học tập</option>
+          </select></label>
+          {form.record_type==="violation"&&<label>Ghi nhận nhanh
+            <select value={["Nhắc 1","1 Lỗi","Không làm bài","Mất trật tự","Không tuân thủ nội quy"].includes(form.title)?form.title:"other"}
+              onChange={e=>setForm({...form,title:e.target.value==="other"?"":e.target.value})}>
+              <option value="Nhắc 1">Nhắc 1</option><option value="1 Lỗi">1 Lỗi</option>
+              <option value="Không làm bài">Không làm bài</option><option value="Mất trật tự">Mất trật tự</option>
+              <option value="Không tuân thủ nội quy">Không tuân thủ nội quy</option><option value="other">Tự nhập...</option>
+            </select>
+          </label>}
+          <label>Nội dung<input required maxLength={200} value={form.title} onChange={e=>setForm({...form,title:e.target.value})}/></label>
+          {form.record_type!=="violation"&&<label>Điểm (+/-)<input type="number" value={form.points} onChange={e=>setForm({...form,points:e.target.value})}/></label>}
+          <label>Ngày<input required type="date" value={form.record_date} onChange={e=>setForm({...form,record_date:e.target.value})}/></label>
+          <label>Ghi chú<textarea maxLength={1500} value={form.note} onChange={e=>setForm({...form,note:e.target.value})}/></label>
+          {form.student_id&&<p className="notice-box">Học sinh này có <b>{violationCounts.get(form.student_id)||0} lỗi</b>. Đến mốc {threshold} lỗi sẽ có biên bản nháp, giáo viên kiểm tra trước khi xác nhận.</p>}
+          <button className="btn primary full" disabled={busy}>{busy?"Đang lưu…":"Lưu ghi nhận"}</button>
         </form>
       </div>
       <div className="panel">
-        <h3>Lịch sử gần đây</h3>
-        {records.rows.slice(0, 20).map(r => (
-          <div className="record-row" key={r.id}>
-            <div className={`record-dot ${r.record_type}`} />
-            <div>
-              <b>{r.title}</b>
-              <small>{students.rows.find(s => s.id === r.student_id)?.full_name || "Học sinh"} · {r.record_type === "violation" ? "Vi phạm" : r.record_type === "reward" ? "Khen thưởng" : "Điểm"}</small>
-            </div>
-            <strong className={r.points < 0 ? "negative" : "positive"}>{r.points > 0 ? "+" : ""}{r.points}</strong>
-          </div>
-        ))}
-        {!records.rows.length && <Empty text="Chưa có ghi nhận." />}
+        <h3>Lịch sử theo lớp</h3>
+        {filteredRecords.slice(0,70).map(r=><div className="record-row" key={r.id}>
+          <div className={"record-dot "+r.record_type}/>
+          <div><b>{r.title}</b><small>
+            {students.rows.find(s=>s.id===r.student_id)?.full_name||"Học sinh"}
+            {" · "}{r.record_type==="violation"?"Vi phạm":r.record_type==="reward"?"Khen thưởng":"Điểm"}
+            {" · "}{dateText(r.record_date)}
+          </small></div>
+          {r.record_type==="violation"?<span className="pc-violation-badge">1 lỗi</span>:
+           <strong className={r.points<0?"negative":"positive"}>{r.points>0?"+":""}{r.points}</strong>}
+        </div>)}
+        {!filteredRecords.length&&<Empty text="Chưa có ghi nhận cho bộ lọc này."/>}
       </div>
     </div>
+    <section className="panel incident-reports-panel">
+      <h3>Biên bản vi phạm</h3>
+      <p className="muted">Đủ {threshold} lần vi phạm sẽ tạo biên bản nháp. Giáo viên kiểm tra rồi xác nhận; không tự áp dụng hình thức kỷ luật.</p>
+      {reports.filter(r=>{
+        const st=students.rows.find(s=>s.id===r.student_id);
+        return st&&(!selectedClass||st.class_name===selectedClass)&&(!selectedStudent||st.id===selectedStudent);
+      }).map(r=><article className="incident-report-row" key={r.id}>
+        <div><strong>{students.rows.find(s=>s.id===r.student_id)?.full_name||"Học sinh"}</strong>
+          <small>{students.rows.find(s=>s.id===r.student_id)?.class_name} · Mốc {r.violation_count} lỗi</small>
+          <span className={r.status==="confirmed"?"incident-confirmed":"incident-draft"}>
+            {r.status==="confirmed"?"Đã xác nhận biên bản":"Đang chờ giáo viên xác nhận"}
+          </span>
+        </div>
+        {r.status==="draft"&&<textarea rows={2} aria-label="Ý kiến biên bản" placeholder="Ghi ý kiến giáo viên trước khi xác nhận..."
+          value={reportNote[r.id]||""} onChange={e=>setReportNote(v=>({...v,[r.id]:e.target.value}))}/>}
+        <div className="incident-report-actions">
+          {r.status==="draft"&&<button className="btn primary" disabled={busy} onClick={()=>confirmReport(r)}>Xác nhận biên bản</button>}
+          <button className="btn outline" onClick={()=>printReport(r)}>In biên bản</button>
+        </div>
+      </article>)}
+      {!reports.length&&<p className="muted">Chưa có học sinh đạt ngưỡng lập biên bản.</p>}
+    </section>
   </>;
 }
 

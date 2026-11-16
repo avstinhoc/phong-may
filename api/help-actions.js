@@ -50,11 +50,13 @@ export default async function handler(req,res){
   let parts;
   try{parts=[{text:question},...getAttachment(b.attachment,mode)];}
   catch(e){return error(res,400,e.message);}
-  const quota=await db.rpc(mode==='image'?'consume_ic3_image_quota':'consume_help_ai_quota');
+  const quota=await db.rpc(mode==='image'?'get_ic3_image_quota_remaining':'consume_help_ai_quota');
   if(quota.error){
     const msg=quota.error.message||'';
     return error(res,/5 lượt|25 câu hỏi|hết/i.test(msg)?429:403,msg||'Bạn đã hết lượt AI hoặc chưa được cấp quyền.');
   }
+  if(mode==='image' && Number(quota.data)<=0)
+    return error(res,429,'Bạn đã tạo thành công 5 ảnh trong 24 giờ. Hãy thử lại sau khi hạn mức IC3 được làm mới.');
   const model=mode==='image'?
     (process.env.GEMINI_IMAGE_MODEL||'gemini-3.1-flash-image'):
     (process.env.GEMINI_MODEL||'gemini-2.5-flash');
@@ -163,8 +165,9 @@ export default async function handler(req,res){
     if(!upstream.ok){
       console.error('ic3 image Gemini HTTP',upstream.status);
       return error(res,upstream.status===429?429:502,
-        upstream.status===429?'Hết hạn mức tạo ảnh Gemini. Hãy thử lại sau.':
-        'Model tạo ảnh chưa sẵn sàng (HTTP '+upstream.status+'). Kiểm tra GEMINI_IMAGE_MODEL, quyền API và thanh toán Google AI Studio.');
+        upstream.status===429?
+         'Google Gemini từ chối tạo ảnh vì hạn mức/quyền truy cập của dự án (HTTP 429), không phải do bạn đã dùng hết 5 lượt IC3. Kiểm tra Google AI Studio → Rate limits và Billing; model tạo ảnh thường cần cấp thanh toán. Lần này không bị trừ lượt IC3.':
+         'Google chưa cho phép model tạo ảnh (HTTP '+upstream.status+'). Kiểm tra API key, GEMINI_IMAGE_MODEL và Billing trên Google AI Studio. Lần này không bị trừ lượt IC3.');
     }
     const response=await upstream.json();
     const chunks=response.candidates?.[0]?.content?.parts||[];
@@ -175,7 +178,9 @@ export default async function handler(req,res){
       return error(res,502,message||'Gemini chưa tạo được ảnh từ yêu cầu. Hãy thử mô tả rõ hơn.');
     }
     if(data.data.length>2800000)return error(res,413,'Ảnh tạo ra quá lớn để gửi qua website. Hãy thử yêu cầu ảnh đơn giản hơn.');
-    return res.status(200).json({answer:message||'Đã tạo ảnh theo yêu cầu của bạn.',image:{mimeType:data.mimeType||data.mime_type,base64:data.data}});
+    const used=await db.rpc('consume_ic3_image_quota');
+    if(used.error)return error(res,429,'Hạn mức 5 ảnh thành công/24 giờ đã hết. Ảnh chưa được lưu hoặc gửi vào hội thoại.');
+    return res.status(200).json({answer:message||'Đã tạo ảnh theo yêu cầu của bạn.',image:{mimeType:data.mimeType||data.mime_type,base64:data.data},remainingImages:used.data});
   }
 
   // Schedule planner: only read authorized school lessons; never write from a model response.
