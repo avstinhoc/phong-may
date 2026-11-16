@@ -19,7 +19,7 @@ test('timetable API checks auth, roles, config, valid range, quota and extracted
  assert.equal((await invoke({headers:{}})).code,401);
  role='pending';assert.equal((await invoke({})).code,403);role='teacher';active=false;assert.equal((await invoke({})).code,403);active=true;
  delete process.env.GEMINI_API_KEY;delete process.env.GEMINI_MODEL;assert.equal((await invoke({})).code,503);
- Object.assign(process.env,{GEMINI_API_KEY:'test-only',GEMINI_MODEL:'test-only'});
+ Object.assign(process.env,{GEMINI_API_KEY:'test-only',GEMINI_MODEL:'gemini-2.5-flash'});
  assert.equal((await invoke({body:{}})).code,400);
  quota=true;assert.equal((await invoke({})).code,429);assert.equal(calls,0);quota=false;
  const success=await invoke({});assert.equal(success.code,200);assert.equal(success.body.rows[0].class_name,'6A');assert.equal(calls,1);
