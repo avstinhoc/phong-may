@@ -10,6 +10,7 @@ import { ClassSettings } from "./ClassSettings";
 import { ReportsCenter } from "./ReportsCenter";
 import { HelpAssistant } from "./HelpAssistant";
 import { properName, searchName, comparePC } from "./lib/students";
+import { normalizeComputerCode,validFullName } from "./lib/registration";
 import { TeachingCalendar } from "./TeachingCalendar";
 import { RollCall } from "./RollCall";
 import * as XLSX from "xlsx";
@@ -195,7 +196,7 @@ function App() {
         <div className="content" key={["schools","settings","finance","reports","accounts"].includes(page)?page:schoolId}>
           {(page === "schools" || !schools.length) && <SchoolManager schools={schools} role={profile.role} onCreated={id => {setSchoolId(id); reload();}} onChanged={deletedId => {if(deletedId === schoolId) setSchoolId(""); reload();}} ping={ping} />}
           {page === "accounts" && profile.role === "admin" && <Accounts profile={profile} />}
-          {page === "settings" && <ClassSettings profile={profile} ping={ping} schools={schools} />}
+          {page === "settings" && <ClassSettings profile={profile} ping={ping} schools={schools} onChanged={reload} />}
           {page === "finance" && <TeacherPayroll profile={profile} refresh={refresh} ping={ping} schools={schools} />}
           {page === "reports" && <ReportsCenter profile={profile} refresh={refresh} ping={ping} schools={schools} />}
           {!schoolId && !["schools","settings","finance","reports","accounts"].includes(page) && <div className="notice-box">Thêm trường đầu tiên để bắt đầu quản lý học sinh và lịch dạy.</div>}
@@ -329,54 +330,112 @@ function AuthScreen({ mode, setMode, ping }) {
 }
 
 function PublicStudentRegister({ ping }) {
-  const [code, setCode] = useState(()=>new URLSearchParams(window.location.search).get("code")||"");
-  const [name, setName] = useState("");
-  const [studentCode, setStudentCode] = useState("");
-  const [computer, setComputer] = useState("");
-  const [note, setNote] = useState("");
-  const [done, setDone] = useState(false);
-  const [busy, setBusy] = useState(false);
-
-  async function submit(e) {
-    e.preventDefault();
-    setBusy(true);
-    const {error:classError}=await supabase.rpc('get_student_class_portal',{p_code:code.trim().toUpperCase(),p_secret:null});
-    if(classError){setBusy(false);ping('Mã lớp chưa tồn tại. Hãy nhập mã chính xác trong mục Lớp & mã đăng ký.');return;}
-    const { error } = await supabase.from("student_registrations").insert({
-      registration_code: code.trim().toUpperCase(),
-      full_name: properName(name),
-      student_code: studentCode,
-      computer_code: computer.trim().toUpperCase(),
-      note
+  const initialCode=new URLSearchParams(window.location.search).get("code")?.trim()||"";
+  const lockedCode=Boolean(initialCode);
+  const [code,setCode]=useState(initialCode.toUpperCase());
+  const [name,setName]=useState("");
+  const [gender,setGender]=useState("");
+  const [computer,setComputer]=useState("");
+  const [note,setNote]=useState("");
+  const [done,setDone]=useState(false);
+  const [doneMessage,setDoneMessage]=useState("");
+  const [doneStatus,setDoneStatus]=useState("");
+  const [notice,setNotice]=useState("");
+  const [busy,setBusy]=useState(false);
+  useEffect(()=>{
+    if(!initialCode)return;
+    let live=true;
+    supabase.rpc('ic3_resolve_class_code',{p_code:initialCode}).then(({data,error})=>{
+      if(live&&!error&&data)setCode(data);
     });
-    setBusy(false);
-    if (error) ping("Không gửi được đăng ký: " + error.message);
-    else setDone(true);
+    return()=>{live=false;};
+  },[initialCode]);
+  async function submit(e){
+    e.preventDefault();
+    if(!validFullName(name)){
+      setNotice("Vui lòng nhập họ và tên thật có dấu, từ hai từ trở lên, không dùng biệt danh hoặc số.");
+      return;
+    }
+    const normalizedPC=normalizeComputerCode(computer);
+    if(normalizedPC===null){
+      setNotice("Số máy chưa đúng. Nhập 21, pc 21, PC021 đều được hiểu là PC21.");
+      return;
+    }
+    setBusy(true);setNotice("");
+    try{
+      const {data,error}=await supabase.rpc('ic3_submit_registration',{
+        p_code:code.trim().toUpperCase(),
+        p_full_name:properName(name),p_gender:gender,
+        p_computer:normalizedPC||null,p_note:note.trim().slice(0,500)
+      });
+      if(error)throw error;
+      if(data?.code)setCode(data.code);
+      if(data?.status==='approved'||data?.status==='pending'){
+        setDoneMessage(data.message||"Đã gửi đăng ký.");
+        setDoneStatus(data.status);
+        setDone(true);
+      }else{
+        setNotice(data?.message||"Thông tin chưa được chấp nhận. Hãy kiểm tra lại.");
+      }
+    }catch(error){setNotice("Không gửi được đăng ký: "+(error.message||"Lỗi không xác định"));}
+    finally{setBusy(false);}
   }
-
-  return (
-    <div className="auth-wrap">
-      <div className="auth-card">
-        <div className="auth-logo"><div className="brand-mark large">IC3</div><span>STUDENT REGISTRATION</span></div>
-        {done ? <>
-          <h1>Đã gửi đăng ký!</h1>
-          <p className="muted">Thông tin đã được gửi đến giáo viên. Hồ sơ chỉ được thêm vào danh sách chính thức sau khi giáo viên duyệt.</p>
-          <a className="btn outline full" href="/">Quay lại trang chủ</a>
-        </> : <>
-          <h1>Đăng ký học sinh IC3 GS6</h1>
-          <p className="muted">Điền thông tin và mã lớp do giáo viên cung cấp.</p>
-          <form className="form-stack" onSubmit={submit}>
-            <label>Mã lớp đăng ký<input required value={code} onChange={e => setCode(e.target.value)} placeholder="Ví dụ: IC3-K01" /></label>
-            <label>Họ và tên<input required value={name} onChange={e => setName(e.target.value)} placeholder="Nguyễn Văn A" /></label>
-            <label>Mã học sinh (nếu có)<input value={studentCode} onChange={e => setStudentCode(e.target.value)} /></label>
-            <label>Số máy mong muốn<input value={computer} onChange={e => setComputer(e.target.value)} placeholder="PC1 – PC40" /></label>
-            <label>Ghi chú<textarea value={note} onChange={e => setNote(e.target.value)} /></label>
-            <button className="btn primary full" disabled={busy}>{busy ? "Đang gửi..." : "Gửi đăng ký"}</button>
-          </form>
-        </>}
-      </div>
+  function addFriend(){
+    setName("");setGender("");setComputer("");setNote("");
+    setNotice("");setDone(false);setDoneMessage("");setDoneStatus("");
+  }
+  return <div className="auth-wrap student-register-wrap">
+    <div className="auth-card student-register-card">
+      <div className="auth-logo"><div className="brand-mark large">IC3</div><span>STUDENT REGISTRATION</span></div>
+      {done ? <>
+        <h1>{doneStatus==='approved'?"Đăng ký thành công!":"Đã gửi đăng ký!"}</h1>
+        <p className="muted" role="status">{doneMessage}</p>
+        <div className="registration-success-actions">
+          <a className="btn outline full" href={'/student?code='+encodeURIComponent(code)}>Về trang chủ lớp của mình</a>
+          <button type="button" className="btn primary full" onClick={addFriend}>Thêm bạn tiếp theo</button>
+        </div>
+        <small className="muted">Thêm bạn sẽ làm mới thông tin học sinh nhưng giữ đúng mã lớp này.</small>
+      </> : <>
+        <h1>Đăng ký học sinh IC3 GS6</h1>
+        <p className="muted">Nhập <strong>họ và tên thật có dấu</strong>, không dùng biệt danh hoặc tên đùa.</p>
+        {notice&&<div className="notice-box registration-warning" role="alert">{notice}</div>}
+        <form className="form-stack" onSubmit={submit}>
+          <label>Mã lớp đăng ký
+            <input required value={code} readOnly={lockedCode}
+              aria-readonly={lockedCode}
+              onChange={e=>!lockedCode&&setCode(e.target.value.toUpperCase())}
+              placeholder="Ví dụ: IC3-DUYTAN-6.1" />
+          </label>
+          {lockedCode&&<small className="muted">Mã lớp được lấy từ trang lớp và đã khóa để tránh đăng ký nhầm.</small>}
+          <label>Họ và tên <span className="required-note">(Nhập tên thật có dấu)</span>
+            <input required value={name} maxLength={90} autoComplete="name"
+              onChange={e=>setName(e.target.value)} placeholder="Ví dụ: Nguyễn Văn An"/>
+          </label>
+          <label>Giới tính
+            <select required value={gender} onChange={e=>setGender(e.target.value)}>
+              <option value="">Chọn giới tính</option>
+              <option value="Nam">Nam</option>
+              <option value="Nữ">Nữ</option>
+              <option value="Khác">Khác</option>
+            </select>
+          </label>
+          <label>Số máy mong muốn
+            <input value={computer} inputMode="text" maxLength={10}
+              onChange={e=>setComputer(e.target.value)}
+              onBlur={()=>{const v=normalizeComputerCode(computer);if(v!==null)setComputer(v);}}
+              placeholder="Ví dụ: 21, PC21, pc 21 hoặc PC021"/>
+          </label>
+          <small className="muted">Các cách nhập như 21, pc 21 hoặc PC021 đều nhận là PC21. Có thể bỏ trống nếu chưa chọn máy.</small>
+          <label>Ghi chú (không bắt buộc)
+            <textarea value={note} maxLength={500} onChange={e=>setNote(e.target.value)}/>
+          </label>
+          <button className="btn primary full" disabled={busy||!gender||!code.trim()}>
+            {busy?"Đang gửi…":"Gửi đăng ký"}
+          </button>
+        </form>
+      </>}
     </div>
-  );
+  </div>;
 }
 
 function useRows(table, profile, refresh, extra = {}) {
@@ -508,10 +567,14 @@ function Students({ profile, refresh, reload, ping, navigate }) {
     student_code: "", phone: "", date_of_birth:"", status: "active"
   });
 
-  const filtered = rows.filter(s =>
-    `${s.full_name} ${s.class_name} ${s.student_code}`.toLowerCase().includes(search.toLowerCase())
-  );
-  const waiting = registrations.rows.filter(r => r.status === "pending" && schoolClasses.rows.some(c=>c.registration_code===r.registration_code));
+  const filtered = rows.filter(s=>
+    s.status!=="inactive" &&
+    `${s.full_name} ${s.class_name} ${s.student_code||""}`.toLowerCase().includes(search.toLowerCase())
+  ).sort((a,b)=>a.full_name.localeCompare(b.full_name,'vi',{sensitivity:'base'})||
+    String(a.class_name||"").localeCompare(String(b.class_name||""),'vi',{numeric:true}));
+  const ownedClassCodes=new Set(schoolClasses.rows.filter(c=>c.created_by===profile.id).map(c=>c.registration_code));
+  const waiting = registrations.rows.filter(r=>r.status==="pending" && ownedClassCodes.has(r.registration_code))
+    .sort((a,b)=>a.full_name.localeCompare(b.full_name,'vi',{sensitivity:'base'}));
 
   async function save(e) {
     e.preventDefault();
@@ -546,6 +609,15 @@ function Students({ profile, refresh, reload, ping, navigate }) {
     if(error) ping(error.message); else {ping("Đã duyệt học sinh và gán máy đăng ký");reload();}
   }
 
+  async function archiveDuplicates(){
+    if(!window.confirm("Ẩn hồ sơ học sinh bị trùng tên trong cùng lớp do bạn tạo? Dữ liệu điểm, điểm danh và lịch sử cũ vẫn được giữ. Hãy kiểm tra trước nếu lớp có hai học sinh trùng họ tên thật."))return;
+    const {data,error}=await supabase.rpc('ic3_archive_duplicate_students',{
+      p_school_id:profile.school_id,p_owner:profile.id
+    });
+    if(error)ping(error.message);
+    else{ping('Đã ẩn '+data.archived+' hồ sơ trùng trong '+data.groups+' nhóm, giữ nguyên lịch sử.');reload();}
+  }
+
   async function rejectRegistration(r) {
     if (!confirm("Từ chối đăng ký của " + r.full_name + "?")) return;
     const { error } = await supabase.from("student_registrations")
@@ -574,7 +646,7 @@ function Students({ profile, refresh, reload, ping, navigate }) {
           <span className="task-icon blue"><UserPlus /></span>
           <div>
             <b>{r.full_name}</b>
-            <small>Mã lớp: {r.registration_code} · Máy mong muốn: {r.computer_code || "Chưa chọn"} · {r.phone || "Không có SĐT"}</small>
+            <small>Mã lớp: {r.registration_code} · {r.gender||"Chưa có giới tính"} · Máy mong muốn: {r.computer_code||"Chưa chọn"}</small>
           </div>
           <button className="mini-btn success" onClick={() => approveRegistration(r)}>Duyệt</button>
           <button className="mini-btn danger" onClick={() => rejectRegistration(r)}>Từ chối</button>
@@ -585,18 +657,20 @@ function Students({ profile, refresh, reload, ping, navigate }) {
 
     <div className="toolbar">
       <div className="searchbox"><Search size={17} /><input placeholder="Tìm tên, lớp, mã học sinh..." value={search} onChange={e => setSearch(e.target.value)} /></div>
-      <button className="btn outline" onClick={() => exportRows(filtered, "Danh_sach_hoc_sinh")}><Download size={16} />Xuất Excel</button>
+      <button className="btn outline" onClick={archiveDuplicates} title="Ẩn các hồ sơ trùng sau khi xác nhận, không xóa điểm hay lịch sử">Dọn hồ sơ trùng</button>
+      <button className="btn outline" onClick={() => exportRows(filtered.map((s,i)=>({STT:i+1,...s})), "Danh_sach_hoc_sinh")}><Download size={16} />Xuất Excel</button>
     </div>
 
     <div className="panel table-panel">
       <div className="table-wrap">
         <table>
-          <thead><tr><th>HỌC SINH</th><th>MÃ HS</th><th>LỚP</th><th>TRƯỜNG</th><th>TRẠNG THÁI</th><th>THAO TÁC</th></tr></thead>
+          <thead><tr><th>STT</th><th>HỌC SINH (A–Z)</th><th>GIỚI TÍNH</th><th>LỚP</th><th>TRƯỜNG</th><th>TRẠNG THÁI</th><th>THAO TÁC</th></tr></thead>
           <tbody>
-            {filtered.map(s => (
+            {filtered.map((s,index) => (
               <tr key={s.id}>
-                <td><b>{s.full_name}</b><small>{s.phone || "Chưa có SĐT"}</small></td>
-                <td>{s.student_code || "—"}</td>
+                <td>{index+1}</td>
+                <td><b>{s.full_name}</b></td>
+                <td>{s.gender||"—"}</td>
                 <td>{s.class_name || "—"}</td>
                 <td>{s.school_name || "—"}</td>
                 <td><span className={`status ${s.status === "pending" ? "pending" : "active"}`}>{s.status === "pending" ? "Chờ duyệt" : s.status === "rejected" ? "Từ chối" : "Đang học"}</span></td>

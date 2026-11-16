@@ -40,10 +40,10 @@ export const helpTopics = [
     summary:"Duyệt đăng ký học sinh, thêm học sinh thủ công, tìm kiếm và xuất danh sách.",
     steps:[
       "Mở Đăng ký & duyệt trong nhóm PHÒNG MÁY.",
-      "Phần Đăng ký trực tuyến chờ duyệt liệt kê các hồ sơ gửi từ trang /register. Nhấn Duyệt hoặc Từ chối ở hồ sơ phù hợp.",
+      "Chỉ hiển thị đăng ký chờ duyệt của các lớp bạn tạo. Nếu bật tự duyệt trong Lớp & mã đăng ký, đăng ký hợp lệ tự thêm vào danh sách chính thức; tên trùng hoặc biệt danh không được duyệt.",
       "Nút Mở trang đăng ký dẫn đến chức năng liên quan đăng ký; quản lý mã và đường dẫn cụ thể tại Lớp & mã đăng ký.",
       "Nhấn Thêm học sinh nếu cần nhập tay: họ tên, lớp, mã học sinh (nếu có) rồi lưu.",
-      "Dùng ô Tìm tên, lớp, mã học sinh để lọc; có thể xuất Excel hoặc xóa hồ sơ trong danh sách."
+      "Danh sách được sắp xếp họ tên theo A–Z và đánh STT từ 1. Nút Dọn hồ sơ trùng ẩn các hồ sơ trùng khỏi danh sách đang học sau khi xác nhận, không xóa lịch sử điểm, lỗi hoặc điểm danh."
     ],notes:["Mã lớp không còn hiệu lực nếu đã bị Admin ngừng mã đăng ký."],
     keywords:["đăng ký","duyệt","từ chối","thêm học sinh","mã học sinh","hồ sơ chờ","form học sinh","register"]
   },
@@ -117,10 +117,10 @@ export const helpTopics = [
     id:"settings",title:"Lớp & mã đăng ký",roles:["admin","teacher","staff"],
     summary:"Tạo lớp và mã đăng ký; sao chép liên kết; Admin ngừng hoặc khôi phục mã.",
     steps:[
-      "Mở Lớp & mã đăng ký trong nhóm QUẢN LÝ, chọn Trường quản lý ngay trong mục này (độc lập với trường ở menu trái) rồi xem danh sách mã lớp.",
+      "Mở Lớp & mã đăng ký trong nhóm PHÒNG MÁY. Danh sách chỉ hiển thị lớp do chính tài khoản bạn tạo; nếu cần thêm trường thì chọn trường ở menu trái trước.",
       "Nhấn Sao chép mã hoặc Copy link để gửi cho học sinh. Mở đăng ký sẽ đến /register, Mở trang lớp đến /student.",
-      "Phía dưới nhập Tên lớp và Mã đăng ký, nhấn Tạo lớp nếu cần tạo lớp mới.",
-      "Admin nhấn Xóa mã lớp, nhập đúng tên lớp để ngừng mã đăng ký ngay cả khi lớp đã có học sinh. Việc này KHÔNG xóa học sinh hay lịch học.",
+      "Nhập tên lớp, ví dụ 6.1. Website tự tạo mã ngắn kiểu IC3-DUYTAN-6.1 và tự thêm hậu tố nếu mã đã có.",
+      "Có thể bật Tự động duyệt đăng ký hợp lệ theo từng lớp. Mã cũ vẫn được nhận diện; Admin có thể ngừng mã và khôi phục mà không xóa lịch hay dữ liệu học sinh.",
       "Bật Hiện mã đăng ký đã ngừng sử dụng rồi nhấn Khôi phục mã nếu muốn mở lại."
     ],keywords:["lớp","mã đăng ký","copy link","mở trang lớp","khôi phục","ngừng mã","xóa mã"]
   },
@@ -192,9 +192,9 @@ export const helpTopics = [
     summary:"Link /register để đăng ký; /student để xem trạng thái PC, người ngồi máy và lịch vệ sinh.",
     steps:[
       "Tạo hoặc tìm mã lớp trong Lớp & mã đăng ký, dùng Mở đăng ký hoặc Copy link chia sẻ cho học sinh.",
-      "Học sinh truy cập trang /register, nhập mã lớp, họ tên, mã HS nếu có, máy mong muốn và gửi đăng ký.",
-      "Giáo viên xét duyệt hồ sơ tại Đăng ký & duyệt và gán PC tại Phòng máy.",
-      "Trang /student cho phép nhập mã lớp để xem trạng thái máy, tên ngắn học sinh được gán máy và lịch vệ sinh của lớp.",
+      "Học sinh vào trang lớp rồi nhấn Đăng ký lớp: mã lớp đã điền sẵn và không sửa được. Nhập họ tên thật có dấu, giới tính và máy mong muốn; 21, pc 21, PC021 đều hiểu PC21.",
+      "Nếu lớp bật Tự động duyệt thì hồ sơ hợp lệ sẽ được chấp nhận ngay, nếu không sẽ gửi đến giáo viên. Tên đùa bị cảnh báo, tên trùng không tạo hồ sơ thứ hai.",
+      "Sau khi đăng ký, học sinh chọn Về trang chủ lớp của mình hoặc Thêm bạn tiếp theo để đăng ký bạn khác với mã lớp giữ nguyên. Trang /student hiển thị máy, chỗ ngồi, lịch vệ sinh.",
       "Muốn xem thông tin cá nhân như điểm và thưởng, học sinh cần nhập thêm mã cá nhân riêng do giáo viên cấp. Không chia sẻ mã cá nhân cho bạn khác."
     ],keywords:["học sinh","trang lớp","portal","đăng ký máy","mã cá nhân","xem điểm","thưởng","lịch vệ sinh"]
   }
