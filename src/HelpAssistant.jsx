@@ -75,8 +75,10 @@ const detectMode=(question,attached)=>{
  const q=normalize(question);
  if(/^(cach|huong dan|lam sao|cho toi biet|hoi|tai sao|vi sao)\b/.test(q))return 'chat';
  if(/(doi|sua|chinh sua|cap nhat|dat lai|thay).{0,18}ten.{0,14}(giao vien|tai khoan)/.test(q))return 'account';
- if(/(them|tao|sua|doi|doi gio|doi ngay|dieu chinh|chinh|lap|cap nhat|day thay|doi tiet|xep|nhap).{0,75}(lich|buoi hoc|thoi khoa bieu|tiet day)/.test(q)||
-    /(lich|thoi khoa bieu|buoi hoc|tiet day).{0,75}(them|tao|sua|doi|chinh|xep|cap nhat|nhap)/.test(q))return 'schedule';
+ const schedule=/(lich|thoi khoa bieu|tkb|tiet day|buoi hoc)/.test(q);
+ const action=/(them|tao|sua|doi|chinh|nhap|doc|lap|xep|cap nhat|thay the|thay lich|ghi de|xoa lich cu|ap dung|dua len|thay moi|thay vao|day thay|tinh tu|bat dau tu|tu thu|dan vao|sao chep)/.test(q);
+ if(schedule&&action)return 'schedule';
+ if(attached&&schedule)return 'schedule';
  return 'chat';
 };
 
@@ -87,6 +89,8 @@ export function HelpAssistant({profile,page,onNavigate,onSaved,scheduleTeacher=n
  const [messages,setMessages]=useState([]),[pending,setPending]=useState(false),[saving,setSaving]=useState(false);
  const [query,setQuery]=useState(''),[expanded,setExpanded]=useState(page||'dashboard');
  const [draft,setDraft]=useState(null),[lightbox,setLightbox]=useState(null);
+ const [showAllDraft,setShowAllDraft]=useState(false),[partialAck,setPartialAck]=useState(false);
+ const previousScheduleFile=useRef(null);
  const fileInput=useRef(null),chatEnd=useRef(null),inputRef=useRef(null),urls=useRef(new Set());
  const topics=useMemo(()=>visibleHelpTopics(profile.role),[profile.role]);
  useEffect(()=>{
@@ -119,7 +123,7 @@ export function HelpAssistant({profile,page,onNavigate,onSaved,scheduleTeacher=n
  }
  function newChat(){
    for(const u of urls.current)URL.revokeObjectURL(u);
-   urls.current.clear();setMessages([]);setDraft(null);clearFile();setText('');setMode('chat');setLightbox(null);
+   urls.current.clear();previousScheduleFile.current=null;setMessages([]);setDraft(null);clearFile();setText('');setMode('chat');setLightbox(null);
  }
  const updateDraft=(i,key,value)=>setDraft(prev=>prev?{...prev,items:prev.items.map((r,j)=>i===j?{...r,[key]:value}:r)}:null);
  async function saveDraft(){
@@ -172,7 +176,8 @@ export function HelpAssistant({profile,page,onNavigate,onSaved,scheduleTeacher=n
    const message=String(question||'').trim();
    if((!message&&!file)||pending||saving)return;
    if(message.length>1300){setMessages(m=>[...m,{role:'system',text:'Câu hỏi vượt quá 1.300 ký tự. Bạn rút gọn giúp tui nha.'}]);return;}
-   const actualMode=detectMode(message,file);
+   const attachedForIntent=file||previousScheduleFile.current;
+   const actualMode=detectMode(message,attachedForIntent);
    if(actualMode==='account'&&profile.role!=='admin'){
      setMessages(m=>[...m,{role:'system',text:'Chỉ tài khoản Admin mới được đổi tên giáo viên. Bạn có thể hỏi AI cách gửi yêu cầu cho Admin.'}]);return;
    }
@@ -183,8 +188,11 @@ export function HelpAssistant({profile,page,onNavigate,onSaved,scheduleTeacher=n
    if(actualMode==='image'&&file&&!/^image\/(jpeg|png|webp)$/.test(fileMime(file))){
      setMessages(m=>[...m,{role:'system',text:'Để chỉnh sửa hình ảnh, vui lòng chọn ảnh JPG, PNG hoặc WebP.'}]);return;
    }
-   const attachedFile=file;
-   const userText=message||'Hãy đọc tệp đính kèm và hướng dẫn thao tác phù hợp trong IC3 GS6.';
+   const reuseOld=actualMode==='schedule'&&!file&&previousScheduleFile.current&&
+      /(nay|do|anh|tep|file|lich moi|vua gui|tuan nay|thay the)/.test(normalize(message));
+   const attachedFile=file||(reuseOld?previousScheduleFile.current:null);
+   if(actualMode==='schedule'&&file)previousScheduleFile.current=file;
+   const userText=message||(actualMode==='schedule'?'Đọc thời khóa biểu trong ảnh hoặc tệp này và tạo bản nháp lịch dạy đúng lớp, thứ, giờ.':'Hãy đọc tệp đính kèm và hướng dẫn thao tác trong IC3 GS6.');
    const history=messages.filter(m=>['user','assistant'].includes(m.role)).slice(-8).map(m=>({role:m.role,text:m.text}));
    let img=null;
    if(attachedFile&&/^image\/(jpeg|png|webp)$/.test(fileMime(attachedFile))){
@@ -200,7 +208,7 @@ export function HelpAssistant({profile,page,onNavigate,onSaved,scheduleTeacher=n
      const endpoint=actualMode==='chat'?'/api/help':'/api/help-actions';
      const body=actualMode==='chat'?{question:userText,page,history,attachment}:
        {question:userText,mode:actualMode,schoolId:profile.school_id,
-         teacherId:scheduleTeacher?.id||profile.id,attachment};
+         teacherId:profile.id,attachment};
      const response=await fetch(endpoint,{
        method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+session.access_token},
        body:JSON.stringify(body)
@@ -216,7 +224,11 @@ export function HelpAssistant({profile,page,onNavigate,onSaved,scheduleTeacher=n
      if(actualMode==='schedule'&&result.proposals?.length){
        setDraft({items:result.proposals,schoolId:profile.school_id,
          schoolName:result.proposals[0]?.school_name||profile.school_name,
-         teacherId:result.teacher_id||profile.id,teacherName:result.teacher_name||profile.full_name});
+         teacherId:result.teacher_id||profile.id,teacherName:result.teacher_name||profile.full_name,
+         replaceScope:result.replace_scope||null,
+         rangeStart:result.range_start||null,rangeEnd:result.range_end||null,
+         warnings:result.warnings||[]});
+       setShowAllDraft(false);setPartialAck(false);
      }
      if(result.warnings?.length)setMessages(m=>[...m,{role:'system',text:result.warnings.join('\n')}].slice(-30));
      clearFile();
