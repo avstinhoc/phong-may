@@ -560,6 +560,7 @@ function Students({ profile, refresh, reload, ping, navigate }) {
   const { rows, busy } = useRows("students", profile, refresh);
   const registrations = useRows("student_registrations", profile, refresh);
   const schoolClasses = useRows("classes", profile, refresh);
+  const [approvalBusy,setApprovalBusy]=useState(null);
   const [show, setShow] = useState(false);
   const [search, setSearch] = useState("");
   const [form, setForm] = useState({
@@ -572,7 +573,9 @@ function Students({ profile, refresh, reload, ping, navigate }) {
     `${s.full_name} ${s.class_name} ${s.student_code||""}`.toLowerCase().includes(search.toLowerCase())
   ).sort((a,b)=>a.full_name.localeCompare(b.full_name,'vi',{sensitivity:'base'})||
     String(a.class_name||"").localeCompare(String(b.class_name||""),'vi',{numeric:true}));
-  const ownedClassCodes=new Set(schoolClasses.rows.filter(c=>c.created_by===profile.id).map(c=>c.registration_code));
+  const ownedClasses=schoolClasses.rows.filter(c=>c.created_by===profile.id&&!c.archived_at)
+    .sort((a,b)=>a.class_name.localeCompare(b.class_name,'vi',{numeric:true}));
+  const ownedClassCodes=new Set(ownedClasses.map(c=>c.registration_code));
   const waiting = registrations.rows.filter(r=>r.status==="pending" && ownedClassCodes.has(r.registration_code))
     .sort((a,b)=>a.full_name.localeCompare(b.full_name,'vi',{sensitivity:'base'}));
 
@@ -609,6 +612,17 @@ function Students({ profile, refresh, reload, ping, navigate }) {
     if(error) ping(error.message); else {ping("Đã duyệt học sinh và gán máy đăng ký");reload();}
   }
 
+  async function changeClassApproval(c,next){
+    setApprovalBusy(c.id);
+    const {error}=await supabase.rpc('ic3_set_auto_approve',{p_class_id:c.id,p_value:next});
+    setApprovalBusy(null);
+    if(error)ping(error.message);
+    else{
+      ping(next?'Đã bật tự duyệt lớp '+c.class_name:'Đã tắt tự duyệt lớp '+c.class_name);
+      reload();
+    }
+  }
+
   async function archiveDuplicates(){
     if(!window.confirm("Ẩn hồ sơ học sinh bị trùng tên trong cùng lớp do bạn tạo? Dữ liệu điểm, điểm danh và lịch sử cũ vẫn được giữ. Hãy kiểm tra trước nếu lớp có hai học sinh trùng họ tên thật."))return;
     const {data,error}=await supabase.rpc('ic3_archive_duplicate_students',{
@@ -636,6 +650,23 @@ function Students({ profile, refresh, reload, ping, navigate }) {
       </>}
     />
 
+    <section className="panel" style={{marginBottom:16}}>
+      <div className="panel-head"><div>
+        <h3>Thiết lập duyệt tự động theo lớp</h3>
+        <p>Tự duyệt hồ sơ hợp lệ. Tên trùng hoặc biệt danh không được tự thêm; mỗi giáo viên chỉ chỉnh được lớp của mình.</p>
+      </div></div>
+      <div className="registration-approval-list">
+        {ownedClasses.map(c=><label key={c.id} className="registration-approval-option">
+          <span><strong>Lớp {c.class_name}</strong><small>{c.registration_code}</small></span>
+          <span className="auto-approve-toggle">
+            <input type="checkbox" checked={!!c.auto_approve} disabled={approvalBusy!==null}
+              onChange={e=>changeClassApproval(c,e.target.checked)}/>
+            {c.auto_approve?'Tự duyệt: Bật':'Tự duyệt: Tắt'}
+          </span>
+        </label>)}
+        {!ownedClasses.length&&<p className="muted">Bạn chưa tạo lớp ở trường này. Vào Lớp & mã đăng ký để tạo lớp riêng.</p>}
+      </div>
+    </section>
     <div className="panel" style={{ marginBottom: 16 }}>
       <div className="panel-head">
         <div><h3>Đăng ký trực tuyến chờ duyệt</h3><p>Học sinh điền form công khai tại đường dẫn /register</p></div>
