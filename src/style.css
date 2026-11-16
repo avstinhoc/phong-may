@@ -453,3 +453,20 @@
   background:#eaf6f3;border:1px solid #cee9e4;color:#1b6864;font-weight:700;font-size:11px;line-height:1.35}
 .school-assigned-teachers .muted,.school-assigned-teachers .negative{font-size:11px;line-height:1.6}
 @media(max-width:640px){.school-assigned-teachers{min-width:150px;max-width:none}}
+
+/* Short class codes, teacher-owned class list and simplified student registration */
+.auto-approve-toggle{display:inline-flex!important;align-items:center;gap:9px;font-size:11px;font-weight:700;color:#305965;line-height:1.5;cursor:pointer}
+.auto-approve-toggle input[type="checkbox"]{width:16px;height:16px;accent-color:#0a8d80;flex:0 0 auto}
+.class-management td code{display:inline-block;padding:5px 7px;border-radius:7px;color:#175e72;background:#f0f7f8;white-space:nowrap;font-size:11px}
+.class-management .table-wrap{overflow-x:auto}
+.class-management table{min-width:1010px}
+.class-management .panel h3{margin-top:0}
+.student-register-card{max-width:580px}
+.student-register-card label{font-size:12px}
+.student-register-card .required-note{color:#ad6845;font-size:10px;font-weight:650}
+.student-register-card input[readonly]{background:#ebf7f5;color:#11665d;border-color:#aedfd4;cursor:default;font-weight:800}
+.student-register-card .registration-warning{margin:15px 0;border-color:#edc8a3;background:#fff8ed;color:#91561e;line-height:1.65}
+.registration-success-actions{display:flex;flex-direction:column;gap:11px;margin:20px 0}
+.registration-success-actions .btn{text-align:center;justify-content:center;min-height:44px}
+.student-register-card .form-stack>small{margin-top:-9px;line-height:1.55;font-size:10px}
+@media(max-width:650px){.student-register-card{width:calc(100vw - 28px)}}
