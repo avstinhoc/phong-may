@@ -43,7 +43,7 @@ export default async function handler(req,res){
   if(profileError||!profile?.is_active||!['admin','teacher','staff'].includes(profile.role))
    return error(res,403,'Chỉ tài khoản giáo viên/Admin đã duyệt mới dùng được trợ lý.');
   const b=typeof req.body==='string'?JSON.parse(req.body):req.body||{};
-  const mode=['image','schedule','file','account'].includes(b.mode)?b.mode:null;
+  const mode=['schedule','account'].includes(b.mode)?b.mode:null;
   if(!mode)return error(res,400,'Thao tác không hợp lệ.');
   const question=clean(b.question).slice(0,1800);
   if(!question)return error(res,400,'Hãy nhập yêu cầu trước.');
@@ -188,9 +188,20 @@ export default async function handler(req,res){
   if(!/^[a-f\d-]{36}$/i.test(schoolId))return error(res,400,'Chọn trường dạy ở menu trái trước khi sửa lịch.');
   const {data:school, error:schoolError}=await db.from('schools').select('id,name').eq('id',schoolId).maybeSingle();
   if(schoolError||!school)return error(res,403,'Bạn chưa được cấp quyền quản lý trường này.');
-  const {data:lessons,error:lessonError}=await db.from('class_sessions')
-    .select('id,school_id,class_name,session_date,start_time,end_time,period_count,teacher_name,teacher_id')
-    .eq('school_id',schoolId).order('session_date',{ascending:false}).limit(200);
+  const requestedTeacher=clean(b.teacherId);
+  if(requestedTeacher&&requestedTeacher!==profile.id&&profile.role!=='admin')
+    return error(res,403,'Giáo viên không được sửa lịch của tài khoản khác.');
+  const actualTeacher=profile.role==='admin'&&/^[a-f\d-]{36}$/i.test(requestedTeacher)?
+    requestedTeacher:profile.id;
+  const {data:targetUser,error:teacherError}=await db.from('profiles')
+    .select('id,full_name,role,is_active').eq('id',actualTeacher).maybeSingle();
+  if(teacherError||!targetUser?.is_active||!['teacher','admin','staff'].includes(targetUser.role))
+    return error(res,400,'Không tìm thấy tài khoản giáo viên đang hoạt động.');
+  let lessonQuery=db.from('class_sessions')
+    .select('id,school_id,class_name,session_date,start_time,end_time,period_count,teacher_name,teacher_id,created_by')
+    .eq('school_id',schoolId);
+  lessonQuery=lessonQuery.or('teacher_id.eq.'+actualTeacher+',and(teacher_id.is.null,created_by.eq.'+actualTeacher+')');
+  const {data:lessons,error:lessonError}=await lessonQuery.order('session_date',{ascending:false}).limit(200);
   if(lessonError)return error(res,503,'Không đọc được lịch để đối chiếu. Thử tải lại trang.');
   const {data:classes,error:classError}=await db.from('classes').select('class_name')
     .eq('school_id',schoolId).limit(150);
@@ -204,10 +215,11 @@ export default async function handler(req,res){
     'Bạn là trợ lý IC3 AI có khả năng lập KẾ HOẠCH THÊM/SỬA buổi học. CHỈ TRẢ VỀ JSON.',
     'Không trực tiếp ghi cơ sở dữ liệu. Hệ thống sẽ hiển thị bản nháp để người dùng sửa và xác nhận.',
     'Chỉ dùng trường đang chọn: '+school.name+'. Không đưa lịch trường khác vào bản ghi khi chưa chuyển trường.',
+    'Bản nháp này CHỈ DÀNH CHO GIÁO VIÊN: '+targetUser.full_name+' (ID '+actualTeacher+'). Lịch được lưu vào tài khoản người này sau khi xác nhận.',
     'Danh sách lớp: '+JSON.stringify((classes||[]).map(x=>x.class_name))+'. Lớp từ ảnh có thể chưa tồn tại; nêu lưu ý nếu chưa có.',
     'Các buổi học ĐÃ CÓ (chỉ được sửa đúng ID trong đây): '+JSON.stringify(known)+'.',
     'Tối đa 12 buổi tạo/sửa. Nếu yêu cầu sửa lịch cũ, trả operation=edit, target_id là id thật từ danh sách; nếu muốn tạo mới trả operation=create, target_id=null.',
-    'Khi ảnh lịch thuộc giáo viên khác, người dùng vẫn có thể dạy thay: ưu tiên yêu cầu, không từ chối vì tên giáo viên khác. Không tự thay tên giáo viên hiện tại.',
+    'Nếu ảnh lịch thuộc người khác nhưng người dùng muốn dạy thay, tạo buổi mới CHO GIÁO VIÊN ĐANG CHỌN ('+targetUser.full_name+'), không sửa lịch của giáo viên gốc.',
     'Không được xóa buổi học, đổi điểm danh hay giao máy từ thao tác này. Nếu người dùng muốn xóa, hướng dẫn họ đến Lịch dạy giáo viên để xác nhận riêng.',
     'Không suy đoán ngày giờ, tiết, lớp. Nếu thiếu thông tin cần thiết hoặc không tìm thấy buổi cần sửa, để proposals=[] và hỏi lại một chi tiết trong answer.',
     'Thời gian dùng định dạng HH:MM 24 giờ, ngày YYYY-MM-DD, số tiết >=1.',
@@ -253,7 +265,7 @@ export default async function handler(req,res){
   }
   return res.status(200).json({
     answer:clean(result.answer).slice(0,1700)|| (proposals.length?'Đã chuẩn bị bản nháp lịch. Hãy kiểm tra rồi xác nhận lưu.':'Bạn hãy cho biết rõ lớp, ngày và giờ học.'),
-    proposals,warnings
+    proposals,warnings,teacher_id:actualTeacher,teacher_name:targetUser.full_name
   });
  }catch(e){
   if(e.name==='AbortError'||e.name==='TimeoutError')return error(res,504,'AI xử lý lâu quá. Hãy thử tệp nhỏ hơn.');
