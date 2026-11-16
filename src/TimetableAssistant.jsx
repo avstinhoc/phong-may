@@ -98,7 +98,7 @@ export function TimetableImport({profile,reload,onImported,embedded=false,adminV
   setMessages(msg=>[...msg,{role:'assistant',text:answer+(warnings.length?'\nLưu ý: '+warnings.join('; '):'')}].slice(-12));
  }
  async function read(){
-  setBusy(true);setNotice('Đang đọc tệp và kiểm tra từng ô thời khóa biểu…');setNoticeKind('info');setWarnings([]);
+  setBusy(true);setNotice('Đang đọc tệp và kiểm tra từng ô thời khóa biểu…');setNoticeKind('info');
   try{
    validateRange();
    if(!file)throw new Error('Chọn tệp thời khóa biểu trước.');
@@ -122,7 +122,7 @@ export function TimetableImport({profile,reload,onImported,embedded=false,adminV
  }
  async function chat(e){
   e.preventDefault();if(!text.trim())return;
-  const question=text.trim();setText('');setBusy(true);
+  const question=text.trim();setText('');setBusy(true);setNoticeKind('info');setNotice('Đang gửi yêu cầu đến trợ lý AI…');
   setMessages(msg=>[...msg,{role:'user',text:question}].slice(-12));
   try{
    const answer=await callAI('chat',question);
@@ -189,7 +189,7 @@ export function TimetableImport({profile,reload,onImported,embedded=false,adminV
    <div className="timetable-file-card">
     <div className="timetable-section-heading"><div><FileUp size={18}/><strong>Tệp thời khóa biểu & phạm vi ngày</strong></div><small>Ảnh · PDF · Excel · CSV · TXT</small></div>
    <div className="import-controls">
-    <label>Tệp thời khóa biểu<input type="file" accept=".png,.jpg,.jpeg,.webp,.pdf,.xlsx,.xls,.csv,.tsv,.txt,image/*,application/pdf" disabled={busy} onChange={e=>{setFile(e.target.files?.[0]||null);setWarnings([]);setLocalText('');}}/></label>
+    <label>Tệp thời khóa biểu<input type="file" accept=".png,.jpg,.jpeg,.webp,.pdf,.xlsx,.xls,.csv,.tsv,.txt,image/*,application/pdf" disabled={busy} onChange={e=>{setFile(e.target.files?.[0]||null);setReplaceOld(false);setLocalText('');setNotice('Đã chọn tệp mới. Bấm Đọc tệp để cập nhật bản nháp; lịch cũ chưa bị thay đổi.');setNoticeKind('info');}}/></label>
     <label>Từ ngày<input type="date" value={startDate} disabled={busy} onChange={e=>setStartDate(e.target.value)}/></label>
     <label>Đến ngày<input type="date" value={endDate} disabled={busy} min={startDate} onChange={e=>setEndDate(e.target.value)}/></label>
    </div>
