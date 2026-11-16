@@ -391,7 +391,7 @@ function PublicStudentRegister({ ping }) {
         <h1>{doneStatus==='approved'?"Đăng ký thành công!":"Đã gửi đăng ký!"}</h1>
         <p className="muted" role="status">{doneMessage}</p>
         <div className="registration-success-actions">
-          <a className="btn outline full" href={'/student?code='+encodeURIComponent(code)}>Về trang chủ lớp {code.split('-').at(-1)}</a>
+          <a className="btn outline full" href={'/student?code='+encodeURIComponent(code)}>Về trang chủ lớp của mình</a>
           <button type="button" className="btn primary full" onClick={addFriend}>Thêm bạn tiếp theo</button>
         </div>
         <small className="muted">Thêm bạn sẽ làm mới thông tin học sinh nhưng giữ đúng mã lớp này.</small>
