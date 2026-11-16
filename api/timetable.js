@@ -86,8 +86,9 @@ export default async function handler(req,res){
   if(qe)return res.status(429).json({error:'Tạm thời không thể xử lý AI: '+qe.message});
   const {data:raw,model:usedModel,fallbackUsed}=await requestTimetableGemini({
    apiKey:process.env.GEMINI_API_KEY,
-   model:process.env.GEMINI_MODEL||'gemini-2.5-flash',
-   fallbackModel:process.env.GEMINI_FALLBACK_MODEL||'gemini-2.5-flash-lite',
+   model:process.env.GEMINI_MODEL||'gemini-3.8-flash',
+   fallbackModel:process.env.GEMINI_FALLBACK_MODEL||'gemini-3.8-flash',
+   secondaryModel:'gemini-3.5-flash-lite',
    parts
   });
   const content=raw.candidates?.[0]?.content?.parts?.map(p=>p.text||'').join('')||'{}';

@@ -1,52 +1,72 @@
-// Retry only transient Gemini outages; never re-send on quota or auth errors.
+// Gemini 2.5 may return 404 for projects without generation access, even when models.list shows it.
+// Try current multimodal models on 404 / transient 5xx without retrying quota or auth failures.
 export class GeminiTimetableError extends Error {
   constructor(message,status=502){super(message);this.name='GeminiTimetableError';this.status=status;}
 }
 
+const validModel=name=>typeof name==='string'&&/^gemini-[a-z0-9.-]+$/.test(name);
 export async function requestTimetableGemini({
-  apiKey,model='gemini-2.5-flash',fallbackModel='gemini-2.5-flash-lite',
+  apiKey,model='gemini-3.8-flash',
+  fallbackModel='gemini-3.8-flash',secondaryModel='gemini-3.5-flash-lite',
   parts,fetcher=fetch,delay=ms=>new Promise(resolve=>setTimeout(resolve,ms))
 }){
   if(!apiKey)throw new GeminiTimetableError('Máy chủ chưa có GEMINI_API_KEY. Vui lòng kiểm tra Vercel Environment Variables.',503);
-  if(!/^gemini-[a-z0-9.-]+$/.test(model))throw new GeminiTimetableError('Tên model Gemini không hợp lệ.',503);
-  const fallback=/^gemini-[a-z0-9.-]+$/.test(fallbackModel)&&fallbackModel!==model?fallbackModel:null;
-  const attempts=[{model,timeout:18000},{model,timeout:17000},...(fallback?[{model:fallback,timeout:14000}]:[])];
+  if(!validModel(model))throw new GeminiTimetableError('Tên model Gemini được cấu hình không hợp lệ.',503);
+  const models=[...new Set([model,fallbackModel,secondaryModel].filter(validModel))];
   const payload=JSON.stringify({
     contents:[{parts}],generationConfig:{temperature:0.1,responseMimeType:'application/json'}
   });
   let lastStatus=503;
-  for(let i=0;i<attempts.length;i++){
-    const current=attempts[i];
-    let response;
-    try{
-      response=await fetcher('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(current.model)+':generateContent',{
-        method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':apiKey},
-        body:payload,signal:AbortSignal.timeout(current.timeout)
-      });
-    }catch(err){
-      lastStatus=504;
-      if(i===attempts.length-1)break;
-      await delay(350*(i+1));
-      continue;
+  const errors=[];
+  for(let i=0;i<models.length;i++){
+    const candidate=models[i];
+    // Only retry the primary model once on temporary failure. 404 should switch model immediately.
+    const maxAttempts=i===0?2:1;
+    for(let attempt=0;attempt<maxAttempts;attempt++){
+      let response;
+      try{
+        response=await fetcher('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(candidate)+':generateContent',{
+          method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':apiKey},
+          body:payload,signal:AbortSignal.timeout(i===0?(attempt?9000:13000):11000)
+        });
+      }catch(err){
+        lastStatus=504;
+        errors.push(candidate+' HTTP 504');
+        if(attempt+1<maxAttempts)await delay(350);
+        continue;
+      }
+      if(response.ok){
+        let data;
+        try{data=await response.json();}
+        catch{throw new GeminiTimetableError('Gemini trả dữ liệu không hợp lệ. Bạn thử đọc lại tệp.',502);}
+        return {data,model:candidate,fallbackUsed:candidate!==model};
+      }
+      lastStatus=response.status;
+      errors.push(candidate+' HTTP '+response.status);
+      // Retrying the same payload cannot repair these account- or request-level errors.
+      if(response.status===429)
+        throw new GeminiTimetableError('Google Gemini đang hết hạn mức hoặc giới hạn tốc độ (429). Kiểm tra hạn mức Google AI Studio và thử lại sau.',429);
+      if(response.status===401||response.status===403)
+        throw new GeminiTimetableError('API key Gemini không được cấp quyền (HTTP '+response.status+'). Kiểm tra quyền dự án Google AI Studio.',502);
+      if(response.status===400||response.status===413)
+        throw new GeminiTimetableError('Gemini từ chối dữ liệu gửi lên (HTTP '+response.status+'). Hãy giảm kích thước hoặc kiểm tra định dạng tệp.',400);
+      if(response.status===404){
+        // Access to legacy models may be restricted despite the model name being valid.
+        break;
+      }
+      if(![500,502,503,504].includes(response.status))
+        throw new GeminiTimetableError('Google Gemini trả lỗi HTTP '+response.status+'.',502);
+      if(attempt+1<maxAttempts)await delay(350);
     }
-    if(response.ok){
-      let data;
-      try{data=await response.json();}
-      catch{throw new GeminiTimetableError('Gemini trả dữ liệu không hợp lệ. Bạn thử đọc lại tệp.',502);}
-      return {data,model:current.model,fallbackUsed:current.model!==model};
-    }
-    const status=response.status;
-    lastStatus=status;
-    // Quota, permissions, invalid models and invalid input are not solved by retrying.
-    if(status===429)throw new GeminiTimetableError('Gemini đang vượt hạn mức hoặc giới hạn tốc độ (429). Hãy kiểm tra hạn mức API hoặc thử lại sau.',429);
-    if(status===401||status===403)throw new GeminiTimetableError('API key Gemini không được cấp quyền (HTTP '+status+'). Kiểm tra GEMINI_API_KEY trong Vercel.',502);
-    if(status===404)throw new GeminiTimetableError('Không tìm thấy model '+current.model+'. Kiểm tra GEMINI_MODEL trên Vercel.',502);
-    if(status===400||status===413)throw new GeminiTimetableError('Gemini từ chối dữ liệu gửi lên (HTTP '+status+'). Hãy giảm kích thước hoặc kiểm tra định dạng tệp.',400);
-    if(![500,502,503,504].includes(status))
-      throw new GeminiTimetableError('Gemini trả lỗi HTTP '+status+'.',502);
-    if(i<attempts.length-1)await delay(350*(i+1));
+    if(i<models.length-1)await delay(200);
   }
-  throw new GeminiTimetableError(lastStatus===504
-    ?'Gemini phản hồi quá lâu. Hãy thử tệp nhỏ hơn hoặc chọn chế độ đọc trên thiết bị.'
-    :'Gemini tạm quá tải (HTTP '+lastStatus+'); hệ thống đã thử lại và đổi model dự phòng nhưng chưa có phản hồi. Hãy thử lại sau.',lastStatus===504?504:503);
+  const details=errors.slice(-4).join('; ');
+  throw new GeminiTimetableError(
+    lastStatus===404
+      ?'Các model Gemini không khả dụng với API key hiện tại ('+details+'). Hãy kiểm tra quyền truy cập model trên Google AI Studio.'
+      :lastStatus===504
+      ?'Gemini xử lý quá lâu; đã thử model dự phòng. Hãy thử tệp nhỏ hơn hoặc dùng chế độ đọc trên thiết bị.'
+      :'Gemini chưa phản hồi sau khi thử model dự phòng ('+details+'). Hãy thử lại sau hoặc kiểm tra Google AI Studio.',
+    lastStatus===504?504:503
+  );
 }
