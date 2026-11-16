@@ -48,7 +48,7 @@ export function AIClassImportDraft({draft,profile,onChange,onCancel,onDone,onMes
     <small>Lớp {draft.className} · {rows.length} dòng</small></div>
    <button type="button" className="help-draft-cancel" onClick={onCancel} disabled={busy}>Hủy</button>
   </div>
-  <p className="help-class-hint">AI mới đọc dữ liệu, <b>chưa lưu vào hệ thống</b>. Bạn có thể sửa tên, giới tính và điểm. Lớp được khóa theo lựa chọn của giáo viên.</p>
+  <p className="help-class-hint">AI mới đọc dữ liệu, <b>chưa lưu vào hệ thống</b>. Bạn có thể sửa tên, giới tính và điểm. Lớp được nhận diện từ file hoặc yêu cầu và đối chiếu với dữ liệu trường; hãy kiểm tra đúng lớp trước khi lưu.</p>
   {!!draft.warnings?.length&&<div className="help-class-warnings">
    <strong>Những điểm cần kiểm tra ({draft.warnings.length})</strong>
    <ul>{draft.warnings.slice(0,7).map((w,i)=><li key={i}>{w}</li>)}</ul>
