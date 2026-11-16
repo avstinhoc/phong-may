@@ -7,6 +7,55 @@ export function SchoolManager({ schools, onCreated, onChanged, ping, role }) {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [confirmation, setConfirmation] = useState("");
   const [busy, setBusy] = useState(false);
+  const [assignedTeachers,setAssignedTeachers] = useState({});
+  const [teacherNamesLoading,setTeacherNamesLoading] = useState(role==="admin");
+  const [teacherNamesError,setTeacherNamesError] = useState("");
+  useEffect(()=>{
+    if(role!=="admin")return;
+    let live=true;
+    const ids=schools.map(s=>s.id);
+    if(!ids.length){setAssignedTeachers({});setTeacherNamesLoading(false);return;}
+    setTeacherNamesLoading(true);setTeacherNamesError("");
+    (async()=>{
+      try{
+        // Memberships list staff formally assigned to each school; sessions
+        // include teachers with a saved teaching assignment but no membership.
+        const [membersResult,sessionsResult]=await Promise.all([
+          supabase.from("school_members").select("school_id,user_id").in("school_id",ids),
+          supabase.from("class_sessions").select("school_id,teacher_id,created_by").in("school_id",ids)
+        ]);
+        if(membersResult.error)throw membersResult.error;
+        if(sessionsResult.error)throw sessionsResult.error;
+        const usersBySchool=new Map(ids.map(id=>[id,new Set()]));
+        for(const m of membersResult.data||[]){
+          usersBySchool.get(m.school_id)?.add(m.user_id);
+        }
+        for(const lesson of sessionsResult.data||[]){
+          const userId=lesson.teacher_id||lesson.created_by;
+          if(userId)usersBySchool.get(lesson.school_id)?.add(userId);
+        }
+        const allUserIds=[...new Set([...usersBySchool.values()].flatMap(set=>[...set]))];
+        let profiles=[];
+        if(allUserIds.length){
+          const result=await supabase.from("profiles")
+            .select("id,full_name,role,is_active").in("id",allUserIds);
+          if(result.error)throw result.error;
+          profiles=result.data||[];
+        }
+        const people=new Map(profiles.filter(p=>p.is_active&&
+          ["admin","teacher","staff"].includes(p.role))
+          .map(p=>[p.id,p.full_name?.trim()||"Chưa cập nhật họ tên"]));
+        const teachers=Object.fromEntries([...usersBySchool.entries()].map(([id,users])=>
+          [id,[...users].filter(userId=>people.has(userId))
+             .map(userId=>({id:userId,name:people.get(userId)}))
+             .sort((a,b)=>a.name.localeCompare(b.name,"vi"))]));
+        if(live)setAssignedTeachers(teachers);
+      }catch(err){
+        if(live){setAssignedTeachers({});setTeacherNamesError(err?.message||"Không tải được giáo viên.");}
+      }finally{if(live)setTeacherNamesLoading(false);}
+    })();
+    return ()=>{live=false;};
+  },[role,schools]);
   async function add(e) {
     e.preventDefault();
     setBusy(true);
@@ -60,14 +109,24 @@ export function SchoolManager({ schools, onCreated, onChanged, ping, role }) {
   }
   return <section className="panel school-manager">
     <h2>Trường công tác</h2>
-    <p className="muted">Quản lý các trường bạn được phân quyền: thêm, sửa, thay logo hoặc xóa trường. Xóa trường sẽ xóa lớp, lịch, học sinh, điểm danh và dữ liệu liên quan. Trường dùng chung nhiều giáo viên chỉ Admin được xóa.</p>
-    <div className="table-wrap"><table><thead><tr><th>Tên trường</th><th>Logo báo cáo & Excel</th><th>Thao tác</th></tr></thead>
+    <p className="muted">{role==="admin"?
+      "Quản lý trường và xem giáo viên đang công tác theo phân công hoặc lịch dạy từng trường. Bạn có thể thêm, sửa, xóa trường; xóa trường sẽ xóa dữ liệu liên quan.":
+      "Quản lý trường được phân quyền: thêm, sửa, thay logo hoặc xóa trường. Xóa trường sẽ xóa các dữ liệu liên quan."}</p>
+    <div className="table-wrap"><table><thead><tr><th>Tên trường</th><th>{role==="admin"?"Giáo viên công tác":"Logo báo cáo & Excel"}</th><th>Thao tác</th></tr></thead>
       <tbody>{schools.map(s=><tr key={s.id}><td><b>{s.name}</b></td>
-        <td><div className="school-logo-admin">
-          {s.logo_data?<img src={s.logo_data} alt={'Logo '+s.name}/>:<span>Chưa có logo</span>}
-          {['admin','teacher','staff'].includes(role)&&<><label className="mini-btn">Thay logo<input type="file" style={{display:'none'}} accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={e=>{updateLogo(s,e.target.files?.[0]);e.target.value='';}}/></label>
-          {s.logo_data&&<button className="mini-btn" disabled={busy} onClick={()=>clearLogo(s)}>Bỏ logo</button>}</>}
-        </div></td><td>
+        <td>{role==="admin"?
+          <div className="school-assigned-teachers">
+            {teacherNamesLoading?<span className="muted">Đang tải giáo viên…</span>:
+             teacherNamesError?<span className="negative" role="alert">Không tải được danh sách giáo viên.</span>:
+             assignedTeachers[s.id]?.length?
+               assignedTeachers[s.id].map(t=><span className="school-teacher-name" key={t.id}>{t.name}</span>):
+               <span className="muted">Chưa có giáo viên được phân công</span>}
+          </div>:
+          <div className="school-logo-admin">
+            {s.logo_data?<img src={s.logo_data} alt={'Logo '+s.name}/>:<span>Chưa có logo</span>}
+            {['teacher','staff'].includes(role)&&<><label className="mini-btn">Thay logo<input type="file" style={{display:'none'}} accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={e=>{updateLogo(s,e.target.files?.[0]);e.target.value='';}}/></label>
+            {s.logo_data&&<button className="mini-btn" disabled={busy} onClick={()=>clearLogo(s)}>Bỏ logo</button>}</>}
+          </div>}</td><td>
         {['admin','teacher','staff'].includes(role)&&<div className="actions"><button className="btn outline" onClick={()=>setEditing({...s})}>Sửa</button><button className="btn outline" onClick={()=>{setDeleteTarget(s);setConfirmation("");}}>Xóa</button></div>}
       </td></tr>)}</tbody></table></div>
     <form className="form-row" onSubmit={add}>
