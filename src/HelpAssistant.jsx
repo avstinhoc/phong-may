@@ -74,6 +74,8 @@ const isClock=s=>/^([01]\d|2[0-3]):[0-5]\d$/.test(s);
 const mins=s=>Number(s.slice(0,2))*60+Number(s.slice(3,5));
 const detectMode=(question,attached)=>{
  const q=normalize(question);
+ if(/(doi|sua|chinh sua|cap nhat|dat lai|thay).{0,18}ten.{0,14}(giao vien|tai khoan)/.test(q)
+ && !/^(cach|huong dan|lam sao)/.test(q))return 'account';
  if(/(tao|ve|thiet ke|chinh sua|sua|ghep|xoa nen).{0,45}(anh|hinh|logo|banner)/.test(q) && !/^(cach|huong dan|lam sao)/.test(q))return 'image';
  if(attached&&/(sua|chinh sua|thay doi|cap nhat|viet lai|chuyen doi|bo sung|doi noi dung).{0,55}(file|tep|excel|word|pdf|tai lieu|bang|van ban|noi dung)/.test(q)
  && !/^(cach|huong dan|lam sao)/.test(q))return 'file';
@@ -171,6 +173,9 @@ export function HelpAssistant({profile,page,onNavigate,onSaved}){
    if((!message&&!file)||pending||saving)return;
    if(message.length>1300){setMessages(m=>[...m,{role:'system',text:'Câu hỏi vượt quá 1.300 ký tự. Bạn rút gọn giúp tui nha.'}]);return;}
    const actualMode=mode==='chat'?detectMode(message,file):mode;
+   if(actualMode==='account'&&profile.role!=='admin'){
+     setMessages(m=>[...m,{role:'system',text:'Chỉ tài khoản Admin mới được đổi tên giáo viên. Bạn có thể hỏi AI cách gửi yêu cầu cho Admin.'}]);return;
+   }
    if(actualMode==='file'&&!file){
      setMessages(m=>[...m,{role:'system',text:'Hãy đính kèm tệp cần sửa trước khi gửi.'}]);return;
    }
@@ -205,7 +210,8 @@ export function HelpAssistant({profile,page,onNavigate,onSaved}){
      const image=result.image?.base64&&/^image\/(png|jpeg|webp)$/.test(result.image.mimeType||'')?
        'data:'+result.image.mimeType+';base64,'+result.image.base64:null;
      setMessages(m=>[...m,{role:'assistant',text:result.answer||'Đã xử lý yêu cầu.',page_id:suggestedPage,image,
-       editedFile:result.editedFile||null,originalFile:actualMode==='file'?attachedFile:null}].slice(-30));
+       editedFile:result.editedFile||null,originalFile:actualMode==='file'?attachedFile:null,
+       accountProposal:result.accountProposal||null}].slice(-30));
      if(actualMode==='schedule'&&result.proposals?.length){
        setDraft({items:result.proposals,schoolId:profile.school_id,
          schoolName:result.proposals[0]?.school_name||profile.school_name});
@@ -214,6 +220,28 @@ export function HelpAssistant({profile,page,onNavigate,onSaved}){
      clearFile();
    }catch(e){setMessages(m=>[...m,{role:'system',text:e?.message||'Không thể kết nối AI.'}].slice(-30));}
    finally{setPending(false);}
+ }
+ async function applyAccountRename(msg,index){
+   const r=msg.accountProposal;
+   if(profile.role!=='admin'||!r?.id||pending||saving)return;
+   if(!window.confirm('Xác nhận đổi tên giáo viên:\n'+r.email+'\n'+r.old_name+' → '+r.new_name+'?\n\nChỉ đổi họ tên, không thay quyền tài khoản.'))return;
+   setSaving(true);
+   try{
+     const {data:current,error:readError}=await supabase.from('profiles')
+       .select('id,email,full_name,role,is_active').eq('id',r.id).single();
+     if(readError)throw readError;
+     if(!current||current.email!==r.email||current.full_name!==r.old_name||current.role!==r.role||
+       current.is_active!==r.is_active)throw Error('Tài khoản đã thay đổi. Hãy hỏi lại AI để tạo bản nháp mới.');
+     const {error}=await supabase.rpc('admin_update_account',{
+       target_id:r.id,new_role:current.role,active:current.is_active,display_name:r.new_name
+     });
+     if(error)throw error;
+     setMessages(m=>m.map((entry,i)=>i===index?{...entry,accountProposal:null}:entry).concat([
+       {role:'assistant',text:'**Đã đổi tên giáo viên** từ '+r.old_name+' thành '+r.new_name+'.'}
+     ]).slice(-30));
+     onSaved?.();
+   }catch(e){setMessages(m=>[...m,{role:'system',text:'Không thể đổi tên: '+(e?.message||'Vui lòng thử lại.')}].slice(-30));}
+   finally{setSaving(false);}
  }
  async function downloadEdited(msg){
    try{
@@ -279,6 +307,15 @@ export function HelpAssistant({profile,page,onNavigate,onSaved}){
              </button>
              <div className="help-image-tools"><a href={msg.image} download="IC3-AI-image.png"><Download size={13}/> Lưu ảnh</a>
              <button type="button" onClick={()=>editImage(msg.image)}><Edit2 size={13}/> Sửa ảnh này</button></div>
+           </div>}
+           {msg.accountProposal&&<div className="help-account-proposal">
+             <strong>Kiểm tra trước khi đổi tên</strong>
+             <span>Tài khoản: {msg.accountProposal.email}</span>
+             <span>Tên hiện tại: {msg.accountProposal.old_name}</span>
+             <span>Tên mới: <b>{msg.accountProposal.new_name}</b></span>
+             <button type="button" disabled={pending||saving} onClick={()=>applyAccountRename(msg,i)}>
+               <CheckCircle2 size={14}/> {saving?'Đang lưu…':'Xác nhận đổi tên'}
+             </button>
            </div>}
            {msg.editedFile&&<div className="help-edited-file">
              <div className="help-edited-file-heading"><FileText size={15}/><strong>Bản tệp đã chỉnh sửa</strong></div>
