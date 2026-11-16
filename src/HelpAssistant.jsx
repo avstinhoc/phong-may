@@ -92,11 +92,29 @@ export function HelpAssistant({profile,page,onNavigate,onSaved,schools=[],onScho
  const [messages,setMessages]=useState([]),[pending,setPending]=useState(false),[saving,setSaving]=useState(false);
  const [query,setQuery]=useState(''),[expanded,setExpanded]=useState(page||'dashboard');
  const [draft,setDraft]=useState(null),[dataDraft,setDataDraft]=useState(null),[lightbox,setLightbox]=useState(null);
- const [importKind,setImportKind]=useState('auto');
+ const [importKind,setImportKind]=useState('auto'),[schoolClassLabels,setSchoolClassLabels]=useState({});
  const [showAllDraft,setShowAllDraft]=useState(false),[partialAck,setPartialAck]=useState(false);
  const previousScheduleFile=useRef(null);
  const fileInput=useRef(null),chatEnd=useRef(null),inputRef=useRef(null),urls=useRef(new Set());
  const topics=useMemo(()=>visibleHelpTopics(profile.role),[profile.role]);
+ useEffect(()=>{
+   if(!open||!schools.length)return;
+   let live=true;
+   (async()=>{
+     const {data,error}=await supabase.from('classes').select('school_id,class_name')
+       .in('school_id',schools.map(s=>s.id)).eq('created_by',profile.id)
+       .is('archived_at',null).limit(300);
+     if(!live)return;
+     if(error){setSchoolClassLabels({});return;}
+     const labels={};
+     for(const c of data||[]){
+       if(!labels[c.school_id])labels[c.school_id]=[];
+       labels[c.school_id].push(c.class_name);
+     }
+     setSchoolClassLabels(labels);
+   })();
+   return()=>{live=false;};
+ },[open,profile.id,schools]);
  useEffect(()=>{
    if(!file||!/^image\//.test(fileMime(file))){setImageUrl('');return;}
    const url=URL.createObjectURL(file);setImageUrl(url);
@@ -417,7 +435,12 @@ export function HelpAssistant({profile,page,onNavigate,onSaved,schools=[],onScho
           onChange={e=>{setDraft(null);setDataDraft(null);onSchoolChange(e.target.value);}}
           disabled={pending||saving||!schools.length}>
           <option value="">Chọn trường để nhập dữ liệu</option>
-          {schools.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
+          {schools.map(s=>{
+            const duplicate=schools.some(other=>other.id!==s.id&&other.name===s.name);
+            const classes=schoolClassLabels[s.id]||[];
+            const detail=classes.length?' · lớp '+classes.slice(0,6).join(', ')+(classes.length>6?'…':''):' · chưa có lớp';
+            return <option key={s.id} value={s.id}>{s.name}{duplicate?detail:''}</option>;
+          })}
         </select></label>
        </div>
        {file&&<div className="help-file-preview">
