@@ -74,12 +74,18 @@ const isClock=s=>/^([01]\d|2[0-3]):[0-5]\d$/.test(s);
 const mins=s=>Number(s.slice(0,2))*60+Number(s.slice(3,5));
 const detectMode=(question,attached)=>{
  const q=normalize(question);
- if(/(doi|sua|chinh sua|cap nhat|dat lai|thay).{0,18}ten.{0,14}(giao vien|tai khoan)/.test(q)
- && !/^(cach|huong dan|lam sao)/.test(q))return 'account';
- if(/(tao|ve|thiet ke|chinh sua|sua|ghep|xoa nen).{0,45}(anh|hinh|logo|banner)/.test(q) && !/^(cach|huong dan|lam sao)/.test(q))return 'image';
- if(attached&&/(sua|chinh sua|thay doi|cap nhat|viet lai|chuyen doi|bo sung|doi noi dung).{0,55}(file|tep|excel|word|pdf|tai lieu|bang|van ban|noi dung)/.test(q)
- && !/^(cach|huong dan|lam sao)/.test(q))return 'file';
- if(/(them|tao|sua|doi|doi gio|doi ngay|dieu chinh|chinh|lap|cap nhat).{0,40}(lich|buoi hoc|thoi khoa bieu)/.test(q) && !/^(cach|huong dan|lam sao)/.test(q))return 'schedule';
+ const mime=attached?fileMime(attached):'';
+ const isPicture=Boolean(attached&&/^image\//.test(mime));
+ const isDocument=Boolean(attached&&!/^image\//.test(mime));
+ const howTo=/^(cach|huong dan|lam sao|cho toi biet|hoi|tai sao|vi sao)\b/.test(q);
+ if(howTo)return 'chat';
+ if(/(doi|sua|chinh sua|cap nhat|dat lai|thay).{0,18}ten.{0,14}(giao vien|tai khoan)/.test(q))return 'account';
+ if(/(them|tao|sua|doi|doi gio|doi ngay|dieu chinh|chinh|lap|cap nhat|day thay|doi tiet|xep).{0,70}(lich|buoi hoc|thoi khoa bieu|tiet day)/.test(q)||
+    /(lich|thoi khoa bieu|buoi hoc|tiet day).{0,75}(them|tao|sua|doi|chinh|xep|cap nhat)/.test(q))return 'schedule';
+ if(/(tao|ve|thiet ke|chinh sua|sua|ghep|xoa nen|them|doi mau).{0,65}(anh|hinh|logo|banner|nen)/.test(q)||
+    /(anh|hinh|logo|banner).{0,65}(tao|ve|sua|chinh sua|doi|ghep|xoa)/.test(q))return 'image';
+ if(isDocument&&/(sua|chinh sua|thay doi|cap nhat|viet lai|chuyen doi|bo sung|doi|dien|nhap)/.test(q))return 'file';
+ if(isPicture&&/(xoa|them|chinh sua|ghep|doi mau|doi nen|lam dep|lam ro|tang net|canh chinh)/.test(q))return 'image';
  return 'chat';
 };
 
@@ -172,7 +178,7 @@ export function HelpAssistant({profile,page,onNavigate,onSaved}){
    const message=String(question||'').trim();
    if((!message&&!file)||pending||saving)return;
    if(message.length>1300){setMessages(m=>[...m,{role:'system',text:'Câu hỏi vượt quá 1.300 ký tự. Bạn rút gọn giúp tui nha.'}]);return;}
-   const actualMode=mode==='chat'?detectMode(message,file):mode;
+   const actualMode=mode==='image'?'image':detectMode(message,file);
    if(actualMode==='account'&&profile.role!=='admin'){
      setMessages(m=>[...m,{role:'system',text:'Chỉ tài khoản Admin mới được đổi tên giáo viên. Bạn có thể hỏi AI cách gửi yêu cầu cho Admin.'}]);return;
    }
@@ -219,7 +225,7 @@ export function HelpAssistant({profile,page,onNavigate,onSaved}){
      if(result.warnings?.length)setMessages(m=>[...m,{role:'system',text:result.warnings.join('\n')}].slice(-30));
      clearFile();
    }catch(e){setMessages(m=>[...m,{role:'system',text:e?.message||'Không thể kết nối AI.'}].slice(-30));}
-   finally{setPending(false);}
+   finally{setPending(false);setMode('chat');}
  }
  async function applyAccountRename(msg,index){
    const r=msg.accountProposal;
@@ -268,14 +274,12 @@ export function HelpAssistant({profile,page,onNavigate,onSaved}){
      setMode('image');setText('Chỉnh sửa ảnh này: ');inputRef.current?.focus();
    }catch{setMessages(m=>[...m,{role:'system',text:'Không thể sử dụng ảnh này để chỉnh sửa lại.'}]);}
  }
- const modeButtons=[{key:'chat',title:'Hỏi đáp',Icon:MessageCircle},{key:'schedule',title:'Sửa lịch',Icon:CalendarDays},
- {key:'image',title:'Tạo / sửa ảnh',Icon:ImageIcon},{key:'file',title:'Sửa tệp',Icon:FileText}];
  return <div className={'help-dock '+(open?'help-open':'')}>
    {!open&&<button className="help-launch" onClick={()=>setOpen(true)} aria-label="Mở Trợ lý IC3 AI" title="Hỏi IC3 AI"><MessageCircle size={21}/><span>Hỏi AI</span></button>}
    {open&&<section className="help-panel" role="dialog" aria-modal="false" aria-label="Trợ lý IC3 AI">
      <header className="help-header">
        <div className="help-avatar">AI</div>
-       <div className="help-head-copy"><strong>Trợ lý IC3 AI</strong><span>Hỏi đáp · Lịch dạy · Ảnh · Tệp</span></div>
+       <div className="help-head-copy"><strong>Trợ lý IC3 AI</strong><span>Hỏi tự nhiên · Hỗ trợ ảnh, lịch và tệp</span></div>
        <button className="help-icon-button" type="button" aria-label="Đóng trợ lý" title="Đóng" onClick={()=>setOpen(false)}><X size={19}/></button>
      </header>
      <div className="help-tabs" role="tablist" aria-label="Chế độ trợ lý">
@@ -283,12 +287,9 @@ export function HelpAssistant({profile,page,onNavigate,onSaved}){
        <button role="tab" aria-selected={tab==='guide'} className={tab==='guide'?'selected':''} onClick={()=>setTab('guide')}><BookOpen size={15}/> Hướng dẫn nhanh</button>
      </div>
      {tab==='chat'?<>
-       <div className="help-mode-row" aria-label="Chọn chức năng AI">
-         {modeButtons.map(item=><button key={item.key} className={mode===item.key?'active':''} type="button" onClick={()=>setMode(item.key)} disabled={pending}><item.Icon size={14}/>{item.title}</button>)}
-       </div>
        <div className="help-chat-scroll" role="log" aria-live="polite" aria-relevant="additions text">
          <div className="help-welcome"><strong>Chào bạn! Tui là Trợ lý IC3 AI 👋</strong>
-           <p>Gửi ảnh hoặc tài liệu ngay trong chat để nhờ chỉnh sửa. AI có thể lập bản nháp lịch, tạo ảnh và xuất file mới.</p>
+           <p>Chỉ cần nhắn tự nhiên như ChatGPT: thêm lịch dạy, chỉnh ảnh hoặc sửa Excel. AI tự chọn tính năng phù hợp.</p>
            <span>Đang xem: {helpPageTitles[page]||'IC3 GS6'}</span>
          </div>
          {!messages.length&&<div className="help-suggestions">
@@ -357,15 +358,15 @@ export function HelpAssistant({profile,page,onNavigate,onSaved}){
          <button type="button" onClick={clearFile} aria-label="Bỏ tệp đính kèm"><X size={16}/></button>
        </div>}
        <form className="help-composer" onSubmit={e=>{e.preventDefault();ask(text);}}>
-         <input ref={fileInput} type="file" style={{display:'none'}} accept={mode==='image'?'.jpg,.jpeg,.png,.webp':mode==='schedule'?'.jpg,.jpeg,.png,.webp,.pdf,.xls,.xlsx,.csv,.tsv,.txt':'.jpg,.jpeg,.png,.webp,.pdf,.xls,.xlsx,.csv,.tsv,.txt,.docx,.pptx'} onChange={e=>setFile(e.target.files?.[0]||null)}/>
+         <input ref={fileInput} type="file" style={{display:'none'}} accept=".jpg,.jpeg,.png,.webp,.pdf,.xls,.xlsx,.csv,.tsv,.txt,.docx,.pptx" onChange={e=>setFile(e.target.files?.[0]||null)}/>
          <button type="button" className="help-attach-button" onClick={()=>fileInput.current?.click()} disabled={pending} aria-label="Đính kèm ảnh hoặc file" title="Thêm ảnh hoặc file"><Paperclip size={19}/></button>
          <textarea ref={inputRef} rows={2} value={text} maxLength={1300} disabled={pending} aria-label="Nhập yêu cầu cho AI"
-           placeholder={mode==='image'?'Mô tả ảnh cần tạo hoặc chỉnh sửa…':mode==='schedule'?'Yêu cầu tạo, thêm hoặc sửa buổi học…':mode==='file'?'Nhập yêu cầu sửa nội dung tệp…':'Nhắn tin cho Trợ lý IC3 AI…'}
+           placeholder="Hỏi AI, nhờ tạo/chỉnh ảnh, sửa lịch hoặc chỉnh tệp…"
            onChange={e=>setText(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();ask(text);}}}/>
          <button type="submit" disabled={pending||saving||(!text.trim()&&!file)} title="Gửi câu hỏi" aria-label="Gửi câu hỏi"><Send size={18}/></button>
        </form>
        <footer className="help-footer">
-         <span>{file?'Tệp chỉ gửi đến Gemini khi bạn bấm Gửi.':mode==='schedule'?'Lịch được sửa sau khi bạn xác nhận lưu.':mode==='image'?'Tạo ảnh qua Gemini, tối đa 5 lượt/24 giờ.':mode==='file'?'Tải tệp mới đã sửa, không ghi đè bản gốc.':'Nhấp từ in đậm để mở mục tương ứng.'}</span>
+         <span>{file?'Tệp chỉ gửi cho Gemini khi bấm Gửi.': 'AI tự nhận biết yêu cầu. Lịch và tài khoản cần xác nhận trước khi lưu.'}</span>
          {!!messages.length&&<button type="button" onClick={newChat} disabled={pending||saving}><RotateCcw size={12}/> Chat mới</button>}
        </footer>
      </>:<>
