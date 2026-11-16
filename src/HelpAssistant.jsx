@@ -85,33 +85,18 @@ const detectMode=(question,attached)=>{
  return 'chat';
 };
 
-export function HelpAssistant({profile,page,onNavigate,onSaved,scheduleTeacher=null}){
+export function HelpAssistant({profile,page,onNavigate,onSaved,schools=[],onSchoolChange=()=>{},scheduleTeacher=null}){
  const [open,setOpen]=useState(false),[tab,setTab]=useState('chat'),[mode,setMode]=useState('chat');
  const [text,setText]=useState(''),[file,setFile]=useState(null);
  const [imageUrl,setImageUrl]=useState('');
  const [messages,setMessages]=useState([]),[pending,setPending]=useState(false),[saving,setSaving]=useState(false);
  const [query,setQuery]=useState(''),[expanded,setExpanded]=useState(page||'dashboard');
  const [draft,setDraft]=useState(null),[dataDraft,setDataDraft]=useState(null),[lightbox,setLightbox]=useState(null);
- const [importKind,setImportKind]=useState('auto'),[ownedClasses,setOwnedClasses]=useState([]);
- const [selectedClassId,setSelectedClassId]=useState('');
+ const [importKind,setImportKind]=useState('auto');
  const [showAllDraft,setShowAllDraft]=useState(false),[partialAck,setPartialAck]=useState(false);
  const previousScheduleFile=useRef(null);
  const fileInput=useRef(null),chatEnd=useRef(null),inputRef=useRef(null),urls=useRef(new Set());
  const topics=useMemo(()=>visibleHelpTopics(profile.role),[profile.role]);
- useEffect(()=>{
-  if(!open||!profile.school_id)return;
-  let cancelled=false;
-  (async()=>{
-    const {data,error}=await supabase.from('classes').select('id,class_name')
-      .eq('school_id',profile.school_id).eq('created_by',profile.id)
-      .is('archived_at',null).order('class_name');
-    if(cancelled)return;
-    if(error){setOwnedClasses([]);setSelectedClassId('');return;}
-    const list=data||[];setOwnedClasses(list);
-    setSelectedClassId(v=>list.some(c=>c.id===v)?v:list.length===1?list[0].id:'');
-  })();
-  return()=>{cancelled=true;};
- },[open,profile.school_id,profile.id]);
  useEffect(()=>{
    if(!file||!/^image\//.test(fileMime(file))){setImageUrl('');return;}
    const url=URL.createObjectURL(file);setImageUrl(url);
@@ -242,9 +227,8 @@ export function HelpAssistant({profile,page,onNavigate,onSaved,scheduleTeacher=n
    const actualMode=importKind==='auto'?detectMode(message,attachedForIntent):
      importKind==='chat'?'chat':importKind;
    const importing=actualMode==='students'||actualMode==='grades';
-   const classId=selectedClassId;
-   if(importing&&(!profile.school_id||!classId)){
-     setMessages(m=>[...m,{role:'system',text:'Để thêm học sinh hoặc điểm, hãy chọn trường ở menu trái và chọn đúng lớp trong khung chat trước khi gửi.'}]);return;
+   if(importing&&!profile.school_id){
+     setMessages(m=>[...m,{role:'system',text:'Hãy chọn trường ở khung chat trước khi nhập danh sách học sinh hoặc điểm. AI sẽ nhận diện lớp từ file và nội dung.'}]);return;
    }
    if(actualMode==='account'&&profile.role!=='admin'){
      setMessages(m=>[...m,{role:'system',text:'Chỉ tài khoản Admin mới được đổi tên giáo viên. Bạn có thể hỏi AI cách gửi yêu cầu cho Admin.'}]);return;
@@ -263,7 +247,7 @@ export function HelpAssistant({profile,page,onNavigate,onSaved,scheduleTeacher=n
    // reference to "ảnh/lịch này" can be analyzed without asking to re-upload.
    if(file)previousScheduleFile.current=file;
    const userText=message||(actualMode==='schedule'?'Đọc thời khóa biểu trong ảnh hoặc tệp này và tạo bản nháp lịch dạy đúng lớp, thứ, giờ.':
-     importing?'Đọc đúng danh sách trong ảnh/tệp này và tạo bản nháp cho lớp đã chọn.':
+     importing?'Đọc đúng danh sách trong ảnh/tệp này, nhận diện lớp thuộc trường đã chọn và tạo bản nháp để kiểm tra.':
      'Hãy đọc tệp đính kèm và hướng dẫn thao tác trong IC3 GS6.');
    const history=messages.filter(m=>['user','assistant'].includes(m.role)).slice(-8).map(m=>({role:m.role,text:m.text}));
    let img=null;
@@ -279,7 +263,7 @@ export function HelpAssistant({profile,page,onNavigate,onSaved,scheduleTeacher=n
      const attachment=await prepareAttachment(attachedFile);
      const endpoint=importing?'/api/ai-import':actualMode==='chat'?'/api/help':'/api/help-actions';
      const body=importing?
-       {question:userText,kind:actualMode,classId,schoolId:profile.school_id,attachment}:
+       {question:userText,kind:actualMode,schoolId:profile.school_id,attachment}:
        actualMode==='chat'?{question:userText,page,history,attachment}:
        {question:userText,mode:actualMode,schoolId:profile.school_id,
          teacherId:profile.id,attachment};
@@ -429,10 +413,11 @@ export function HelpAssistant({profile,page,onNavigate,onSaved,scheduleTeacher=n
           <option value="schedule">Thêm/sửa lịch dạy</option>
           <option value="chat">Chỉ hỏi đáp</option>
         </select></label>
-        <label>Lớp của bạn<select value={selectedClassId} onChange={e=>setSelectedClassId(e.target.value)}
-          disabled={pending||saving||!ownedClasses.length}>
-          <option value="">Chọn lớp để nhập dữ liệu</option>
-          {ownedClasses.map(c=><option key={c.id} value={c.id}>{c.class_name}</option>)}
+        <label>Trường của bạn<select value={profile.school_id||''}
+          onChange={e=>{setDraft(null);setDataDraft(null);onSchoolChange(e.target.value);}}
+          disabled={pending||saving||!schools.length}>
+          <option value="">Chọn trường để nhập dữ liệu</option>
+          {schools.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
         </select></label>
        </div>
        {file&&<div className="help-file-preview">
