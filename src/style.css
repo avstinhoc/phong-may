@@ -412,3 +412,11 @@
 .help-file-download:disabled{opacity:.6}
 .help-edited-file small{display:block;font-size:9px;line-height:1.55;color:#749099;margin-top:8px}
 @media(max-width:620px){.help-panel{width:calc(100vw - 16px);height:min(780px,calc(100dvh - 28px))}.help-dock{right:8px;bottom:8px}}
+
+.help-account-proposal{margin-top:10px;border:1px solid #a9d8d0;border-radius:11px;background:#eef9f6;padding:12px;
+ display:flex;flex-direction:column;gap:8px;color:#24565b;font-size:10px;line-height:1.6}
+.help-account-proposal strong{font-size:11px}
+.help-account-proposal span{overflow-wrap:anywhere}
+.help-account-proposal button{display:flex;align-items:center;gap:7px;justify-content:center;padding:10px;border:0;border-radius:8px;
+ background:#0f887e;color:#fff;font-weight:800;font-size:11px}
+.help-account-proposal button:disabled{opacity:.5}
