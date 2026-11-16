@@ -29,5 +29,7 @@ test('Excel patch edits one cell and keeps other sheets',async()=>{
 });
 test('CSV export includes UTF-8 BOM for Excel Vietnamese',async()=>{
  const exported=await buildEditedFile({name:'diem.csv',format:'csv',content:'Họ tên,Điểm\nAn,9'});
- assert.match(await exported.blob.text(),/^\ufeffHọ tên/);
+ const bytes=new Uint8Array(await exported.blob.arrayBuffer());
+ assert.deepEqual([...bytes.slice(0,3)],[0xef,0xbb,0xbf]);
+ assert.match(await exported.blob.text(),/^Họ tên/);
 });

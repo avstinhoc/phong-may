@@ -64,6 +64,7 @@ function App() {
   const school = schools.find(s => s.id === schoolId);
   const profile = account ? {...account, school_id: school?.id || null, school_name: school?.name || "", school_logo:school?.logo_data||null} : null;
   const [page, setPage] = useState("dashboard");
+  const [adminScheduleTeacher,setAdminScheduleTeacher]=useState(null);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState("");
   const [authMode, setAuthMode] = useState("login");
@@ -207,7 +208,7 @@ function App() {
           {page === "computers" && <Computers profile={profile} refresh={refresh} reload={reload} ping={ping} />}
           {page === "rollcall" && isTeacher && <RollCallView profile={profile} refresh={refresh} reload={reload} ping={ping} focusDate={calendarDate} setFocusDate={setCalendarDate} />}
           {page === "attendance" && isTeacher && <Attendance profile={profile} refresh={refresh} reload={reload} ping={ping} focusDate={calendarDate} setFocusDate={setCalendarDate} onImported={async(date,name)=>{setCalendarDate(date);const {data,error}=await supabase.rpc("create_my_school",{school_name:name});if(!error)setSchoolId(data);reload();}} />}
-          {page === "teacherSchedules" && profile.role === "admin" && <Attendance adminView profile={profile} refresh={refresh} reload={reload} ping={ping} focusDate={calendarDate} setFocusDate={setCalendarDate} />}
+          {page === "teacherSchedules" && profile.role === "admin" && <Attendance adminView adminSelection={adminScheduleTeacher} onAdminSelection={setAdminScheduleTeacher} profile={profile} refresh={refresh} reload={reload} ping={ping} focusDate={calendarDate} setFocusDate={setCalendarDate} />}
           {page === "records" && isTeacher && <Records profile={profile} refresh={refresh} reload={reload} ping={ping} />}
           {page === "cleaning" && isTeacher && <Cleaning profile={profile} refresh={refresh} reload={reload} ping={ping} />}
           {page === "evaluation" && <Evaluation profile={profile} refresh={refresh} reload={reload} ping={ping} />}
@@ -215,7 +216,11 @@ function App() {
         </div>
         <footer>IC3 GS6 Computer Lab <span>•</span> Dữ liệu được lưu trên Supabase</footer>
       </main>
-      <HelpAssistant key={profile.id} profile={profile} page={page} onSaved={reload} onNavigate={id=>{setPage(id);setMobileNav(false);}} />
+      <HelpAssistant key={profile.id} profile={profile} page={page} scheduleTeacher={
+        page==="teacherSchedules"&&profile.role==="admin"?
+        (adminScheduleTeacher?.id?adminScheduleTeacher:{id:profile.id,name:profile.full_name}):
+        {id:profile.id,name:profile.full_name}
+      } onSaved={reload} onNavigate={id=>{setPage(id);setMobileNav(false);}} />
     </div>
   );
 }
@@ -578,9 +583,15 @@ function Students({ profile, refresh, reload, ping, navigate }) {
   const ownedClassCodes=new Set(ownedClasses.map(c=>c.registration_code));
   const waiting = registrations.rows.filter(r=>r.status==="pending" && ownedClassCodes.has(r.registration_code))
     .sort((a,b)=>a.full_name.localeCompare(b.full_name,'vi',{sensitivity:'base'}));
+  const suspectStudents=rows.filter(s=>s.status==="active" && s.name_review_status && s.name_review_status!=="allow" &&
+    (profile.role==="admin" || ownedClasses.some(c=>c.id===s.class_id)));
 
   async function save(e) {
     e.preventDefault();
+    const {data:review,error:reviewError}=await supabase.rpc('ic3_name_review',{p_name:form.full_name});
+    if(reviewError){ping('Không kiểm tra được tên học sinh: '+reviewError.message);return;}
+    if(review?.decision==='reject'){ping(review.reason||'Tên học sinh không phù hợp.');return;}
+    if(review?.decision==='review'&&!window.confirm('Tên này cần xác minh: '+review.reason+'\nBạn đã kiểm tra giấy tờ/danh sách lớp và muốn thêm thủ công?'))return;
     const { error } = await supabase.from("students").insert({
       ...form, full_name:properName(form.full_name),date_of_birth:form.date_of_birth||null, school_id: profile.school_id, created_by: profile.id
     });
@@ -594,6 +605,8 @@ function Students({ profile, refresh, reload, ping, navigate }) {
   }
 
   async function approve(s) {
+    if(s.name_review_status==='reject'){ping('Tên chưa nghiêm túc. Cần sửa đúng họ tên trước khi duyệt.');return;}
+    if(s.name_review_status==='review'&&!window.confirm('Tên cần xác minh: '+s.full_name+'\nBạn đã kiểm tra họ tên thật?'))return;
     const { error } = await supabase.from("students")
       .update({ status: "active" }).eq("id", s.id);
     if (error) ping(error.message);
@@ -630,6 +643,12 @@ function Students({ profile, refresh, reload, ping, navigate }) {
     });
     if(error)ping(error.message);
     else{ping('Đã ẩn '+data.archived+' hồ sơ trùng trong '+data.groups+' nhóm, giữ nguyên lịch sử.');reload();}
+  }
+
+  async function rejectSuspect(s){
+    if(!window.confirm("Đưa hồ sơ "+s.full_name+" vào trạng thái Từ chối?\nLịch sử điểm, điểm danh và ghi nhận được giữ nguyên; chỗ ngồi sẽ được giải phóng."))return;
+    const {error}=await supabase.rpc('ic3_reject_suspect_student',{p_student_id:s.id});
+    if(error)ping(error.message);else{ping('Đã chuyển hồ sơ sang trạng thái từ chối và giữ lịch sử.');reload();}
   }
 
   async function rejectRegistration(r) {
@@ -678,6 +697,7 @@ function Students({ profile, refresh, reload, ping, navigate }) {
           <div>
             <b>{r.full_name}</b>
             <small>Mã lớp: {r.registration_code} · {r.gender||"Chưa có giới tính"} · Máy mong muốn: {r.computer_code||"Chưa chọn"}</small>
+            {r.review_note&&<small className="negative">Cần kiểm tra: {r.review_note}</small>}
           </div>
           <button className="mini-btn success" onClick={() => approveRegistration(r)}>Duyệt</button>
           <button className="mini-btn danger" onClick={() => rejectRegistration(r)}>Từ chối</button>
@@ -685,6 +705,20 @@ function Students({ profile, refresh, reload, ping, navigate }) {
       ))}
       {!waiting.length && <p className="muted">Chưa có hồ sơ đăng ký trực tuyến chờ duyệt.</p>}
     </div>
+
+    {suspectStudents.length>0&&<section className="panel student-name-review-panel">
+      <div className="panel-head"><div>
+        <h3>Rà soát tên học sinh đã được duyệt ({suspectStudents.length})</h3>
+        <p>Các hồ sơ này được tạo trước khi bộ lọc tên nâng cấp. Không tự xóa điểm hoặc lịch sử; giáo viên kiểm tra rồi từ chối nếu là tên đùa.</p>
+      </div></div>
+      {suspectStudents.map(st=><div className="task-row" key={st.id}>
+        <span className="status pending">{st.name_review_status==="reject"?"Tên không phù hợp":"Cần xác minh"}</span>
+        <div className="student-review-details"><b>{st.full_name}</b>
+          <small>Lớp {st.class_name} · {st.name_review_reason||"Tên cần kiểm tra"}</small>
+        </div>
+        <button className="mini-btn danger" onClick={()=>rejectSuspect(st)}>Từ chối hồ sơ</button>
+      </div>)}
+    </section>}
 
     <div className="toolbar">
       <div className="searchbox"><Search size={17} /><input placeholder="Tìm tên, lớp, mã học sinh..." value={search} onChange={e => setSearch(e.target.value)} /></div>
@@ -700,7 +734,8 @@ function Students({ profile, refresh, reload, ping, navigate }) {
             {filtered.map((s,index) => (
               <tr key={s.id}>
                 <td>{index+1}</td>
-                <td><b>{s.full_name}</b></td>
+                <td><b>{s.full_name}</b>{s.name_review_status!=="allow"&&s.name_review_status&&
+                  <small className="negative">Cần rà soát tên</small>}</td>
                 <td>{s.gender||"—"}</td>
                 <td>{s.class_name || "—"}</td>
                 <td>{s.school_name || "—"}</td>
@@ -880,14 +915,16 @@ function RollCallView({profile,refresh,reload,ping,focusDate,setFocusDate}){
   </>;
 }
 
-function Attendance({ profile, refresh, reload, ping, focusDate, setFocusDate, onImported, adminView=false }) {
+function Attendance({ profile, refresh, reload, ping, focusDate, setFocusDate, onImported, adminView=false,
+  adminSelection=null,onAdminSelection=()=>{} }) {
   const { rows, error: scheduleError } = useRows("class_sessions", profile, refresh);
   const classes = useRows("classes", profile, refresh);
   const [teacherChoices,setTeacherChoices]=useState([{id:profile.id,full_name:profile.full_name||"Giáo viên"}]);
   // Every personal calendar is scoped to its signed-in teacher. Admin can use
   // the separate management view to inspect/edit one teacher at a time.
-  const [selectedTeacher,setSelectedTeacher]=useState(profile.id);
+  const selectedTeacher=adminView?(adminSelection?.id||profile.id):profile.id;
   const targetTeacher=adminView?selectedTeacher:profile.id;
+  const [editorMode,setEditorMode]=useState("manual");
   const visibleRows=rows.filter(r=>targetTeacher==="unassigned"?
     (!r.teacher_id&&!r.created_by):
     (r.teacher_id===targetTeacher||(!r.teacher_id&&r.created_by===targetTeacher)));
@@ -953,7 +990,7 @@ function Attendance({ profile, refresh, reload, ping, focusDate, setFocusDate, o
         <select aria-label="Chọn giáo viên để xem lịch" value={selectedTeacher}
           onChange={e=>{
             const id=e.target.value;
-            setSelectedTeacher(id);
+            onAdminSelection({id,name:teacherChoices.find(t=>t.id===id)?.full_name||""});
             setEditingId(null);
             const found=teacherChoices.find(t=>t.id===id);
             setForm(old=>({...old,teacher_id:id==="unassigned"?profile.id:id,
@@ -964,12 +1001,27 @@ function Attendance({ profile, refresh, reload, ping, focusDate, setFocusDate, o
         </select>
       </label>
       <p className="muted">{visibleRows.length} buổi học đang hiển thị của {viewingName}.</p>
-    </section>:<div className="notice-box">Đây là <b>lịch cá nhân</b> của {profile.full_name}. Admin có thể mở mục <b>Lịch giáo viên khác</b> ở nhóm Quản lý để xem người khác.</div>}
+    </section>:null}
     <TeachingCalendar rows={visibleRows} focusDate={focusDate} onDateChange={setFocusDate} school={profile.school_name} teacher={viewingName} />
     {scheduleError && <p role="alert" className="notice-box">Không tải được lịch: {scheduleError}</p>}
-{!adminView&&<TimetableImport profile={profile} reload={reload} onImported={onImported} />}
-    <SectionHead title="Lịch học & chấm công" desc="Lập lịch theo lớp, ghi nhận giờ dạy và số tiết học" />
-    <div className="two-col">
+    <section className="panel schedule-workspace">
+      <div className="schedule-workspace-heading">
+        <div><h2>Thêm hoặc điều chỉnh lịch dạy</h2>
+          <p>Nhập trực tiếp hoặc tải ảnh, Excel, PDF rồi nhờ AI tạo bản nháp. Chỉ lưu sau khi bạn xác nhận.</p>
+          {adminView&&<p><b>Đang thao tác cho:</b> {viewingName}. Lịch sẽ xuất hiện trong tài khoản giáo viên này.</p>}
+        </div>
+        <div className="schedule-entry-tabs" role="group" aria-label="Chọn cách nhập lịch">
+          <button type="button" className={editorMode==="manual"?"active":""} onClick={()=>setEditorMode("manual")}>Nhập thủ công</button>
+          <button type="button" className={editorMode==="import"?"active":""} onClick={()=>setEditorMode("import")}>Ảnh, tệp & AI</button>
+        </div>
+      </div>
+      {editorMode==="import"?
+        (adminView&&targetTeacher==="unassigned"?
+          <p className="notice-box">Hãy chọn một giáo viên cụ thể trước khi nhập lịch.</p>:
+          <TimetableImport key={adminView?targetTeacher:'self'} embedded adminView={adminView}
+            targetTeacherId={targetTeacher} targetTeacherName={viewingName}
+            profile={profile} reload={reload} onImported={onImported}/>):
+        <div className="two-col">
       <div className="panel">
         <h3>{editingId ? "Sửa buổi học" : "Tạo buổi học / chấm công"}</h3>
         {adminView&&targetTeacher==="unassigned"&&<p className="muted">Các buổi cũ chưa có giáo viên. Bấm Sửa tại một dòng rồi chọn giáo viên phụ trách để gán lại.</p>}
@@ -1006,7 +1058,8 @@ function Attendance({ profile, refresh, reload, ping, focusDate, setFocusDate, o
         </div>
         <p className="muted">Mức tiền công của từng giáo viên được điều chỉnh riêng tại mục Chấm công & tiền công. Không tính hoặc hiển thị học phí học sinh.</p>
       </div>
-    </div>
+    </div>}
+    </section>
 
     <div className="panel table-panel">
       <h3>Buổi học đã tạo</h3>

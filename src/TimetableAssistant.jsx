@@ -36,15 +36,15 @@ function repeatRange(rows,start,end){
  return validateRows(out);
 }
 
-export function TimetableImport({profile,reload,onImported}){
+export function TimetableImport({profile,reload,onImported,embedded=false,adminView=false,targetTeacherId=null,targetTeacherName=''}){
  const [file,setFile]=useState(null),[preview,setPreview]=useState('');
  const [startDate,setStartDate]=useState(startOfMonth);
  const [endDate,setEndDate]=useState(endOfMonth);
  const [rows,setRows]=useState([]),[warnings,setWarnings]=useState([]),[messages,setMessages]=useState([]);
  const [text,setText]=useState(''),[busy,setBusy]=useState(false),[repeat,setRepeat]=useState(false);
- const [ocrMode,setOcrMode]=useState('gemini'),[consent,setConsent]=useState(false),[localText,setLocalText]=useState('');
+ const [ocrMode,setOcrMode]=useState('gemini'),[localText,setLocalText]=useState('');
  const [notice,setNotice]=useState('Chọn tệp hoặc nhập yêu cầu cho AI. Lịch tạo ra chỉ được lưu sau khi bạn xác nhận.');
- const [closed,setClosed]=useState(true);
+ const [closed,setClosed]=useState(!embedded);
  const count=useMemo(()=>{try{return repeat?repeatRange(rows,startDate,endDate).length:rows.length;}catch{return rows.length;}},[rows,startDate,endDate,repeat]);
  useEffect(()=>{
   if(!file||!imageFile(file)){setPreview('');return;}
@@ -72,7 +72,7 @@ export function TimetableImport({profile,reload,onImported}){
   const {data:{session}}=await supabase.auth.getSession();
   if(!session?.access_token)throw new Error('Phiên đăng nhập đã hết hạn.');
   const payload={action,startDate,endDate,schoolName:profile.school_name,
-    instruction,rows,messages:messages.slice(-10),teacherName:profile.full_name};
+    instruction,rows,messages:messages.slice(-10),teacherName:adminView?(targetTeacherName||profile.full_name):profile.full_name};
   if(file)
     Object.assign(payload,await fromFile());
   const response=await fetch('/api/timetable',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+session.access_token},body:JSON.stringify(payload)});
@@ -110,7 +110,6 @@ export function TimetableImport({profile,reload,onImported}){
     setRows(initial);setWarnings(result.warnings||[]);setLocalText(result.text||'');
     setNotice('Đã nhận diện '+initial.length+' buổi. Kiểm tra và chỉnh sửa trước khi lưu.');
    }else{
-    if(!consent)throw new Error('Cần đồng ý gửi tệp lên Gemini trước khi đọc.');
     resultToDraft(await callAI('extract'),'Đọc tệp');
    }
   }catch(e){setNotice(e.message);}finally{setBusy(false);}
@@ -120,7 +119,6 @@ export function TimetableImport({profile,reload,onImported}){
   const question=text.trim();setText('');setBusy(true);
   setMessages(msg=>[...msg,{role:'user',text:question}].slice(-12));
   try{
-   if(!consent)throw new Error('Cần đồng ý sử dụng Google Gemini trước khi hỏi AI.');
    resultToDraft(await callAI('chat',question),'AI đã đề xuất');
   }catch(e){setMessages(msg=>[...msg,{role:'assistant',text:'Không xử lý được: '+e.message}].slice(-12));setNotice(e.message);}
   finally{setBusy(false);}
@@ -134,19 +132,30 @@ export function TimetableImport({profile,reload,onImported}){
     throw new Error('Có ngày không thuộc khoảng đã chọn.');
    if(validated.some(r=>r.school_name!==profile.school_name))
     throw new Error('Một số dòng mang tên trường khác. Hãy chuyển sang trường đó ở menu bên trái hoặc sửa tên trường trong bảng trước khi lưu.');
-   const {data,error}=await supabase.rpc('import_timetable',{items:validated});
+   if(adminView&&(!targetTeacherId||targetTeacherId==='unassigned'))
+     throw new Error('Admin cần chọn đúng giáo viên trước khi nhập lịch.');
+   const {data,error}=adminView?
+     await supabase.rpc('ic3_admin_import_teacher_timetable',{
+       p_school_id:profile.school_id,p_teacher_id:targetTeacherId,p_items:validated
+     }):
+     await supabase.rpc('import_timetable',{items:validated});
    if(error)throw error;
-   await onImported?.(validated[0].session_date,validated[0].school_name);
+   if(!adminView)await onImported?.(validated[0].session_date,validated[0].school_name);
    setRows([]);setNotice('Đã lưu '+data.created+' buổi; bỏ qua '+data.skipped+' buổi trùng lịch.');
    reload();
   }catch(e){setNotice(e.message);}finally{setBusy(false);}
  }
  const change=(i,k,v)=>setRows(x=>x.map((r,j)=>i===j?{...r,[k]:v}:r));
  const add=()=>setRows(x=>[...x,{school_name:profile.school_name,class_name:'',session_date:startDate,start_time:'',end_time:'',period_count:1}]);
- return <section className="panel timetable-assistant">
-  <button type="button" className="timetable-toggle" onClick={()=>setClosed(c=>!c)} aria-expanded={!closed}>{closed?'▸':'▾'} Nhập lịch từ ảnh, file hoặc chat AI</button>
-  {!closed&&<>
-   <p className="muted">Đọc lịch từ ảnh, PDF, Excel hoặc văn bản. AI sẽ xử lý theo yêu cầu của bạn, kể cả chọn tiết dạy thay trong lịch giáo viên khác. Bạn kiểm tra bản nháp trước khi lưu.</p>
+ return <section className={'timetable-assistant '+(embedded?'timetable-import-embedded':'panel')}>
+  {!embedded&&<button type="button" className="timetable-toggle" onClick={()=>setClosed(c=>!c)} aria-expanded={!closed}>{closed?'▸':'▾'} Nhập lịch từ ảnh, file hoặc chat AI</button>}
+  {(!closed||embedded)&&<>
+   <div className="timetable-upload-intro">
+     <div><strong>Nhập lịch từ tệp hoặc trò chuyện AI</strong>
+      <p>Đọc ảnh, PDF, Excel, CSV hoặc TXT; xem bản nháp và kiểm tra giờ từng trường trước khi lưu.</p></div>
+     <span>{adminView?'Giáo viên: '+targetTeacherName:'Lịch của bạn'}</span>
+   </div>
+   <p className="muted">Bước 1: Chọn tệp và khoảng ngày. Bước 2: Bấm Đọc tệp hoặc mô tả bằng AI. Bước 3: Kiểm tra, chỉnh từng buổi và Xác nhận lưu.</p>
    <div className="import-controls">
     <label>Tệp thời khóa biểu<input type="file" accept=".png,.jpg,.jpeg,.webp,.pdf,.xlsx,.xls,.csv,.tsv,.txt,image/*,application/pdf" disabled={busy} onChange={e=>{setFile(e.target.files?.[0]||null);setWarnings([]);setLocalText('');}}/></label>
     <label>Từ ngày<input type="date" value={startDate} disabled={busy} onChange={e=>setStartDate(e.target.value)}/></label>
@@ -156,14 +165,14 @@ export function TimetableImport({profile,reload,onImported}){
    {file&&!preview&&<p className="muted">Tệp: <b>{file.name}</b> ({(file.size/1024).toFixed(0)} KB)</p>}
    <div className="import-action-row">
     <label>Đọc bằng<select disabled={busy} value={ocrMode} onChange={e=>setOcrMode(e.target.value)}><option value="gemini">Google Gemini (mặc định)</option><option value="local">Trên thiết bị (chỉ ảnh)</option></select></label>
-    <button type="button" className="btn primary" disabled={busy||!file||(ocrMode==='gemini'&&!consent)} onClick={read}>{busy?'Đang xử lý…':'Đọc tệp'}</button>
+    <button type="button" className="btn primary" disabled={busy||!file} onClick={read}>{busy?'Đang xử lý…':'Đọc tệp'}</button>
    </div>
-   <label className="consent"><input type="checkbox" checked={consent} onChange={e=>setConsent(e.target.checked)}/> Tôi đồng ý gửi ảnh, tệp hoặc nội dung chat tới Gemini để xử lý thời khóa biểu.</label>
+   <p className="timetable-privacy-note">Khi bấm <b>Đọc tệp</b> hoặc <b>Gửi AI</b> ở chế độ Gemini, nội dung bạn chọn được gửi tới Google Gemini để phân tích; AI không tự lưu lịch.</p>
    <div className="timetable-chat">
     <h3>Trợ lý AI chỉnh lịch dạy</h3>
     <p className="muted">Bạn cứ nhập yêu cầu trực tiếp. AI có thể đọc lịch của giáo viên khác để chọn những buổi bạn dạy thay; không tự lưu lịch.</p>
     <div className="chat-history" aria-live="polite">{messages.length?messages.map((m,i)=><div key={i} className={'chat-bubble '+(m.role==='user'?'me':'ai')}><b>{m.role==='user'?'Bạn':'Gemini'}</b><p>{m.text}</p></div>):<p className="muted">Nhập yêu cầu hoặc tải tệp để AI hỗ trợ chỉnh lịch.</p>}</div>
-    <form onSubmit={chat} className="chat-form"><textarea aria-label="Yêu cầu AI chỉnh lịch" rows={2} placeholder="Nhập yêu cầu cho AI…" value={text} onChange={e=>setText(e.target.value)} disabled={busy}/><button className="btn primary" type="submit" disabled={busy||!text.trim()||!consent}>Gửi AI</button></form>
+    <form onSubmit={chat} className="chat-form"><textarea aria-label="Yêu cầu AI chỉnh lịch" rows={2} placeholder="Nhập yêu cầu cho AI…" value={text} onChange={e=>setText(e.target.value)} disabled={busy}/><button className="btn primary" type="submit" disabled={busy||!text.trim()}>Gửi AI</button></form>
    </div>
    <div className="notice-box" role="status" aria-live="polite">{notice}</div>
    {warnings.map((w,i)=><p className="muted" key={i}>{w}</p>)}
@@ -173,7 +182,7 @@ export function TimetableImport({profile,reload,onImported}){
       <td><button className="mini-btn" disabled={busy} onClick={()=>setRows(x=>x.filter((_,j)=>i!==j))}>Bỏ</button></td>
      </tr>)}</tbody></table></div>
    <div className="import-footer">
-    <button className="btn outline" onClick={add} disabled={busy||rows.length>=120}>Thêm buổi thủ công</button>
+    <button type="button" className="btn outline" onClick={add} disabled={busy||rows.length>=120}>Thêm buổi thủ công</button>
     {!!rows.length&&<><label className="field-inline"><input type="checkbox" checked={repeat} disabled={busy} onChange={e=>setRepeat(e.target.checked)}/> Lặp hằng tuần đến ngày kết thúc</label>
       <span className="muted">Dự kiến {count} buổi</span>
       <button className="btn primary" disabled={busy} onClick={save}>Xác nhận lưu lịch</button></>}
