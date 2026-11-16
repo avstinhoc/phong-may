@@ -218,6 +218,7 @@ function App() {
         <footer>IC3 GS6 Computer Lab <span>•</span> Dữ liệu được lưu trên Supabase</footer>
       </main>
       <HelpAssistant key={profile.id} profile={profile} page={page}
+        schools={schools} onSchoolChange={setSchoolId}
         scheduleTeacher={{id:profile.id,name:profile.full_name}}
         onSaved={reload} onNavigate={id=>{setPage(id);setMobileNav(false);}} />
     </div>
