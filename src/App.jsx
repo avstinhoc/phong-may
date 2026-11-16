@@ -10,6 +10,7 @@ import { ClassSettings } from "./ClassSettings";
 import { ReportsCenter } from "./ReportsCenter";
 import { HelpAssistant } from "./HelpAssistant";
 import { properName, searchName, comparePC } from "./lib/students";
+import { normalizeComputerCode,validFullName } from "./lib/registration";
 import { TeachingCalendar } from "./TeachingCalendar";
 import { RollCall } from "./RollCall";
 import * as XLSX from "xlsx";
@@ -329,54 +330,112 @@ function AuthScreen({ mode, setMode, ping }) {
 }
 
 function PublicStudentRegister({ ping }) {
-  const [code, setCode] = useState(()=>new URLSearchParams(window.location.search).get("code")||"");
-  const [name, setName] = useState("");
-  const [studentCode, setStudentCode] = useState("");
-  const [computer, setComputer] = useState("");
-  const [note, setNote] = useState("");
-  const [done, setDone] = useState(false);
-  const [busy, setBusy] = useState(false);
-
-  async function submit(e) {
-    e.preventDefault();
-    setBusy(true);
-    const {error:classError}=await supabase.rpc('get_student_class_portal',{p_code:code.trim().toUpperCase(),p_secret:null});
-    if(classError){setBusy(false);ping('Mã lớp chưa tồn tại. Hãy nhập mã chính xác trong mục Lớp & mã đăng ký.');return;}
-    const { error } = await supabase.from("student_registrations").insert({
-      registration_code: code.trim().toUpperCase(),
-      full_name: properName(name),
-      student_code: studentCode,
-      computer_code: computer.trim().toUpperCase(),
-      note
+  const initialCode=new URLSearchParams(window.location.search).get("code")?.trim()||"";
+  const lockedCode=Boolean(initialCode);
+  const [code,setCode]=useState(initialCode.toUpperCase());
+  const [name,setName]=useState("");
+  const [gender,setGender]=useState("");
+  const [computer,setComputer]=useState("");
+  const [note,setNote]=useState("");
+  const [done,setDone]=useState(false);
+  const [doneMessage,setDoneMessage]=useState("");
+  const [doneStatus,setDoneStatus]=useState("");
+  const [notice,setNotice]=useState("");
+  const [busy,setBusy]=useState(false);
+  useEffect(()=>{
+    if(!initialCode)return;
+    let live=true;
+    supabase.rpc('ic3_resolve_class_code',{p_code:initialCode}).then(({data,error})=>{
+      if(live&&!error&&data)setCode(data);
     });
-    setBusy(false);
-    if (error) ping("Không gửi được đăng ký: " + error.message);
-    else setDone(true);
+    return()=>{live=false;};
+  },[initialCode]);
+  async function submit(e){
+    e.preventDefault();
+    if(!validFullName(name)){
+      setNotice("Vui lòng nhập họ và tên thật có dấu, từ hai từ trở lên, không dùng biệt danh hoặc số.");
+      return;
+    }
+    const normalizedPC=normalizeComputerCode(computer);
+    if(normalizedPC===null){
+      setNotice("Số máy chưa đúng. Nhập 21, pc 21, PC021 đều được hiểu là PC21.");
+      return;
+    }
+    setBusy(true);setNotice("");
+    try{
+      const {data,error}=await supabase.rpc('ic3_submit_registration',{
+        p_code:code.trim().toUpperCase(),
+        p_full_name:properName(name),p_gender:gender,
+        p_computer:normalizedPC||null,p_note:note.trim().slice(0,500)
+      });
+      if(error)throw error;
+      if(data?.code)setCode(data.code);
+      if(data?.status==='approved'||data?.status==='pending'){
+        setDoneMessage(data.message||"Đã gửi đăng ký.");
+        setDoneStatus(data.status);
+        setDone(true);
+      }else{
+        setNotice(data?.message||"Thông tin chưa được chấp nhận. Hãy kiểm tra lại.");
+      }
+    }catch(error){setNotice("Không gửi được đăng ký: "+(error.message||"Lỗi không xác định"));}
+    finally{setBusy(false);}
   }
-
-  return (
-    <div className="auth-wrap">
-      <div className="auth-card">
-        <div className="auth-logo"><div className="brand-mark large">IC3</div><span>STUDENT REGISTRATION</span></div>
-        {done ? <>
-          <h1>Đã gửi đăng ký!</h1>
-          <p className="muted">Thông tin đã được gửi đến giáo viên. Hồ sơ chỉ được thêm vào danh sách chính thức sau khi giáo viên duyệt.</p>
-          <a className="btn outline full" href="/">Quay lại trang chủ</a>
-        </> : <>
-          <h1>Đăng ký học sinh IC3 GS6</h1>
-          <p className="muted">Điền thông tin và mã lớp do giáo viên cung cấp.</p>
-          <form className="form-stack" onSubmit={submit}>
-            <label>Mã lớp đăng ký<input required value={code} onChange={e => setCode(e.target.value)} placeholder="Ví dụ: IC3-K01" /></label>
-            <label>Họ và tên<input required value={name} onChange={e => setName(e.target.value)} placeholder="Nguyễn Văn A" /></label>
-            <label>Mã học sinh (nếu có)<input value={studentCode} onChange={e => setStudentCode(e.target.value)} /></label>
-            <label>Số máy mong muốn<input value={computer} onChange={e => setComputer(e.target.value)} placeholder="PC1 – PC40" /></label>
-            <label>Ghi chú<textarea value={note} onChange={e => setNote(e.target.value)} /></label>
-            <button className="btn primary full" disabled={busy}>{busy ? "Đang gửi..." : "Gửi đăng ký"}</button>
-          </form>
-        </>}
-      </div>
+  function addFriend(){
+    setName("");setGender("");setComputer("");setNote("");
+    setNotice("");setDone(false);setDoneMessage("");setDoneStatus("");
+  }
+  return <div className="auth-wrap student-register-wrap">
+    <div className="auth-card student-register-card">
+      <div className="auth-logo"><div className="brand-mark large">IC3</div><span>STUDENT REGISTRATION</span></div>
+      {done ? <>
+        <h1>{doneStatus==='approved'?"Đăng ký thành công!":"Đã gửi đăng ký!"}</h1>
+        <p className="muted" role="status">{doneMessage}</p>
+        <div className="registration-success-actions">
+          <a className="btn outline full" href={'/student?code='+encodeURIComponent(code)}>Về trang chủ lớp {code.split('-').at(-1)}</a>
+          <button type="button" className="btn primary full" onClick={addFriend}>Thêm bạn tiếp theo</button>
+        </div>
+        <small className="muted">Thêm bạn sẽ làm mới thông tin học sinh nhưng giữ đúng mã lớp này.</small>
+      </> : <>
+        <h1>Đăng ký học sinh IC3 GS6</h1>
+        <p className="muted">Nhập <strong>họ và tên thật có dấu</strong>, không dùng biệt danh hoặc tên đùa.</p>
+        {notice&&<div className="notice-box registration-warning" role="alert">{notice}</div>}
+        <form className="form-stack" onSubmit={submit}>
+          <label>Mã lớp đăng ký
+            <input required value={code} readOnly={lockedCode}
+              aria-readonly={lockedCode}
+              onChange={e=>!lockedCode&&setCode(e.target.value.toUpperCase())}
+              placeholder="Ví dụ: IC3-DUYTAN-6.1" />
+          </label>
+          {lockedCode&&<small className="muted">Mã lớp được lấy từ trang lớp và đã khóa để tránh đăng ký nhầm.</small>}
+          <label>Họ và tên <span className="required-note">(Nhập tên thật có dấu)</span>
+            <input required value={name} maxLength={90} autoComplete="name"
+              onChange={e=>setName(e.target.value)} placeholder="Ví dụ: Nguyễn Văn An"/>
+          </label>
+          <label>Giới tính
+            <select required value={gender} onChange={e=>setGender(e.target.value)}>
+              <option value="">Chọn giới tính</option>
+              <option value="Nam">Nam</option>
+              <option value="Nữ">Nữ</option>
+              <option value="Khác">Khác</option>
+            </select>
+          </label>
+          <label>Số máy mong muốn
+            <input value={computer} inputMode="text" maxLength={10}
+              onChange={e=>setComputer(e.target.value)}
+              onBlur={()=>{const v=normalizeComputerCode(computer);if(v!==null)setComputer(v);}}
+              placeholder="Ví dụ: 21, PC21, pc 21 hoặc PC021"/>
+          </label>
+          <small className="muted">Các cách nhập như 21, pc 21 hoặc PC021 đều nhận là PC21. Có thể bỏ trống nếu chưa chọn máy.</small>
+          <label>Ghi chú (không bắt buộc)
+            <textarea value={note} maxLength={500} onChange={e=>setNote(e.target.value)}/>
+          </label>
+          <button className="btn primary full" disabled={busy||!gender||!code.trim()}>
+            {busy?"Đang gửi…":"Gửi đăng ký"}
+          </button>
+        </form>
+      </>}
     </div>
-  );
+  </div>;
 }
 
 function useRows(table, profile, refresh, extra = {}) {
