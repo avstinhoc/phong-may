@@ -74,13 +74,16 @@ export async function buildEditedFile(result,sourceFile){
      const address=String(edit.cell||'').toUpperCase();
      if(!/^[A-Z]{1,3}[1-9]\d{0,6}$/.test(address))continue;
      const ws=wb.Sheets[edit.sheet];
+     const cell=XLSX.utils.decode_cell(address);
+     const previous=ws['!ref']?XLSX.utils.decode_range(ws['!ref']):null;
+     // Never allocate huge worksheets from AI-suggested far-away cells.
+     if(cell.r>Math.min(4999,(previous?.e.r??0)+50)||cell.c>Math.min(99,(previous?.e.c??0)+20))continue;
      const existing=ws[address]||{};
      const text=String(edit.value??'');
      const numeric=/^-?\d{1,11}(?:\.\d+)?$/.test(text);
      const next={...existing,t:numeric?'n':'s',v:numeric?Number(text):text};
      delete next.f;delete next.w;delete next.h;
      ws[address]=next;
-     const cell=XLSX.utils.decode_cell(address);
      if(!ws['!ref'])ws['!ref']=address;
      else{
        const range=XLSX.utils.decode_range(ws['!ref']);
