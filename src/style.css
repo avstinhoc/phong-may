@@ -350,3 +350,44 @@
   .help-panel{width:calc(100vw - 24px);height:min(730px,calc(100dvh - 65px))}
   .help-mode-row button{font-size:9px;padding:8px 3px}
 }
+
+/* Seven-day lesson grid — shared time rows prevent absent periods from visually collapsing. */
+.calendar-grid-scroll{width:100%;max-width:100%;overflow:auto;margin-top:13px;border:1px solid #d5e5e6;border-radius:12px;max-height:690px}
+.calendar-grid{border-collapse:separate!important;border-spacing:0!important;table-layout:fixed;width:max(100%,1250px);font-size:11px}
+.calendar-grid th,.calendar-grid td{border:0!important;border-right:1px solid #e0e9eb!important;border-bottom:1px solid #e0e9eb!important;vertical-align:middle}
+.calendar-grid thead th{position:sticky;top:0;z-index:4;min-width:145px;text-align:center;background:#e8f5f2!important;color:#214d54!important;padding:12px 6px!important;height:76px}
+.calendar-grid thead th strong,.calendar-grid thead th span,.calendar-grid thead th small{display:block;line-height:1.5}
+.calendar-grid thead th span{font-size:14px;font-weight:800}
+.calendar-grid thead th small{font-size:9px;font-weight:500;color:#69888e}
+.calendar-grid thead th.cal-period-col{left:0;z-index:8;min-width:75px;width:75px}
+.calendar-grid thead th.cal-time-col{left:75px;z-index:7;min-width:105px;width:105px}
+.calendar-grid tbody tr{height:84px}
+.calendar-grid tbody th.cal-shift{position:sticky;left:0;z-index:3;text-align:center;min-width:75px;width:75px;
+  color:#27556a;font-size:11px;font-weight:800;background:#edf4f6!important;letter-spacing:.2px}
+.calendar-grid tbody th.cal-shift span{writing-mode:horizontal-tb}
+.calendar-grid tbody th.cal-shift.afternoon{background:#fff0fa!important;color:#a55279}
+.calendar-grid tbody th.cal-shift.evening{background:#eff0ff!important;color:#5e5d99}
+.calendar-grid tbody th.cal-time-cell{position:sticky;left:75px;z-index:2;min-width:105px;width:105px;
+  text-align:center;background:#f6f9fa!important;color:#527280;font-size:10px;font-weight:800;padding:8px}
+.calendar-grid tbody tr.cal-gap-row{height:56px}
+.calendar-grid tbody tr.cal-gap-row .cal-time-cell{font-size:9px;font-weight:650;color:#91a1ad}
+.calendar-grid tbody td{min-width:145px;width:calc((100% - 180px) / 7);padding:6px!important;text-align:center;background:#fff}
+.calendar-grid tbody td.cal-open-slot{background:#f8fafb;color:#c2ced3}
+.calendar-grid tbody td.cal-today{background:#f0fbf8}
+.calendar-grid tbody td.cal-today.cal-open-slot{background:#edf7f5}
+.calendar-grid tbody tr.cal-gap-row td{background:#fafbfc}
+.calendar-grid tbody td .cal-slot-placeholder{color:#b5c5c8;font-weight:400;font-size:12px}
+.cal-grid-lesson{display:flex;flex-direction:column;gap:5px;min-height:67px;justify-content:center;
+  background:#eaf6f3;border:1px solid #d2e9e5;border-radius:9px;padding:9px 5px}
+.cal-grid-lesson.afternoon{background:#f9edf5;border-color:#f0dae8}
+.cal-grid-lesson.evening{background:#eef0fc;border-color:#dfe2f4}
+.cal-grid-lesson strong{font-size:12px;font-weight:800;color:#16485b}
+.cal-grid-lesson small{font-size:9px;color:#63808a;line-height:1.5}
+.cal-grid-lesson+.cal-grid-lesson{margin-top:5px}
+.calendar-grid-scroll::-webkit-scrollbar{height:9px;width:9px}
+.calendar-grid-scroll::-webkit-scrollbar-thumb{background:#b8cbcc;border-radius:12px}
+@media(max-width:720px){
+  .calendar-grid{width:1240px}
+  .calendar-grid-scroll{max-height:570px}
+  .calendar-grid tbody tr{height:78px}
+}
