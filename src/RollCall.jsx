@@ -1,5 +1,6 @@
 import React,{useEffect,useMemo,useState} from 'react';
 import {supabase} from './lib/supabase';
+import {compareStudentName} from './lib/students';
 const date=s=>s?s.split('-').reverse().join('/'):'';
 const labels={present:'Có mặt',absent:'Vắng',late:'Đi trễ',excused:'Có phép'};
 export function RollCall({profile,sessions,refresh,onSaved,ping}){
@@ -34,7 +35,7 @@ export function RollCall({profile,sessions,refresh,onSaved,ping}){
     const a=assignments.find(a=>a.student_id===s.id);
     const old=saved.find(x=>x.student_id===s.id);
     return {student_id:s.id,name:s.full_name,pc:pcs.find(p=>p.id===a?.computer_id)?.computer_code||'Chưa gán máy',status:old?.status||'present',note:old?.note||''};
-   }).sort((a,b)=>a.pc.localeCompare(b.pc,'vi',{numeric:true})||a.name.localeCompare(b.name,'vi'));
+   }).sort((a,b)=>compareStudentName(a.name,b.name)||a.pc.localeCompare(b.pc,'vi',{numeric:true}));
    setRows(normalized);
   })().catch(e=>{if(live){setLoading(false);setError(e.message);}});
   return ()=>{live=false;};
