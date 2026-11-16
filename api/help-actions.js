@@ -56,7 +56,7 @@ export default async function handler(req,res){
     return error(res,/5 lượt|25 câu hỏi|hết/i.test(msg)?429:403,msg||'Bạn đã hết lượt AI hoặc chưa được cấp quyền.');
   }
   const model=mode==='image'?
-    (process.env.GEMINI_IMAGE_MODEL||'gemini-2.5-flash-image'):
+    (process.env.GEMINI_IMAGE_MODEL||'gemini-3.1-flash-image'):
     (process.env.GEMINI_MODEL||'gemini-2.5-flash');
   if(!/^gemini-[a-z0-9.-]+$/.test(model))return error(res,503,'Cấu hình model Gemini không hợp lệ.');
 
