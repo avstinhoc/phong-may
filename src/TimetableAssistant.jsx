@@ -4,6 +4,7 @@ import {supabase} from './lib/supabase';
 import {readLocalTimetable} from './lib/ocr';
 import {validateRows} from './lib/timetable';
 import {vnToday,mondayOf,addDays,planIntent} from './lib/weekPlanner';
+import {Sparkles,FileUp,CalendarDays} from 'lucide-react';
 
 const fmt=d=>d.toLocaleDateString('en-CA');
 const startOfMonth=()=>mondayOf(vnToday());
@@ -45,6 +46,7 @@ export function TimetableImport({profile,reload,onImported,embedded=false,adminV
  const [text,setText]=useState(''),[busy,setBusy]=useState(false),[repeat,setRepeat]=useState(false),[replaceOld,setReplaceOld]=useState(false);
  const [ocrMode,setOcrMode]=useState('gemini'),[localText,setLocalText]=useState('');
  const [notice,setNotice]=useState('Chọn tệp hoặc nhập yêu cầu cho AI. Lịch tạo ra chỉ được lưu sau khi bạn xác nhận.');
+ const [noticeKind,setNoticeKind]=useState('info');
  const [closed,setClosed]=useState(!embedded);
  const count=useMemo(()=>{try{return repeat?repeatRange(rows,startDate,endDate).length:rows.length;}catch{return rows.length;}},[rows,startDate,endDate,repeat]);
  useEffect(()=>{
@@ -92,11 +94,11 @@ export function TimetableImport({profile,reload,onImported,embedded=false,adminV
   setWarnings(warnings);
   const answer=(result.reply||result.summary||'').trim() ||
     (proposed.length?verb+' · đã chuẩn bị '+proposed.length+' buổi để bạn kiểm tra.':'Chưa xác định được buổi cần chọn. Bạn có thể nói rõ ngày, lớp hoặc tiết.');
-  setNotice(answer);
+  setNotice(answer+(result.fallback_used?' Đã dùng model Gemini dự phòng.':''));setNoticeKind(warnings.length?'warning':'success');
   setMessages(msg=>[...msg,{role:'assistant',text:answer+(warnings.length?'\nLưu ý: '+warnings.join('; '):'')}].slice(-12));
  }
  async function read(){
-  setBusy(true);setNotice('Đang đọc tệp và kiểm tra từng ô thời khóa biểu…');setWarnings([]);
+  setBusy(true);setNotice('Đang đọc tệp và kiểm tra từng ô thời khóa biểu…');setNoticeKind('info');setWarnings([]);
   try{
    validateRange();
    if(!file)throw new Error('Chọn tệp thời khóa biểu trước.');
@@ -112,11 +114,11 @@ export function TimetableImport({profile,reload,onImported,embedded=false,adminV
       return {...r,session_date:date};
     }).filter(r=>r.session_date>=startDate&&r.session_date<=endDate);
     if(initial.length)setRows(initial);setWarnings(result.warnings||[]);setLocalText(result.text||'');
-    setNotice('Đã nhận diện '+initial.length+' buổi. Kiểm tra và chỉnh sửa trước khi lưu.');
+    setNotice('Đã nhận diện '+initial.length+' buổi. Kiểm tra và chỉnh sửa trước khi lưu.');setNoticeKind('success');
    }else{
     resultToDraft(await callAI('extract'),'Đọc tệp');
    }
-  }catch(e){setNotice(e.message);}finally{setBusy(false);}
+  }catch(e){setNotice(e.message);setNoticeKind('error');}finally{setBusy(false);}
  }
  async function chat(e){
   e.preventDefault();if(!text.trim())return;
@@ -126,7 +128,7 @@ export function TimetableImport({profile,reload,onImported,embedded=false,adminV
    const answer=await callAI('chat',question);
    resultToDraft(answer,'AI đã đề xuất');
    if(answer.replace_draft&&answer.rows?.length&&planIntent(question).replace)setReplaceOld(true);
-  }catch(e){setMessages(msg=>[...msg,{role:'assistant',text:'Không xử lý được: '+e.message}].slice(-12));setNotice(e.message);}
+  }catch(e){setMessages(msg=>[...msg,{role:'assistant',text:'Không xử lý được: '+e.message}].slice(-12));setNotice(e.message);setNoticeKind('error');}
   finally{setBusy(false);}
  }
  async function save(){
@@ -157,8 +159,8 @@ export function TimetableImport({profile,reload,onImported,embedded=false,adminV
    setRows([]);setReplaceOld(false);
    setNotice((replaceOld?'Đã thay thế '+(data.deleted||0)+' buổi cũ. ':'')+
      'Đã lưu '+data.created+' buổi; bỏ qua '+data.skipped+' buổi trùng lịch.');
-   reload();
-  }catch(e){setNotice(e.message);}finally{setBusy(false);}
+   setNoticeKind('success');reload();
+  }catch(e){setNotice(e.message);setNoticeKind('error');}finally{setBusy(false);}
  }
  const change=(i,k,v)=>setRows(x=>x.map((r,j)=>i===j?{...r,[k]:v}:r));
  const add=()=>setRows(x=>[...x,{school_name:profile.school_name,class_name:'',session_date:startDate,start_time:'',end_time:'',period_count:1}]);
