@@ -1,64 +1,138 @@
-import React,{useEffect,useState} from 'react';
+import React,{useEffect,useMemo,useState} from 'react';
 import {supabase} from './lib/supabase';
-export function ClassSettings({profile,ping,schools=[]}){
+import {shortCodePreview} from './lib/registration';
+
+export function ClassSettings({profile,ping,schools=[],onChanged}){
  const [managedSchool,setManagedSchool]=useState('');
- const activeSchool=managedSchool&&schools.some(x=>x.id===managedSchool)?managedSchool:(schools[0]?.id||'');
- const [code,setCode]=useState('IC3-'+Math.random().toString(36).slice(2,10).toUpperCase());
+ const [ownedSchoolIds,setOwnedSchoolIds]=useState([]);
+ const schoolChoices=useMemo(()=>{
+   const matching=schools.filter(sc=>sc.id===profile.school_id||ownedSchoolIds.includes(sc.id));
+   return matching.length?matching:schools.filter(sc=>sc.id===profile.school_id);
+ },[schools,profile.school_id,ownedSchoolIds]);
+ const activeSchool=(managedSchool&&schoolChoices.some(sc=>sc.id===managedSchool)?managedSchool:null)
+   ||(schoolChoices.some(sc=>sc.id===profile.school_id)?profile.school_id:schoolChoices[0]?.id||'');
+ const activeSchoolName=schools.find(sc=>sc.id===activeSchool)?.name||'';
  const [name,setName]=useState(''),[rows,setRows]=useState([]),[busy,setBusy]=useState(false);
+ const [newAutoApprove,setNewAutoApprove]=useState(true);
  const [deleting,setDeleting]=useState(null),[confirm,setConfirm]=useState(''),[showArchived,setShowArchived]=useState(false);
+ const [loading,setLoading]=useState(false);
+ const preview=shortCodePreview(activeSchoolName,name);
+
+ useEffect(()=>{
+   let alive=true;
+   supabase.from('classes').select('school_id').eq('created_by',profile.id).limit(1000)
+     .then(({data,error})=>{
+       if(!alive)return;
+       if(error)ping('Chưa tải được lớp đã tạo: '+error.message);
+       else setOwnedSchoolIds([...new Set((data||[]).map(x=>x.school_id).filter(Boolean))]);
+     });
+   return()=>{alive=false;};
+ },[profile.id]);
  async function load(){
-  const {data,error}=await supabase.from('classes').select('id,class_name,registration_code,archived_at').eq('school_id',activeSchool).order('class_name');
-  if(error)ping(error.message);else setRows(data||[]);
+   if(!activeSchool){setRows([]);return;}
+   setLoading(true);
+   const {data,error}=await supabase.from('classes')
+     .select('id,class_name,registration_code,archived_at,auto_approve,created_by')
+     .eq('school_id',activeSchool).eq('created_by',profile.id).order('class_name');
+   setLoading(false);
+   if(error)ping(error.message);else setRows(data||[]);
  }
- useEffect(()=>{if(activeSchool)load();else setRows([]);},[activeSchool]);
+ useEffect(()=>{load();},[activeSchool,profile.id]);
  async function create(e){
-  e.preventDefault();setBusy(true);
-  const {error}=await supabase.from('classes').insert({school_id:activeSchool,class_name:name.trim(),registration_code:code.trim().toUpperCase(),created_by:profile.id});
-  setBusy(false);if(error)ping(error.message);else{
-   ping('Đã tạo lớp '+name);setName('');setCode('IC3-'+Math.random().toString(36).slice(2,10).toUpperCase());load();
-  }
+   e.preventDefault();setBusy(true);
+   const {data,error}=await supabase.rpc('ic3_create_class',{
+     p_school_id:activeSchool,p_class_name:name.trim(),p_auto_approve:newAutoApprove
+   });
+   setBusy(false);
+   if(error)ping(error.message);
+   else{
+     ping('Đã tạo lớp '+name+' · '+data.registration_code);
+     setOwnedSchoolIds(ids=>ids.includes(activeSchool)?ids:[...ids,activeSchool]);
+     setName('');await load();onChanged?.();
+   }
+ }
+ async function toggleAuto(row,next){
+   setBusy(true);
+   const {error}=await supabase.rpc('ic3_set_auto_approve',{p_class_id:row.id,p_value:next});
+   setBusy(false);
+   if(error)ping(error.message);else{
+     setRows(list=>list.map(item=>item.id===row.id?{...item,auto_approve:next}:item));
+     ping(next?'Lớp '+row.class_name+' đã bật duyệt tự động':'Lớp '+row.class_name+' đã chuyển sang duyệt thủ công');
+   }
  }
  async function remove(e){
-  e.preventDefault();if(!deleting||deleting.class_name!==confirm)return;
-  setBusy(true);
-  const {data,error}=await supabase.rpc('archive_class_registration',{p_class_id:deleting.id,p_confirmation:confirm,p_restore:!!deleting.archived_at});
-  setBusy(false);if(error)ping(error.message);else{setDeleting(null);setConfirm('');ping(data.archived?`Đã ngừng mã lớp. Vẫn giữ ${data.students_preserved} học sinh, ${data.sessions_preserved} buổi dạy và ${data.registrations_preserved} hồ sơ đăng ký.`:'Đã kích hoạt lại mã đăng ký lớp');load();}
+   e.preventDefault();
+   if(!deleting||deleting.class_name!==confirm)return;
+   setBusy(true);
+   const {data,error}=await supabase.rpc('archive_class_registration',{
+     p_class_id:deleting.id,p_confirmation:confirm,p_restore:!!deleting.archived_at
+   });
+   setBusy(false);
+   if(error)ping(error.message);
+   else{
+     setDeleting(null);setConfirm('');
+     ping(data.archived?'Đã tắt mã đăng ký, giữ nguyên hồ sơ và lịch học':'Đã kích hoạt lại mã lớp');
+     await load();onChanged?.();
+   }
  }
- function copy(value){navigator.clipboard?.writeText(value).then(()=>ping('Đã sao chép')).catch(()=>ping('Không thể sao chép'));}
+ function copy(value){
+   navigator.clipboard?.writeText(value).then(()=>ping('Đã sao chép')).catch(()=>ping('Không thể sao chép'));
+ }
  return <section className="class-management">
-  <div className="section-head"><div><h2>Lớp & mã đăng ký</h2><p>Chọn trường riêng cho quản lý mã lớp, không phụ thuộc ô chọn trường ở menu trái. Xóa mã không xóa học sinh hay lịch.</p></div></div>
+  <div className="section-head"><div><h2>Lớp & mã đăng ký</h2>
+   <p>Chỉ hiển thị lớp do chính tài khoản của bạn tạo. Mỗi mã ngắn theo trường và lớp, không lẫn lớp do giáo viên khác quản lý.</p></div></div>
   <label className="management-school-select">Trường quản lý
-    <select value={activeSchool} onChange={e=>{setManagedSchool(e.target.value);setShowArchived(false);}}>
-      {schools.map(sc=><option value={sc.id} key={sc.id}>{sc.name}</option>)}
+    <select aria-label="Trường chứa lớp của tôi" value={activeSchool}
+      onChange={e=>{setManagedSchool(e.target.value);setShowArchived(false);}}>
+      {schoolChoices.map(sc=>{
+        const duplicated=schoolChoices.filter(x=>x.name===sc.name).length>1;
+        return <option value={sc.id} key={sc.id}>{sc.name}{duplicated?' · '+sc.id.slice(0,5).toUpperCase():''}</option>;
+      })}
     </select>
   </label>
-  <label className="field-inline"><input type="checkbox" checked={showArchived} onChange={e=>setShowArchived(e.target.checked)} /> Hiện mã đăng ký đã ngừng sử dụng</label>
+  <p className="muted">Muốn tạo lớp tại một trường mới, trước tiên chọn trường đó ở menu bên trái. Các trường trùng tên được phân biệt bằng mã ngắn.</p>
+  <label className="field-inline"><input type="checkbox" checked={showArchived} onChange={e=>setShowArchived(e.target.checked)}/> Hiện mã đã ngừng sử dụng</label>
   <div className="panel table-panel"><div className="table-wrap"><table>
-   <thead><tr><th>Lớp</th><th>Mã đăng ký</th><th>Trang học sinh</th><th>Đăng ký</th><th>Thao tác</th></tr></thead>
+   <thead><tr><th>Lớp</th><th>Mã đăng ký</th><th>Duyệt tự động</th><th>Trang học sinh</th><th>Đăng ký</th><th>Thao tác</th></tr></thead>
    <tbody>{rows.filter(row=>showArchived||!row.archived_at).map(row=><tr key={row.id}>
     <td><b>{row.class_name}</b>{row.archived_at&&<small className="muted"> · Đã ngừng mã</small>}</td>
     <td><code>{row.registration_code}</code> <button className="mini-btn" onClick={()=>copy(row.registration_code)}>Sao chép</button></td>
+    <td><label className="auto-approve-toggle" title="Chỉ duyệt tự động hồ sơ hợp lệ, tên không trùng">
+      <input type="checkbox" checked={!!row.auto_approve} disabled={busy||!!row.archived_at}
+        onChange={e=>toggleAuto(row,e.target.checked)}/>
+      <span>{row.auto_approve?'Bật':'Tắt'}</span>
+    </label></td>
     <td>{row.archived_at?'Đã vô hiệu hóa':<><a className="mini-btn" href={'/student?code='+encodeURIComponent(row.registration_code)} target="_blank" rel="noreferrer">Mở trang lớp</a> <button className="mini-btn" onClick={()=>copy(window.location.origin+'/student?code='+encodeURIComponent(row.registration_code))}>Copy link</button></>}</td>
     <td>{row.archived_at?'Đã đóng':<a className="mini-btn" href={'/register?code='+encodeURIComponent(row.registration_code)} target="_blank" rel="noreferrer">Mở đăng ký</a>}</td>
-    <td>{profile.role==='admin'&&<button className="mini-btn danger" onClick={()=>{setDeleting(row);setConfirm('');}}>{row.archived_at?'Khôi phục mã':'Xóa mã lớp'}</button>}</td>
+    <td>{profile.role==='admin'&&<button className="mini-btn danger" onClick={()=>{setDeleting(row);setConfirm('');}}>
+      {row.archived_at?'Khôi phục mã':'Xóa mã lớp'}</button>}</td>
    </tr>)}</tbody>
-  </table></div></div>
+  </table>{!rows.length&&!loading&&<p className="muted" style={{padding:16}}>Bạn chưa tạo lớp ở trường này. Lớp do người khác tạo sẽ không hiển thị tại đây.</p>}
+  {loading&&<p className="muted" style={{padding:16}}>Đang tải lớp...</p>}</div></div>
   <div className="panel" style={{marginTop:18}}>
    <h3>Tạo lớp và mã đăng ký mới</h3>
    <form className="form-stack" onSubmit={create}>
-    <label>Tên lớp<input required maxLength={200} placeholder="Ví dụ: 6.1" value={name} onChange={e=>setName(e.target.value)}/></label>
-    <label>Mã đăng ký<input required maxLength={120} value={code} onChange={e=>setCode(e.target.value.toUpperCase())}/></label>
-    <button className="btn primary full" disabled={busy||!activeSchool}>{busy?'Đang tạo…':'Tạo lớp'}</button>
+    <label>Tên lớp<input required maxLength={80} placeholder="Ví dụ: 6.1" value={name}
+      onChange={e=>setName(e.target.value)}/></label>
+    <label>Mã lớp dự kiến<input readOnly value={preview} placeholder="Nhập tên lớp để xem mã ngắn" aria-label="Mã lớp ngắn dự kiến"/></label>
+    <small className="muted">Ví dụ: IC3-DUYTAN-6.1. Nếu đã có lớp dùng mã này ở trường cùng tên, hệ thống tự thêm hậu tố để không trùng.</small>
+    <label className="auto-approve-toggle"><input type="checkbox" checked={newAutoApprove}
+      onChange={e=>setNewAutoApprove(e.target.checked)}/> Tự động duyệt đăng ký hợp lệ cho lớp này</label>
+    <small className="muted">Tên đáng ngờ hoặc trùng tên sẽ không được duyệt tự động. Bạn có thể thay đổi sau khi tạo lớp.</small>
+    <button className="btn primary full" disabled={busy||!activeSchool||!name.trim()}>
+      {busy?'Đang tạo…':'Tạo lớp'}</button>
    </form>
-   <p className="muted">Chỉ chia sẻ mã sau khi tạo thành công. Học phí học sinh không còn được tính trong hệ thống.</p>
   </div>
   {deleting&&<div className="modal-backdrop"><div className="modal">
-   <div className="modal-head"><h3>{deleting.archived_at?'Khôi phục mã lớp':'Xác minh xóa mã đăng ký'}</h3><button type="button" className="btn outline" onClick={()=>setDeleting(null)}>Đóng</button></div>
-   <p className="muted">Thao tác này có thể áp dụng cả khi lớp đã có học sinh. Mã sẽ ngừng hoạt động và ẩn khỏi danh sách đăng ký; dữ liệu học sinh, lịch dạy và hồ sơ cũ được giữ nguyên. Nhập đúng tên lớp để tiếp tục:</p>
-   <form className="form-stack" onSubmit={remove}>
-    <label>Tên lớp: <b>{deleting.class_name}</b><input required autoComplete="off" value={confirm} onChange={e=>setConfirm(e.target.value)}/></label>
-    <button className="btn danger" disabled={busy||confirm!==deleting.class_name}>{busy?'Đang xử lý…':deleting.archived_at?'Kích hoạt lại mã':'Xóa mã đăng ký'}</button>
-   </form>
+    <div className="modal-head"><h3>{deleting.archived_at?'Khôi phục mã lớp':'Xác minh xóa mã đăng ký'}</h3>
+      <button type="button" className="btn outline" onClick={()=>setDeleting(null)}>Đóng</button></div>
+    <p className="muted">Mã lớp sẽ ngừng hoạt động nhưng học sinh, điểm, lịch và hồ sơ đăng ký cũ được giữ nguyên. Nhập tên lớp để xác nhận:</p>
+    <form className="form-stack" onSubmit={remove}>
+      <label>Tên lớp: <b>{deleting.class_name}</b><input required autoComplete="off"
+        value={confirm} onChange={e=>setConfirm(e.target.value)}/></label>
+      <button className="btn danger" disabled={busy||confirm!==deleting.class_name}>
+        {busy?'Đang xử lý…':deleting.archived_at?'Khôi phục mã':'Xóa mã đăng ký'}</button>
+    </form>
   </div></div>}
  </section>;
 }
