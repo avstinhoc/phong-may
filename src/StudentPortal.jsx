@@ -7,15 +7,21 @@ export function StudentPortal(){
   const [code,setCode]=useState(()=>new URLSearchParams(window.location.search).get('code')||'');
   const [secret,setSecret]=useState('');
   const [payload,setPayload]=useState(null);
+  const [violationBadges,setViolationBadges]=useState([]);
   const [error,setError]=useState('');
   const [busy,setBusy]=useState(false);
   async function load(nextCode=code,nextSecret=secret){
     setBusy(true);setError('');
-    const {data,error:err}=await supabase.rpc('get_student_class_portal',{
-      p_code:nextCode.trim().toUpperCase(),p_secret:nextSecret.trim()||null});
+    const normalizedCode=nextCode.trim().toUpperCase();
+    const [main,badges]=await Promise.all([
+      supabase.rpc('get_student_class_portal',{
+        p_code:normalizedCode,p_secret:nextSecret.trim()||null}),
+      supabase.rpc('get_class_violation_badges',{p_code:normalizedCode})
+    ]);
     setBusy(false);
-    if(err){setPayload(null);setError(err.message);}
-    else setPayload(data);
+    if(main.error){setPayload(null);setViolationBadges([]);setError(main.error.message);}
+    else{setPayload(main.data);setViolationBadges(Array.isArray(badges.data)?badges.data:[]);}
+
   }
   useEffect(()=>{if(code)load(code,'');},[]);
   const student=payload?.student;
@@ -66,6 +72,14 @@ export function StudentPortal(){
             {machines.map(c=><article className={'portal-pc '+((c.status==='broken'||c.status==='maintenance')?'pc-broken':'')} key={c.computer}>
               <div className="portal-pc-head"><b>🖥 {c.computer}</b><span className={c.status==='broken'||c.status==='maintenance'?'portal-bad':'portal-good'}>{stateLabel[c.status]||c.status}</span></div>
               <p>{c.occupied}/{c.capacity} học sinh lớp mình</p>
+              {(() => {
+                const incident=violationBadges.find(v=>v.computer===c.computer);
+                const count=Number(incident?.violations||0);
+                return count>0?<div className="portal-violation-summary">
+                  <span className="pc-violation-badge">{count} lỗi</span>
+                  {incident?.["biên_bản"]&&<span className="incident-confirmed">Đã có biên bản</span>}
+                </div>:null;
+              })()}
               <div className="portal-names"><strong>👩‍💻 Bạn ngồi máy:</strong>
                 {(c.students||[]).length?<div>{c.students.map((name,i)=><span key={i}>{name}</span>)}</div>:<small>Chưa có bạn nào</small>}
               </div>
