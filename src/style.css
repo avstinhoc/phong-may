@@ -391,3 +391,24 @@
   .calendar-grid-scroll{max-height:570px}
   .calendar-grid tbody tr{height:78px}
 }
+
+/* AI chat messenger: four quick modes, attachment thumbnails and export cards */
+.help-mode-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;padding:9px 10px}
+.help-mode-row button{font-size:9px;min-width:0;line-height:1.5;padding:9px 4px;display:flex;gap:4px;flex-direction:column}
+.help-mode-row button svg{width:17px;height:17px}
+.help-panel{width:min(530px,calc(100vw - 24px));height:min(780px,calc(100dvh - 24px))}
+.help-message .help-chat-image{max-height:280px;max-width:100%;border-radius:12px;box-shadow:0 1px 10px #07292818}
+.help-message.mine .help-image-button{max-width:min(280px,100%)}
+.help-file-preview{padding:8px 13px;gap:11px}
+.help-file-preview img{width:64px;height:64px;object-fit:contain;background:#f8fafa}
+.help-file-preview span{font-size:10px;line-height:1.6}
+.help-edited-file{margin-top:10px;background:#f4f9fb;border:1px solid #d0e5e7;border-radius:11px;padding:11px;color:#214c55}
+.help-edited-file-heading{display:flex;align-items:center;gap:6px;font-size:11px;margin-bottom:8px}
+.help-file-changes{margin:0;white-space:pre-wrap;max-height:180px;overflow:auto;display:flex;flex-direction:column;gap:5px;font-size:10px;line-height:1.65}
+.help-file-changes strong{color:#0c776e}
+.help-file-download{display:flex!important;align-items:center;justify-content:center;gap:6px;margin:10px 0 5px;
+  padding:10px!important;border:1px solid #0f857b!important;border-radius:8px;background:#0f857b!important;
+  color:#fff!important;font-size:11px;font-weight:800}
+.help-file-download:disabled{opacity:.6}
+.help-edited-file small{display:block;font-size:9px;line-height:1.55;color:#749099;margin-top:8px}
+@media(max-width:620px){.help-panel{width:calc(100vw - 16px);height:min(780px,calc(100dvh - 28px))}.help-dock{right:8px;bottom:8px}}
