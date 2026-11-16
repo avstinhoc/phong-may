@@ -480,3 +480,44 @@
 .registration-approval-option small{max-width:100%;color:#719099;font-size:9px;word-break:break-word}
 .registration-approval-option .auto-approve-toggle{font-size:10px}
 @media(max-width:650px){.registration-approval-list{grid-template-columns:1fr}}
+
+/* Unified classroom timetable workspace and safe student name review */
+.schedule-workspace{margin:20px 0 22px;padding:20px!important;border-radius:18px!important;background:#fff}
+.schedule-workspace-heading{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:20px;
+ margin-bottom:18px;padding-bottom:18px;border-bottom:1px solid #deeaec}
+.schedule-workspace-heading h2{font-size:19px;margin:0 0 7px;color:#123e52;letter-spacing:-.025em}
+.schedule-workspace-heading p{margin:0;line-height:1.6;font-size:12px;color:#6b8793}
+.schedule-workspace-heading p+p{color:#1e766e;margin-top:5px}
+.schedule-entry-tabs{display:flex;background:#f0f6f6;border:1px solid #d7e7e7;border-radius:12px;padding:4px;gap:4px}
+.schedule-entry-tabs button{border:0;background:transparent;border-radius:9px;min-height:40px;padding:9px 17px;
+ color:#476d79;font-weight:750;cursor:pointer;white-space:nowrap}
+.schedule-entry-tabs button.active{background:#098c80;color:#fff;box-shadow:0 3px 12px #075a5226}
+.schedule-workspace>.two-col{margin-top:0}
+.schedule-workspace>.two-col>.panel{box-shadow:none;border:1px solid #dce9eb}
+.timetable-import-embedded{border:0!important;background:transparent!important;box-shadow:none!important;padding:0!important}
+.timetable-upload-intro{display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:space-between;
+ background:linear-gradient(110deg,#e9f8f5,#f4f9fc);border:1px solid #cde7e2;border-radius:14px;padding:16px 20px;margin-bottom:18px}
+.timetable-upload-intro strong{font-size:15px;color:#075e65}
+.timetable-upload-intro p{margin:5px 0 0;color:#6a8996;font-size:11px;line-height:1.5}
+.timetable-upload-intro>span{display:inline-block;background:#fff;border:1px solid #cce4e0;
+ border-radius:12px;padding:9px 11px;color:#176b66;font-size:11px;font-weight:750}
+.timetable-privacy-note{font-size:11px;color:#6b8795;line-height:1.6;background:#f4f9f9;
+ border-left:3px solid #80b8b1;padding:9px 12px;border-radius:4px}
+.timetable-import-embedded .import-controls{margin-top:16px;gap:14px}
+.timetable-import-embedded .import-action-row{margin-top:14px}
+.timetable-import-embedded .timetable-chat{margin-top:18px}
+.cal-time-range{display:flex;flex-direction:column;gap:2px;align-items:center;white-space:nowrap}
+.cal-time-range b{font-size:12px;color:#174959}
+.cal-time-range span{font-size:10px;color:#6e8790}
+.calendar-grid .cal-time-col{min-width:132px}
+.student-name-review-panel{margin-bottom:16px;border-color:#efcca9!important;background:#fffcf8}
+.student-name-review-panel .panel-head h3{color:#87501c}
+.student-review-details{flex:1;min-width:200px}
+.student-review-details small{display:block;line-height:1.55;margin-top:4px;color:#9e6046}
+.student-name-review-panel .task-row{gap:12px;align-items:center;flex-wrap:wrap}
+@media(max-width:860px){.schedule-workspace-heading{align-items:stretch;flex-direction:column}
+ .schedule-entry-tabs{align-self:stretch}
+ .schedule-entry-tabs button{flex:1}
+ .schedule-workspace{padding:14px!important}
+ .timetable-upload-intro{padding:12px}
+}
