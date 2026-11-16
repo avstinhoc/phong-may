@@ -31,6 +31,14 @@ test('scores reject hallucinated numbers or keys and keep valid 0 to 10',()=>{
  assert.equal(warnings.length,3);
 });
 
+test('empty spreadsheet cells are not silently converted to zero',()=>{
+ const result=validateExtractedRows('grades',[{
+   full_name:'Nguyễn Văn Hoa',scores:{QT1:'',QT2:null,HK1:0,HK2:'0'}
+ }]);
+ assert.deepEqual(result.rows[0].scores,{HK1:0,HK2:0});
+ assert.equal(result.warnings.length,2);
+});
+
 test('cannot import an empty draft, a huge unreviewed batch, or unknown action',()=>{
  assert.throws(()=>validateExtractedRows('students',[]),/chưa nhận diện/);
  assert.throws(()=>validateExtractedRows('students',Array.from({length:121},(_,i)=>({full_name:'Nguyễn '+i}))),/quá nhiều/);
