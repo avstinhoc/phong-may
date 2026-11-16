@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "./lib/supabase";
 
-export function SchoolManager({ schools, onCreated, onChanged, ping, role }) {
+export function SchoolManager({ schools, workplaces=[],workplaceSchools=[], onCreated, onChanged, ping, role }) {
   const [name, setName] = useState("");
   const [editing, setEditing] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -112,8 +112,13 @@ export function SchoolManager({ schools, onCreated, onChanged, ping, role }) {
     <p className="muted">{role==="admin"?
       "Quản lý trường và xem giáo viên đang công tác theo phân công hoặc lịch dạy từng trường. Bạn có thể thêm, sửa, xóa trường; xóa trường sẽ xóa dữ liệu liên quan.":
       "Quản lý trường được phân quyền: thêm, sửa, thay logo hoặc xóa trường. Xóa trường sẽ xóa các dữ liệu liên quan."}</p>
-    <div className="table-wrap"><table><thead><tr><th>Tên trường</th><th>{role==="admin"?"Giáo viên công tác":"Logo báo cáo & Excel"}</th><th>Thao tác</th></tr></thead>
+    <div className="table-wrap"><table><thead><tr><th>Tên trường</th><th>Công ty / Trung tâm</th><th>{role==="admin"?"Giáo viên công tác":"Logo báo cáo & Excel"}</th><th>Thao tác</th></tr></thead>
       <tbody>{schools.map(s=><tr key={s.id}><td><b>{s.name}</b></td>
+        <td><div className="school-workplace-tags">
+          {workplaces.filter(w=>workplaceSchools.some(l=>l.workplace_id===w.id&&l.school_id===s.id))
+           .map(w=><span className="school-workplace-tag" key={w.id}>{w.name}</span>)}
+          {!workplaceSchools.some(l=>l.school_id===s.id)&&<span className="muted">Chưa thuộc đơn vị</span>}
+        </div></td>
         <td>{role==="admin"?
           <div className="school-assigned-teachers">
             {teacherNamesLoading?<span className="muted">Đang tải giáo viên…</span>:
