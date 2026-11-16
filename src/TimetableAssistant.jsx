@@ -168,11 +168,26 @@ export function TimetableImport({profile,reload,onImported,embedded=false,adminV
   {!embedded&&<button type="button" className="timetable-toggle" onClick={()=>setClosed(c=>!c)} aria-expanded={!closed}>{closed?'▸':'▾'} Nhập lịch từ ảnh, file hoặc chat AI</button>}
   {(!closed||embedded)&&<>
    <div className="timetable-upload-intro">
-     <div><strong>Nhập lịch từ tệp hoặc trò chuyện AI</strong>
-      <p>Đọc ảnh, PDF, Excel, CSV hoặc TXT; xem bản nháp và kiểm tra giờ từng trường trước khi lưu.</p></div>
-     <span>{adminView?'Giáo viên: '+targetTeacherName:'Lịch của bạn'}</span>
+    <div className="timetable-intro-icon"><CalendarDays size={20}/></div>
+    <div className="timetable-intro-copy"><strong>Nhập lịch từ ảnh, tệp hoặc trò chuyện AI</strong>
+     <p>Đọc thời khóa biểu, rà soát lớp và giờ học. Chỉ lưu sau khi giáo viên xác nhận.</p></div>
+    <span>{adminView?'Giáo viên: '+targetTeacherName:'Lịch của bạn'}</span>
    </div>
-   <p className="muted">Bước 1: Chọn ảnh/file và khoảng ngày (mặc định 4 tuần tính từ thứ Hai tuần này). Bước 2: Đọc và kiểm tra kỹ từng ô lịch. Bước 3: Chọn lưu thêm hay thay lịch cũ, rồi xác nhận.</p>
+   <div className="timetable-steps" aria-label="Các bước thêm lịch">
+    <span><b>Bước 1</b> Chọn ảnh/file và khoảng ngày (mặc định 4 tuần tính từ thứ Hai tuần này)</span>
+    <span><b>Bước 2</b> Nhờ AI đọc và kiểm tra từng ô lịch</span>
+    <span><b>Bước 3</b> Lưu thêm hoặc thay lịch cũ sau xác nhận</span>
+   </div>
+   <div className="timetable-chat">
+    <div className="timetable-chat-heading">
+     <span className="timetable-chat-icon"><Sparkles size={20}/></span>
+     <div><h3>Trợ lý AI chỉnh lịch dạy</h3><p>Bạn có thể nhắn yêu cầu trực tiếp hoặc nhờ AI đọc lịch để bố trí dạy thay. Bản nháp không tự lưu.</p></div>
+    </div>
+    <div className="chat-history" aria-live="polite">{messages.length?messages.map((m,i)=><div key={i} className={'chat-bubble '+(m.role==='user'?'me':'ai')}><b>{m.role==='user'?'Bạn':'Gemini'}</b><p>{m.text}</p></div>):<p className="muted">Chưa có tin nhắn. Bạn có thể nhập yêu cầu hoặc chọn tệp bên dưới.</p>}</div>
+    <form onSubmit={chat} className="chat-form"><textarea aria-label="Yêu cầu AI chỉnh lịch" rows={2} placeholder="Ví dụ: Đọc lịch trong ảnh và bố trí các lớp từ thứ Hai đến thứ Sáu…" value={text} onChange={e=>setText(e.target.value)} disabled={busy}/><button className="btn primary" type="submit" disabled={busy||!text.trim()}>Gửi AI</button></form>
+   </div>
+   <div className="timetable-file-card">
+    <div className="timetable-section-heading"><div><FileUp size={18}/><strong>Tệp thời khóa biểu & phạm vi ngày</strong></div><small>Ảnh · PDF · Excel · CSV · TXT</small></div>
    <div className="import-controls">
     <label>Tệp thời khóa biểu<input type="file" accept=".png,.jpg,.jpeg,.webp,.pdf,.xlsx,.xls,.csv,.tsv,.txt,image/*,application/pdf" disabled={busy} onChange={e=>{setFile(e.target.files?.[0]||null);setWarnings([]);setLocalText('');}}/></label>
     <label>Từ ngày<input type="date" value={startDate} disabled={busy} onChange={e=>setStartDate(e.target.value)}/></label>
@@ -185,19 +200,18 @@ export function TimetableImport({profile,reload,onImported,embedded=false,adminV
     <button type="button" className="btn primary" disabled={busy||!file} onClick={read}>{busy?'Đang xử lý…':'Đọc tệp'}</button>
    </div>
    <p className="timetable-privacy-note">Khi bấm <b>Đọc tệp</b> hoặc <b>Gửi AI</b> ở chế độ Gemini, nội dung bạn chọn được gửi tới Google Gemini để phân tích; AI không tự lưu lịch.</p>
-   <div className="timetable-chat">
-    <h3>Trợ lý AI chỉnh lịch dạy</h3>
-    <p className="muted">Bạn cứ nhập yêu cầu trực tiếp. AI có thể đọc lịch của giáo viên khác để chọn những buổi bạn dạy thay; không tự lưu lịch.</p>
-    <div className="chat-history" aria-live="polite">{messages.length?messages.map((m,i)=><div key={i} className={'chat-bubble '+(m.role==='user'?'me':'ai')}><b>{m.role==='user'?'Bạn':'Gemini'}</b><p>{m.text}</p></div>):<p className="muted">Nhập yêu cầu hoặc tải tệp để AI hỗ trợ chỉnh lịch.</p>}</div>
-    <form onSubmit={chat} className="chat-form"><textarea aria-label="Yêu cầu AI chỉnh lịch" rows={2} placeholder="Nhập yêu cầu cho AI…" value={text} onChange={e=>setText(e.target.value)} disabled={busy}/><button className="btn primary" type="submit" disabled={busy||!text.trim()}>Gửi AI</button></form>
    </div>
-   <div className="notice-box" role="status" aria-live="polite">{notice}</div>
+   <div className={'notice-box timetable-status is-'+noticeKind} role="status" aria-live="polite">
+    <strong>{noticeKind==='error'?'Cần kiểm tra':noticeKind==='success'?'Đã xử lý':noticeKind==='warning'?'Lưu ý':'Trạng thái'}</strong>
+    <span>{notice}</span>
+   </div>
    {warnings.map((w,i)=><p className="muted" key={i}>{w}</p>)}
    {localText&&<details><summary>Xem văn bản OCR</summary><pre style={{whiteSpace:'pre-wrap'}}>{localText}</pre></details>}
-   <div className="table-wrap"><table className="import-edit-table"><thead><tr><th>Trường</th><th>Lớp</th><th>Ngày</th><th>Giờ bắt đầu</th><th>Kết thúc</th><th>Số tiết</th><th></th></tr></thead>
+   <div className="timetable-draft-heading"><strong>Bản nháp buổi học</strong><span>{rows.length} dòng · Chỉ lưu sau xác nhận</span></div>
+   {rows.length?<div className="table-wrap timetable-draft-table-wrap"><table className="import-edit-table"><thead><tr><th>Trường</th><th>Lớp</th><th>Ngày</th><th>Giờ bắt đầu</th><th>Kết thúc</th><th>Số tiết</th><th></th></tr></thead>
     <tbody>{rows.map((r,i)=><tr key={i}>{[['school_name','text'],['class_name','text'],['session_date','date'],['start_time','time'],['end_time','time'],['period_count','number']].map(([name,type])=><td key={name}><input disabled={busy} type={type} value={r[name]??''} aria-label={name+' dòng '+(i+1)} min={type==='number'?1:undefined} onChange={e=>change(i,name,e.target.value)}/></td>)}
       <td><button className="mini-btn" disabled={busy} onClick={()=>setRows(x=>x.filter((_,j)=>i!==j))}>Bỏ</button></td>
-     </tr>)}</tbody></table></div>
+     </tr>)}</tbody></table></div>:<div className="timetable-draft-empty">Chưa có bản nháp. Nhập yêu cầu cho AI, tải thời khóa biểu hoặc chọn “Thêm buổi thủ công”.</div>}
    <div className="import-footer">
     <button type="button" className="btn outline" onClick={add} disabled={busy||rows.length>=120}>Thêm buổi thủ công</button>
     {!!rows.length&&<><label className="field-inline"><input type="checkbox" checked={repeat} disabled={busy} onChange={e=>setRepeat(e.target.checked)}/> Lặp hằng tuần đến ngày kết thúc</label>
