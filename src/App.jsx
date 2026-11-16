@@ -9,7 +9,8 @@ import { TeacherPayroll } from "./TeacherPayroll";
 import { ClassSettings } from "./ClassSettings";
 import { ReportsCenter } from "./ReportsCenter";
 import { HelpAssistant } from "./HelpAssistant";
-import { properName, searchName, comparePC } from "./lib/students";
+import { ProfileSettings } from "./ProfileSettings";
+import { properName, searchName, comparePC, compareStudentName } from "./lib/students";
 import { normalizeComputerCode,validFullName } from "./lib/registration";
 import { TeachingCalendar } from "./TeachingCalendar";
 import { RollCall } from "./RollCall";
@@ -19,7 +20,7 @@ import {
   Award, Sparkles, Settings, LogOut, Plus, Search, Download, RefreshCw,
   CheckCircle2, Clock3, AlertTriangle, School, Menu, X, UserPlus,
   ShieldCheck, Trash2, FileSpreadsheet, ClipboardCheck, FileText,
-  ChevronLeft, ChevronRight, Printer, UserCheck
+  ChevronLeft, ChevronRight, Printer, UserCheck, UserRound
 } from "lucide-react";
 
 const nav = [
@@ -28,7 +29,6 @@ const nav = [
   ["roster", "Danh sách học sinh", ClipboardList],
   ["computers", "Phòng máy", Monitor],
   ["attendance", "Lịch dạy giáo viên", CalendarDays],
-  ["teacherSchedules", "Lịch giáo viên khác", CalendarDays],
   ["rollcall", "Điểm danh học sinh", UserCheck],
   ["records", "Điểm, lỗi & thưởng", ClipboardList],
   ["cleaning", "Vệ sinh máy", ClipboardCheck],
@@ -37,7 +37,8 @@ const nav = [
   ["reports", "Báo cáo", FileText],
   ["schools", "Trường công tác", School],
   ["settings", "Lớp & mã đăng ký", Settings],
-  ["accounts", "Quản lý tài khoản", ShieldCheck]
+  ["accounts", "Quản lý tài khoản", ShieldCheck],
+  ["personal", "Cá nhân", UserRound]
 ];
 
 const money = n =>
@@ -64,7 +65,6 @@ function App() {
   const school = schools.find(s => s.id === schoolId);
   const profile = account ? {...account, school_id: school?.id || null, school_name: school?.name || "", school_logo:school?.logo_data||null} : null;
   const [page, setPage] = useState("dashboard");
-  const [adminScheduleTeacher,setAdminScheduleTeacher]=useState(null);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState("");
   const [authMode, setAuthMode] = useState("login");
@@ -161,19 +161,20 @@ function App() {
         <nav className="nav-scroll" aria-label="Menu chính">
           {[["GIẢNG DẠY", ["dashboard", "attendance", "rollcall", "roster", "records", "evaluation"]],
             ["PHÒNG MÁY", ["computers", "students", "cleaning", "settings"]],
-            ["QUẢN LÝ", ["schools", "teacherSchedules", "finance", "reports", "accounts"]]].map(([group, ids]) => <React.Fragment key={group}>
+            ["QUẢN LÝ", ["schools", "finance", "reports", "accounts"]]].map(([group, ids]) => <React.Fragment key={group}>
             <div className="nav-label">{group}</div>
-            {ids.map(id => nav.find(n => n[0] === id)).filter(([id]) => !["accounts","teacherSchedules"].includes(id) || profile.role === "admin").map(([id,label,Icon]) => <button key={id} className={`nav-item ${page === id ? "active" : ""}`} onClick={()=>{setPage(id);setMobileNav(false);}}><Icon size={18}/>{label}</button>)}
+            {ids.map(id => nav.find(n => n[0] === id)).filter(([id]) => id!=="accounts" || profile.role === "admin").map(([id,label,Icon]) => <button key={id} className={`nav-item ${page === id ? "active" : ""}`} onClick={()=>{setPage(id);setMobileNav(false);}}><Icon size={18}/>{label}</button>)}
           </React.Fragment>)}
         </nav>
         <div className="sidebar-bottom">
-          <div className="user-mini">
-            <div className="avatar">{(profile.full_name || "U").slice(0, 1).toUpperCase()}</div>
+          <button type="button" className="user-mini personal-entry" onClick={()=>{setPage('personal');setMobileNav(false);}} title="Mở trang cá nhân">
+            <div className="avatar">{profile.avatar_data?<img src={profile.avatar_data} alt="Ảnh đại diện"/>:(profile.full_name || "U").slice(0, 1).toUpperCase()}</div>
             <div>
               <b>{profile.full_name || session.user.email}</b>
               <small>{profile.role === "admin" ? "Quản trị viên" : profile.role === "teacher" ? "Giáo viên" : "Học sinh"}</small>
             </div>
-          </div>
+          </button>
+          <button className={'nav-item '+(page==='personal'?'active':'')} onClick={()=>{setPage('personal');setMobileNav(false);}}><UserRound size={18}/>Cá nhân</button>
           <button className="nav-item" onClick={signOut}><LogOut size={18} />Đăng xuất</button>
         </div>
       </aside>
@@ -188,19 +189,20 @@ function App() {
           <div className="top-actions"><button className="btn" onClick={signOut}><LogOut size={16}/>Đăng xuất</button>
             <span className="role-pill">{profile.role === "admin" ? "ADMIN" : profile.role === "teacher" ? "GIÁO VIÊN" : "HỌC SINH"}</span>
             <button className="icon-btn" title="Làm mới" onClick={reload}><RefreshCw size={18} /></button>
-            <div className="avatar">{(profile.full_name || "U").slice(0, 1).toUpperCase()}</div>
+            <button type="button" className="avatar avatar-action" onClick={()=>setPage('personal')} title="Cá nhân">{profile.avatar_data?<img src={profile.avatar_data} alt="Ảnh đại diện"/>:(profile.full_name || "U").slice(0, 1).toUpperCase()}</button>
           </div>
         </header>
 
         {notice && <div className="toast"><CheckCircle2 size={17} />{notice}</div>}
 
-        <div className="content" key={["schools","settings","finance","reports","accounts"].includes(page)?page:schoolId}>
+        <div className="content" key={["schools","settings","finance","reports","accounts","personal"].includes(page)?page:schoolId}>
           {(page === "schools" || !schools.length) && <SchoolManager schools={schools} role={profile.role} onCreated={id => {setSchoolId(id); reload();}} onChanged={deletedId => {if(deletedId === schoolId) setSchoolId(""); reload();}} ping={ping} />}
           {page === "accounts" && profile.role === "admin" && <Accounts profile={profile} />}
+          {page === "personal" && <ProfileSettings key={profile.id} profile={profile} email={session.user.email} reload={reload} ping={ping}/>}
           {page === "settings" && <ClassSettings profile={profile} ping={ping} schools={schools} onChanged={reload} />}
           {page === "finance" && <TeacherPayroll profile={profile} refresh={refresh} ping={ping} schools={schools} />}
           {page === "reports" && <ReportsCenter profile={profile} refresh={refresh} ping={ping} schools={schools} />}
-          {!schoolId && !["schools","settings","finance","reports","accounts"].includes(page) && <div className="notice-box">Thêm trường đầu tiên để bắt đầu quản lý học sinh và lịch dạy.</div>}
+          {!schoolId && !["schools","settings","finance","reports","accounts","personal"].includes(page) && <div className="notice-box">Thêm trường đầu tiên để bắt đầu quản lý học sinh và lịch dạy.</div>}
           {schoolId && <>
           {page === "dashboard" && <Dashboard profile={profile} refresh={refresh} setPage={setPage} />}
           {page === "roster" && <StudentRoster profile={profile} refresh={refresh} ping={ping} />}
@@ -208,7 +210,6 @@ function App() {
           {page === "computers" && <Computers profile={profile} refresh={refresh} reload={reload} ping={ping} />}
           {page === "rollcall" && isTeacher && <RollCallView profile={profile} refresh={refresh} reload={reload} ping={ping} focusDate={calendarDate} setFocusDate={setCalendarDate} />}
           {page === "attendance" && isTeacher && <Attendance profile={profile} refresh={refresh} reload={reload} ping={ping} focusDate={calendarDate} setFocusDate={setCalendarDate} onImported={async(date,name)=>{setCalendarDate(date);const {data,error}=await supabase.rpc("create_my_school",{school_name:name});if(!error)setSchoolId(data);reload();}} />}
-          {page === "teacherSchedules" && profile.role === "admin" && <Attendance adminView adminSelection={adminScheduleTeacher} onAdminSelection={setAdminScheduleTeacher} profile={profile} refresh={refresh} reload={reload} ping={ping} focusDate={calendarDate} setFocusDate={setCalendarDate} />}
           {page === "records" && isTeacher && <Records profile={profile} refresh={refresh} reload={reload} ping={ping} />}
           {page === "cleaning" && isTeacher && <Cleaning profile={profile} refresh={refresh} reload={reload} ping={ping} />}
           {page === "evaluation" && <Evaluation profile={profile} refresh={refresh} reload={reload} ping={ping} />}
@@ -216,11 +217,9 @@ function App() {
         </div>
         <footer>IC3 GS6 Computer Lab <span>•</span> Dữ liệu được lưu trên Supabase</footer>
       </main>
-      <HelpAssistant key={profile.id} profile={profile} page={page} scheduleTeacher={
-        page==="teacherSchedules"&&profile.role==="admin"?
-        (adminScheduleTeacher?.id?adminScheduleTeacher:{id:profile.id,name:profile.full_name}):
-        {id:profile.id,name:profile.full_name}
-      } onSaved={reload} onNavigate={id=>{setPage(id);setMobileNav(false);}} />
+      <HelpAssistant key={profile.id} profile={profile} page={page}
+        scheduleTeacher={{id:profile.id,name:profile.full_name}}
+        onSaved={reload} onNavigate={id=>{setPage(id);setMobileNav(false);}} />
     </div>
   );
 }
