@@ -815,14 +815,12 @@ function Attendance({ profile, refresh, reload, ping, focusDate, setFocusDate, o
     const payload = {
       ...form,
       school_id: profile.school_id,
-      teacher_id: (adminView&&targetTeacher!=="unassigned")?targetTeacher:profile.id,
-      teacher_name:adminView&&targetTeacher==="unassigned"?
-        (form.teacher_name||profile.full_name):
-        (teacherChoices.find(t=>t.id===(adminView?targetTeacher:profile.id))?.full_name||profile.full_name),
+      teacher_id: adminView?(targetTeacher==="unassigned"?form.teacher_id:targetTeacher):profile.id,
+      teacher_name:teacherChoices.find(t=>t.id===(adminView?(targetTeacher==="unassigned"?form.teacher_id:targetTeacher):profile.id))?.full_name||profile.full_name,
       created_by: profile.id,
       period_count: Number(form.period_count)
     };
-    if(adminView&&targetTeacher==="unassigned"){setSaving(false);ping("Chọn giáo viên trước khi tạo lịch mới.");return;}
+    if(adminView&&targetTeacher==="unassigned"&&!editingId){setSaving(false);ping("Chọn giáo viên ở bộ lọc để tạo lịch; ở mục Chưa phân công chỉ dùng Sửa để gán buổi học cũ.");return;}
     const { error } = editingId ? await supabase.from("class_sessions").update(payload)
       .eq("id",editingId).eq("school_id",profile.school_id) :
       await supabase.from("class_sessions").insert(payload);
@@ -869,6 +867,7 @@ function Attendance({ profile, refresh, reload, ping, focusDate, setFocusDate, o
     <div className="two-col">
       <div className="panel">
         <h3>{editingId ? "Sửa buổi học" : "Tạo buổi học / chấm công"}</h3>
+        {adminView&&targetTeacher==="unassigned"&&<p className="muted">Các buổi cũ chưa có giáo viên. Bấm Sửa tại một dòng rồi chọn giáo viên phụ trách để gán lại.</p>}
         <form className="form-stack" onSubmit={save}>
           <label>Lớp
             <input list="class-options" required value={form.class_name} onChange={e => setForm({ ...form, class_name: e.target.value })} placeholder="Chọn hoặc nhập tên lớp" />
@@ -880,7 +879,14 @@ function Attendance({ profile, refresh, reload, ping, focusDate, setFocusDate, o
             <label>Giờ kết thúc<input type="time" value={form.end_time} onChange={e => setForm({ ...form, end_time: e.target.value })} /></label>
           </div>
           <label>Giáo viên phụ trách
-            <input readOnly value={adminView?viewingName:profile.full_name||"Giáo viên"} />
+            {adminView&&targetTeacher==="unassigned"?
+              <select value={form.teacher_id} onChange={e=>{
+                const t=teacherChoices.find(x=>x.id===e.target.value);
+                setForm(v=>({...v,teacher_id:e.target.value,teacher_name:t?.full_name||""}));
+              }}>
+                {teacherChoices.map(t=><option key={t.id} value={t.id}>{t.full_name}</option>)}
+              </select>:
+              <input readOnly value={adminView?viewingName:profile.full_name||"Giáo viên"} />}
           </label>
 
           <label>Số tiết<input type="number" min="1" value={form.period_count} onChange={e => setForm({ ...form, period_count: e.target.value })} /></label>
