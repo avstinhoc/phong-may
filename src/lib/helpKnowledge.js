@@ -160,16 +160,19 @@ export const helpTopics = [
   },
   {
     id:"ai",title:"Trợ lý IC3 AI",roles:["admin","teacher","staff"],
-    summary:"Hỏi đáp hướng dẫn website, gửi ảnh/file trong tin nhắn, tạo hoặc chỉnh sửa ảnh; lập kế hoạch thêm/sửa lịch có xác nhận.",
+    summary:"Hỏi đáp website, gửi ảnh thu nhỏ trong hội thoại, tạo/chỉnh ảnh, chỉnh Excel/Word/văn bản rồi tải tệp mới; lập kế hoạch sửa lịch với xác nhận.",
     steps:[
       "Nhấn nút Hỏi AI ở góc dưới bên phải để mở Trợ lý IC3 AI.",
       "Trong Trò chuyện, chọn Hỏi đáp để hỏi cách dùng website, gửi ảnh/Excel/PDF/Word/PowerPoint bằng biểu tượng kẹp giấy rồi nhấn Gửi. Ảnh hiển thị ngay trong tin nhắn.",
       "Chọn Sửa lịch để mô tả muốn thêm buổi học, đổi giờ, đổi lớp hoặc gửi ảnh thời khóa biểu. AI tạo bản nháp tối đa 12 buổi trong đúng trường đang chọn.",
       "Xem và sửa lại ngày, lớp, giờ, số tiết trong bản nháp rồi nhấn Xác nhận lưu lịch. Trợ lý không tự ghi dữ liệu nếu bạn chưa xác nhận.",
       "Chọn Tạo / sửa ảnh, nhập mô tả rồi bấm Gửi để tạo ảnh; có thể gửi ảnh mẫu để chỉnh hoặc bấm Sửa ảnh này ở ảnh AI vừa tạo. Nhấn Lưu ảnh để tải về.",
+      "Chọn Sửa tệp, đính kèm Excel, CSV, TXT, Word hoặc PDF rồi yêu cầu chỉnh nội dung. Kiểm tra các ô Excel được đề xuất trước khi nhấn Tải tệp đã sửa. File tải về là bản mới, không sửa file gốc.",
+      "Với Word/PDF hoặc PowerPoint, AI có thể đọc nội dung và xuất bản Word mới nhưng không bảo đảm giữ nguyên bố cục trang cũ.",
+      "Admin có thể nhập yêu cầu đổi tên giáo viên. AI xác định tài khoản từ email/tên trong danh sách, hiển thị thông tin cũ/mới và chỉ đổi sau khi nhấn Xác nhận đổi tên.",
       "Chạm vào tên chức năng in đậm trong câu trả lời để mở đúng mục web; Hướng dẫn nhanh có sổ tay không tốn lượt AI."
     ],notes:["Các file và ảnh chỉ được gửi cho Gemini khi người dùng nhấn Gửi.","Tạo ảnh giới hạn 5 lượt/24 giờ và còn phụ thuộc hạn mức model Gemini.","Sửa lịch chỉ hỗ trợ thêm/sửa buổi học; thao tác xóa phải làm trực tiếp trong Lịch dạy giáo viên."],
-    keywords:["ai","chat gpt","hỏi ai","chatbot","trợ lý","tạo ảnh","chỉnh ảnh","gửi file","gửi ảnh","sửa lịch"]
+    keywords:["ai","chat gpt","hỏi ai","chatbot","trợ lý","tạo ảnh","chỉnh ảnh","gửi file","gửi ảnh","sửa lịch","sửa tệp","sửa excel","sửa word","đổi tên giáo viên"]
   },
   {
     id:"login",title:"Đăng nhập & xác thực giáo viên",roles:["admin","teacher","staff"],

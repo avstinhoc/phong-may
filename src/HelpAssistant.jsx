@@ -2,6 +2,7 @@ import React,{useEffect,useMemo,useRef,useState} from 'react';
 import * as XLSX from 'xlsx';
 import {MessageCircle,Send,X,BookOpen,ChevronDown,ArrowUpRight,RotateCcw,Paperclip,FileText,Image as ImageIcon,CalendarDays,Download,CheckCircle2,Plus,Edit2} from 'lucide-react';
 import {supabase} from './lib/supabase';
+import {buildEditedFile} from './lib/fileExports';
 import {helpQuestions,visibleHelpTopics,helpPageTitles} from './lib/helpKnowledge';
 
 const allowedExt=/\.(png|jpe?g|webp|pdf|xlsx?|csv|tsv|txt|docx|pptx)$/i;
@@ -71,9 +72,13 @@ function RichText({value,topics,pageId,onGo}){
 const isDate=s=>/^\d{4}-\d{2}-\d{2}$/.test(s)&&!Number.isNaN(Date.parse(s))&&new Date(s).toISOString().slice(0,10)===s;
 const isClock=s=>/^([01]\d|2[0-3]):[0-5]\d$/.test(s);
 const mins=s=>Number(s.slice(0,2))*60+Number(s.slice(3,5));
-const detectMode=question=>{
+const detectMode=(question,attached)=>{
  const q=normalize(question);
+ if(/(doi|sua|chinh sua|cap nhat|dat lai|thay).{0,18}ten.{0,14}(giao vien|tai khoan)/.test(q)
+ && !/^(cach|huong dan|lam sao)/.test(q))return 'account';
  if(/(tao|ve|thiet ke|chinh sua|sua|ghep|xoa nen).{0,45}(anh|hinh|logo|banner)/.test(q) && !/^(cach|huong dan|lam sao)/.test(q))return 'image';
+ if(attached&&/(sua|chinh sua|thay doi|cap nhat|viet lai|chuyen doi|bo sung|doi noi dung).{0,55}(file|tep|excel|word|pdf|tai lieu|bang|van ban|noi dung)/.test(q)
+ && !/^(cach|huong dan|lam sao)/.test(q))return 'file';
  if(/(them|tao|sua|doi|doi gio|doi ngay|dieu chinh|chinh|lap|cap nhat).{0,40}(lich|buoi hoc|thoi khoa bieu)/.test(q) && !/^(cach|huong dan|lam sao)/.test(q))return 'schedule';
  return 'chat';
 };
@@ -167,7 +172,13 @@ export function HelpAssistant({profile,page,onNavigate,onSaved}){
    const message=String(question||'').trim();
    if((!message&&!file)||pending||saving)return;
    if(message.length>1300){setMessages(m=>[...m,{role:'system',text:'Câu hỏi vượt quá 1.300 ký tự. Bạn rút gọn giúp tui nha.'}]);return;}
-   const actualMode=mode==='chat'?detectMode(message):mode;
+   const actualMode=mode==='chat'?detectMode(message,file):mode;
+   if(actualMode==='account'&&profile.role!=='admin'){
+     setMessages(m=>[...m,{role:'system',text:'Chỉ tài khoản Admin mới được đổi tên giáo viên. Bạn có thể hỏi AI cách gửi yêu cầu cho Admin.'}]);return;
+   }
+   if(actualMode==='file'&&!file){
+     setMessages(m=>[...m,{role:'system',text:'Hãy đính kèm tệp cần sửa trước khi gửi.'}]);return;
+   }
    if(actualMode==='schedule'&&!profile.school_id){setMessages(m=>[...m,{role:'system',text:'Hãy chọn trường ở menu bên trái trước khi AI tạo/sửa lịch.'}]);return;}
    if(actualMode==='image'&&file&&!/^image\/(jpeg|png|webp)$/.test(fileMime(file))){
      setMessages(m=>[...m,{role:'system',text:'Để chỉnh sửa hình ảnh, vui lòng chọn ảnh JPG, PNG hoặc WebP.'}]);return;
@@ -198,7 +209,9 @@ export function HelpAssistant({profile,page,onNavigate,onSaved}){
      const suggestedPage=topics.some(t=>t.id===result.page_id)&&helpPageTitles[result.page_id]?result.page_id:null;
      const image=result.image?.base64&&/^image\/(png|jpeg|webp)$/.test(result.image.mimeType||'')?
        'data:'+result.image.mimeType+';base64,'+result.image.base64:null;
-     setMessages(m=>[...m,{role:'assistant',text:result.answer||'Đã xử lý yêu cầu.',page_id:suggestedPage,image}].slice(-30));
+     setMessages(m=>[...m,{role:'assistant',text:result.answer||'Đã xử lý yêu cầu.',page_id:suggestedPage,image,
+       editedFile:result.editedFile||null,originalFile:actualMode==='file'?attachedFile:null,
+       accountProposal:result.accountProposal||null}].slice(-30));
      if(actualMode==='schedule'&&result.proposals?.length){
        setDraft({items:result.proposals,schoolId:profile.school_id,
          schoolName:result.proposals[0]?.school_name||profile.school_name});
@@ -207,6 +220,37 @@ export function HelpAssistant({profile,page,onNavigate,onSaved}){
      clearFile();
    }catch(e){setMessages(m=>[...m,{role:'system',text:e?.message||'Không thể kết nối AI.'}].slice(-30));}
    finally{setPending(false);}
+ }
+ async function applyAccountRename(msg,index){
+   const r=msg.accountProposal;
+   if(profile.role!=='admin'||!r?.id||pending||saving)return;
+   if(!window.confirm('Xác nhận đổi tên giáo viên:\n'+r.email+'\n'+r.old_name+' → '+r.new_name+'?\n\nChỉ đổi họ tên, không thay quyền tài khoản.'))return;
+   setSaving(true);
+   try{
+     const {data:current,error:readError}=await supabase.from('profiles')
+       .select('id,email,full_name,role,is_active').eq('id',r.id).single();
+     if(readError)throw readError;
+     if(!current||current.email!==r.email||current.full_name!==r.old_name||current.role!==r.role||
+       current.is_active!==r.is_active)throw Error('Tài khoản đã thay đổi. Hãy hỏi lại AI để tạo bản nháp mới.');
+     const {error}=await supabase.rpc('admin_update_account',{
+       target_id:r.id,new_role:current.role,active:current.is_active,display_name:r.new_name
+     });
+     if(error)throw error;
+     setMessages(m=>m.map((entry,i)=>i===index?{...entry,accountProposal:null}:entry).concat([
+       {role:'assistant',text:'**Đã đổi tên giáo viên** từ '+r.old_name+' thành '+r.new_name+'.'}
+     ]).slice(-30));
+     onSaved?.();
+   }catch(e){setMessages(m=>[...m,{role:'system',text:'Không thể đổi tên: '+(e?.message||'Vui lòng thử lại.')}].slice(-30));}
+   finally{setSaving(false);}
+ }
+ async function downloadEdited(msg){
+   try{
+     const result=await buildEditedFile(msg.editedFile,msg.originalFile);
+     const url=URL.createObjectURL(result.blob);
+     const a=document.createElement('a');
+     a.href=url;a.download=result.name;document.body.appendChild(a);a.click();a.remove();
+     setTimeout(()=>URL.revokeObjectURL(url),7000);
+   }catch(err){setMessages(m=>[...m,{role:'system',text:err?.message||'Không xuất được tệp đã sửa.'}]);}
  }
  function editImage(img){
    if(!img)return;
@@ -224,13 +268,14 @@ export function HelpAssistant({profile,page,onNavigate,onSaved}){
      setMode('image');setText('Chỉnh sửa ảnh này: ');inputRef.current?.focus();
    }catch{setMessages(m=>[...m,{role:'system',text:'Không thể sử dụng ảnh này để chỉnh sửa lại.'}]);}
  }
- const modeButtons=[{key:'chat',title:'Hỏi đáp',Icon:MessageCircle},{key:'schedule',title:'Sửa lịch',Icon:CalendarDays},{key:'image',title:'Tạo / sửa ảnh',Icon:ImageIcon}];
+ const modeButtons=[{key:'chat',title:'Hỏi đáp',Icon:MessageCircle},{key:'schedule',title:'Sửa lịch',Icon:CalendarDays},
+ {key:'image',title:'Tạo / sửa ảnh',Icon:ImageIcon},{key:'file',title:'Sửa tệp',Icon:FileText}];
  return <div className={'help-dock '+(open?'help-open':'')}>
    {!open&&<button className="help-launch" onClick={()=>setOpen(true)} aria-label="Mở Trợ lý IC3 AI" title="Hỏi IC3 AI"><MessageCircle size={21}/><span>Hỏi AI</span></button>}
    {open&&<section className="help-panel" role="dialog" aria-modal="false" aria-label="Trợ lý IC3 AI">
      <header className="help-header">
        <div className="help-avatar">AI</div>
-       <div className="help-head-copy"><strong>Trợ lý IC3 AI</strong><span>Hỏi đáp · Lịch dạy · Hình ảnh</span></div>
+       <div className="help-head-copy"><strong>Trợ lý IC3 AI</strong><span>Hỏi đáp · Lịch dạy · Ảnh · Tệp</span></div>
        <button className="help-icon-button" type="button" aria-label="Đóng trợ lý" title="Đóng" onClick={()=>setOpen(false)}><X size={19}/></button>
      </header>
      <div className="help-tabs" role="tablist" aria-label="Chế độ trợ lý">
@@ -243,7 +288,7 @@ export function HelpAssistant({profile,page,onNavigate,onSaved}){
        </div>
        <div className="help-chat-scroll" role="log" aria-live="polite" aria-relevant="additions text">
          <div className="help-welcome"><strong>Chào bạn! Tui là Trợ lý IC3 AI 👋</strong>
-           <p>Hỏi cách sử dụng website, gửi ảnh/file, hoặc yêu cầu tạo và sửa lịch. Tui còn có thể tạo/chỉnh sửa hình ảnh nữa.</p>
+           <p>Gửi ảnh hoặc tài liệu ngay trong chat để nhờ chỉnh sửa. AI có thể lập bản nháp lịch, tạo ảnh và xuất file mới.</p>
            <span>Đang xem: {helpPageTitles[page]||'IC3 GS6'}</span>
          </div>
          {!messages.length&&<div className="help-suggestions">
@@ -262,6 +307,27 @@ export function HelpAssistant({profile,page,onNavigate,onSaved}){
              </button>
              <div className="help-image-tools"><a href={msg.image} download="IC3-AI-image.png"><Download size={13}/> Lưu ảnh</a>
              <button type="button" onClick={()=>editImage(msg.image)}><Edit2 size={13}/> Sửa ảnh này</button></div>
+           </div>}
+           {msg.accountProposal&&<div className="help-account-proposal">
+             <strong>Kiểm tra trước khi đổi tên</strong>
+             <span>Tài khoản: {msg.accountProposal.email}</span>
+             <span>Tên hiện tại: {msg.accountProposal.old_name}</span>
+             <span>Tên mới: <b>{msg.accountProposal.new_name}</b></span>
+             <button type="button" disabled={pending||saving} onClick={()=>applyAccountRename(msg,i)}>
+               <CheckCircle2 size={14}/> {saving?'Đang lưu…':'Xác nhận đổi tên'}
+             </button>
+           </div>}
+           {msg.editedFile&&<div className="help-edited-file">
+             <div className="help-edited-file-heading"><FileText size={15}/><strong>Bản tệp đã chỉnh sửa</strong></div>
+             {msg.editedFile.format==='xlsx'?<div className="help-file-changes">
+               {(msg.editedFile.edits||[]).slice(0,15).map((edit,j)=><div key={j}>
+                 <strong>{edit.sheet}!{edit.cell}</strong>: {String(edit.value).slice(0,160)}</div>)}
+               {!msg.editedFile.edits?.length&&<p>AI chưa xác định được ô cần sửa. Hãy gửi hướng dẫn cụ thể hơn.</p>}
+             </div>:<p className="help-file-changes">{String(msg.editedFile.content||'').slice(0,850)}{String(msg.editedFile.content||'').length>850?'…':''}</p>}
+             <button type="button" className="help-file-download" onClick={()=>downloadEdited(msg)} disabled={msg.editedFile.format==='xlsx'&&!msg.editedFile.edits?.length}>
+               <Download size={15}/> Tải tệp đã sửa ({msg.editedFile.format.toUpperCase()})
+             </button>
+             <small>Bản tải về là tệp mới. Excel có thể thay đổi một số định dạng phức tạp; Word/PDF được xuất lại nội dung, không giữ nguyên bố cục nguồn.</small>
            </div>}
            {msg.page_id&&<button className="help-go" type="button" onClick={()=>go(msg.page_id)}>Mở mục {helpPageTitles[msg.page_id]} <ArrowUpRight size={14}/></button>}
          </div>)}
@@ -294,12 +360,12 @@ export function HelpAssistant({profile,page,onNavigate,onSaved}){
          <input ref={fileInput} type="file" style={{display:'none'}} accept={mode==='image'?'.jpg,.jpeg,.png,.webp':mode==='schedule'?'.jpg,.jpeg,.png,.webp,.pdf,.xls,.xlsx,.csv,.tsv,.txt':'.jpg,.jpeg,.png,.webp,.pdf,.xls,.xlsx,.csv,.tsv,.txt,.docx,.pptx'} onChange={e=>setFile(e.target.files?.[0]||null)}/>
          <button type="button" className="help-attach-button" onClick={()=>fileInput.current?.click()} disabled={pending} aria-label="Đính kèm ảnh hoặc file" title="Thêm ảnh hoặc file"><Paperclip size={19}/></button>
          <textarea ref={inputRef} rows={2} value={text} maxLength={1300} disabled={pending} aria-label="Nhập yêu cầu cho AI"
-           placeholder={mode==='image'?'Mô tả ảnh cần tạo hoặc chỉnh sửa…':mode==='schedule'?'Yêu cầu tạo, thêm hoặc sửa buổi học…':'Nhắn tin cho Trợ lý IC3 AI…'}
+           placeholder={mode==='image'?'Mô tả ảnh cần tạo hoặc chỉnh sửa…':mode==='schedule'?'Yêu cầu tạo, thêm hoặc sửa buổi học…':mode==='file'?'Nhập yêu cầu sửa nội dung tệp…':'Nhắn tin cho Trợ lý IC3 AI…'}
            onChange={e=>setText(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();ask(text);}}}/>
          <button type="submit" disabled={pending||saving||(!text.trim()&&!file)} title="Gửi câu hỏi" aria-label="Gửi câu hỏi"><Send size={18}/></button>
        </form>
        <footer className="help-footer">
-         <span>{file?'Tệp chỉ gửi đến Gemini khi bạn bấm Gửi.':mode==='schedule'?'Lịch được sửa sau khi bạn xác nhận lưu.':mode==='image'?'Tạo ảnh qua Gemini, tối đa 5 lượt/24 giờ.':'Nhấp từ in đậm để mở mục tương ứng.'}</span>
+         <span>{file?'Tệp chỉ gửi đến Gemini khi bạn bấm Gửi.':mode==='schedule'?'Lịch được sửa sau khi bạn xác nhận lưu.':mode==='image'?'Tạo ảnh qua Gemini, tối đa 5 lượt/24 giờ.':mode==='file'?'Tải tệp mới đã sửa, không ghi đè bản gốc.':'Nhấp từ in đậm để mở mục tương ứng.'}</span>
          {!!messages.length&&<button type="button" onClick={newChat} disabled={pending||saving}><RotateCcw size={12}/> Chat mới</button>}
        </footer>
      </>:<>

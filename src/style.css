@@ -350,3 +350,73 @@
   .help-panel{width:calc(100vw - 24px);height:min(730px,calc(100dvh - 65px))}
   .help-mode-row button{font-size:9px;padding:8px 3px}
 }
+
+/* Seven-day lesson grid — shared time rows prevent absent periods from visually collapsing. */
+.calendar-grid-scroll{width:100%;max-width:100%;overflow:auto;margin-top:13px;border:1px solid #d5e5e6;border-radius:12px;max-height:690px}
+.calendar-grid{border-collapse:separate!important;border-spacing:0!important;table-layout:fixed;width:max(100%,1250px);font-size:11px}
+.calendar-grid th,.calendar-grid td{border:0!important;border-right:1px solid #e0e9eb!important;border-bottom:1px solid #e0e9eb!important;vertical-align:middle}
+.calendar-grid thead th{position:sticky;top:0;z-index:4;min-width:145px;text-align:center;background:#e8f5f2!important;color:#214d54!important;padding:12px 6px!important;height:76px}
+.calendar-grid thead th strong,.calendar-grid thead th span,.calendar-grid thead th small{display:block;line-height:1.5}
+.calendar-grid thead th span{font-size:14px;font-weight:800}
+.calendar-grid thead th small{font-size:9px;font-weight:500;color:#69888e}
+.calendar-grid thead th.cal-period-col{left:0;z-index:8;min-width:75px;width:75px}
+.calendar-grid thead th.cal-time-col{left:75px;z-index:7;min-width:105px;width:105px}
+.calendar-grid tbody tr{height:84px}
+.calendar-grid tbody th.cal-shift{position:sticky;left:0;z-index:3;text-align:center;min-width:75px;width:75px;
+  color:#27556a;font-size:11px;font-weight:800;background:#edf4f6!important;letter-spacing:.2px}
+.calendar-grid tbody th.cal-shift span{writing-mode:horizontal-tb}
+.calendar-grid tbody th.cal-shift.afternoon{background:#fff0fa!important;color:#a55279}
+.calendar-grid tbody th.cal-shift.evening{background:#eff0ff!important;color:#5e5d99}
+.calendar-grid tbody th.cal-time-cell{position:sticky;left:75px;z-index:2;min-width:105px;width:105px;
+  text-align:center;background:#f6f9fa!important;color:#527280;font-size:10px;font-weight:800;padding:8px}
+.calendar-grid tbody tr.cal-gap-row{height:56px}
+.calendar-grid tbody tr.cal-gap-row .cal-time-cell{font-size:9px;font-weight:650;color:#91a1ad}
+.calendar-grid tbody td{min-width:145px;width:calc((100% - 180px) / 7);padding:6px!important;text-align:center;background:#fff}
+.calendar-grid tbody td.cal-open-slot{background:#f8fafb;color:#c2ced3}
+.calendar-grid tbody td.cal-today{background:#f0fbf8}
+.calendar-grid tbody td.cal-today.cal-open-slot{background:#edf7f5}
+.calendar-grid tbody tr.cal-gap-row td{background:#fafbfc}
+.calendar-grid tbody td .cal-slot-placeholder{color:#b5c5c8;font-weight:400;font-size:12px}
+.cal-grid-lesson{display:flex;flex-direction:column;gap:5px;min-height:67px;justify-content:center;
+  background:#eaf6f3;border:1px solid #d2e9e5;border-radius:9px;padding:9px 5px}
+.cal-grid-lesson.afternoon{background:#f9edf5;border-color:#f0dae8}
+.cal-grid-lesson.evening{background:#eef0fc;border-color:#dfe2f4}
+.cal-grid-lesson strong{font-size:12px;font-weight:800;color:#16485b}
+.cal-grid-lesson small{font-size:9px;color:#63808a;line-height:1.5}
+.cal-grid-lesson+.cal-grid-lesson{margin-top:5px}
+.calendar-grid-scroll::-webkit-scrollbar{height:9px;width:9px}
+.calendar-grid-scroll::-webkit-scrollbar-thumb{background:#b8cbcc;border-radius:12px}
+@media(max-width:720px){
+  .calendar-grid{width:1240px}
+  .calendar-grid-scroll{max-height:570px}
+  .calendar-grid tbody tr{height:78px}
+}
+
+/* AI chat messenger: four quick modes, attachment thumbnails and export cards */
+.help-mode-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;padding:9px 10px}
+.help-mode-row button{font-size:9px;min-width:0;line-height:1.5;padding:9px 4px;display:flex;gap:4px;flex-direction:column}
+.help-mode-row button svg{width:17px;height:17px}
+.help-panel{width:min(530px,calc(100vw - 24px));height:min(780px,calc(100dvh - 24px))}
+.help-message .help-chat-image{max-height:280px;max-width:100%;border-radius:12px;box-shadow:0 1px 10px #07292818}
+.help-message.mine .help-image-button{max-width:min(280px,100%)}
+.help-file-preview{padding:8px 13px;gap:11px}
+.help-file-preview img{width:64px;height:64px;object-fit:contain;background:#f8fafa}
+.help-file-preview span{font-size:10px;line-height:1.6}
+.help-edited-file{margin-top:10px;background:#f4f9fb;border:1px solid #d0e5e7;border-radius:11px;padding:11px;color:#214c55}
+.help-edited-file-heading{display:flex;align-items:center;gap:6px;font-size:11px;margin-bottom:8px}
+.help-file-changes{margin:0;white-space:pre-wrap;max-height:180px;overflow:auto;display:flex;flex-direction:column;gap:5px;font-size:10px;line-height:1.65}
+.help-file-changes strong{color:#0c776e}
+.help-file-download{display:flex!important;align-items:center;justify-content:center;gap:6px;margin:10px 0 5px;
+  padding:10px!important;border:1px solid #0f857b!important;border-radius:8px;background:#0f857b!important;
+  color:#fff!important;font-size:11px;font-weight:800}
+.help-file-download:disabled{opacity:.6}
+.help-edited-file small{display:block;font-size:9px;line-height:1.55;color:#749099;margin-top:8px}
+@media(max-width:620px){.help-panel{width:calc(100vw - 16px);height:min(780px,calc(100dvh - 28px))}.help-dock{right:8px;bottom:8px}}
+
+.help-account-proposal{margin-top:10px;border:1px solid #a9d8d0;border-radius:11px;background:#eef9f6;padding:12px;
+ display:flex;flex-direction:column;gap:8px;color:#24565b;font-size:10px;line-height:1.6}
+.help-account-proposal strong{font-size:11px}
+.help-account-proposal span{overflow-wrap:anywhere}
+.help-account-proposal button{display:flex;align-items:center;gap:7px;justify-content:center;padding:10px;border:0;border-radius:8px;
+ background:#0f887e;color:#fff;font-weight:800;font-size:11px}
+.help-account-proposal button:disabled{opacity:.5}
