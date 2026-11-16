@@ -129,48 +129,90 @@ export function HelpAssistant({profile,page,onNavigate,onSaved,scheduleTeacher=n
  async function saveDraft(){
    if(!draft?.items?.length||saving)return;
    if(!profile.school_id||profile.school_id!==draft.schoolId){
-     setMessages(m=>[...m,{role:'system',text:'Bạn đã chuyển trường. Hãy quay lại trường của bản nháp trước khi lưu.'}]);return;
+     setMessages(m=>[...m,{role:'system',text:'Bạn đã đổi trường. Quay lại đúng trường của bản nháp rồi lưu.'}]);return;
+   }
+   if(draft.teacherId!==profile.id){
+     setMessages(m=>[...m,{role:'system',text:'Chức năng chỉ cho phép sửa lịch của tài khoản đang đăng nhập.'}]);return;
+   }
+   if(draft.warnings?.length&&!partialAck){
+     setMessages(m=>[...m,{role:'system',text:'Bản nháp có những ô chưa chắc chắn. Hãy kiểm tra và xác nhận đã rà soát cảnh báo trước khi lưu.'}]);return;
    }
    for(const row of draft.items){
      if(!String(row.class_name||'').trim()||!isDate(row.session_date)||
         !isClock(row.start_time)||!isClock(row.end_time)||
         mins(row.start_time)>=mins(row.end_time)||!Number.isInteger(Number(row.period_count))||
         Number(row.period_count)<1||Number(row.period_count)>20){
-       setMessages(m=>[...m,{role:'system',text:'Bản nháp còn thiếu lớp/ngày/giờ hoặc số tiết. Hãy chỉnh lại trước khi lưu.'}]);return;
+       setMessages(m=>[...m,{role:'system',text:'Bản nháp thiếu lớp, ngày, giờ hoặc số tiết. Chỉnh từng ô trước khi lưu.'}]);return;
      }
    }
-   if(draft.teacherId!==profile.id&&profile.role!=='admin'){
-     setMessages(m=>[...m,{role:'system',text:'Chỉ Admin được thêm lịch cho tài khoản giáo viên khác.'}]);return;
+   const overlaps=new Set();
+   for(let i=0;i<draft.items.length;i++)for(let j=i+1;j<draft.items.length;j++){
+     const a=draft.items[i],b=draft.items[j];
+     if(a.session_date===b.session_date&&a.start_time<b.end_time&&a.end_time>b.start_time)
+       overlaps.add(a.session_date+' '+a.start_time+' / '+b.start_time);
    }
-   if(!window.confirm('Xác nhận lưu '+draft.items.length+' buổi cho '+draft.teacherName+' tại '+draft.schoolName+'? Các buổi Sửa sẽ thay đổi lịch đã có.'))return;
+   if(overlaps.size){
+     setMessages(m=>[...m,{role:'system',text:'Bản nháp bị chồng giờ cùng ngày: '+[...overlaps].slice(0,4).join(', ')+'. Hãy sửa trước khi lưu.'}]);return;
+   }
+   const replacing=Boolean(draft.replaceScope);
+   if(replacing&&(draft.items.some(x=>x.operation!=='create')||draft.warnings?.length)){
+     setMessages(m=>[...m,{role:'system',text:'Không thể thay lịch cũ khi còn đề xuất sửa buổi riêng lẻ hoặc cảnh báo chưa rõ.'}]);return;
+   }
+   if(replacing){
+     const ok=window.confirm('THAY THẾ TOÀN BỘ lịch dạy cá nhân tại '+draft.schoolName+
+       ' từ '+draft.replaceScope.start+' đến '+draft.replaceScope.end+'?\n\n'+
+       'Lịch cũ trong khoảng này và dữ liệu điểm danh của các buổi bị xóa sẽ MẤT VĨNH VIỄN. '+draft.items.length+' buổi mới sẽ được tạo.');
+     if(!ok||window.prompt('Nhập THAY THẾ để xác nhận xóa lịch cũ và ghi lịch mới:')!=='THAY THẾ')return;
+   }else if(!window.confirm('Lưu '+draft.items.length+' buổi dạy đã kiểm tra tại '+draft.schoolName+'?'))return;
    setSaving(true);
-   let saved=0,failures=[];
-   for(const row of draft.items){
-     const payload={class_name:row.class_name.trim(),session_date:row.session_date,start_time:row.start_time,
-       end_time:row.end_time,period_count:Number(row.period_count)};
-     try{
-       if(row.operation==='edit'){
-         if(!row.target_id||!row.original)throw Error('Không xác định được buổi gốc để sửa.');
-         const old=row.original;
-         const {data,error}=await supabase.from('class_sessions').update(payload)
-           .eq('id',row.target_id).eq('school_id',draft.schoolId)
-           .eq('session_date',old.session_date).eq('start_time',old.start_time).eq('end_time',old.end_time).eq('class_name',old.class_name).select('id');
-         if(error)throw error;
-         if(!data?.length)throw Error('Buổi này đã thay đổi hoặc không còn quyền sửa. Tải lại lịch rồi thử lại.');
-       }else{
-         const {error}=await supabase.from('class_sessions').insert({...payload,
-           school_id:draft.schoolId,teacher_id:draft.teacherId||profile.id,
-           teacher_name:draft.teacherName||profile.full_name||'',created_by:profile.id});
-         if(error)throw error;
+   let saved=0,deleted=0,failures=[];
+   try{
+     const items=draft.items.map(r=>({class_name:r.class_name.trim(),session_date:r.session_date,
+       start_time:r.start_time,end_time:r.end_time,period_count:Number(r.period_count),
+       school_name:draft.schoolName}));
+     if(replacing){
+       const {data,error}=await supabase.rpc('ic3_replace_own_timetable',{
+         p_school_id:draft.schoolId,p_start_date:draft.replaceScope.start,
+         p_end_date:draft.replaceScope.end,p_items:items});
+       if(error)throw error;
+       saved=data?.created||0;deleted=data?.deleted||0;
+     }else if(draft.items.every(r=>r.operation==='create')){
+       const {data,error}=await supabase.rpc('import_timetable',{items});
+       if(error)throw error;
+       saved=data?.created||0;
+     }else{
+       for(const row of draft.items){
+         const payload={class_name:row.class_name.trim(),session_date:row.session_date,
+           start_time:row.start_time,end_time:row.end_time,period_count:Number(row.period_count)};
+         try{
+           if(row.operation==='edit'){
+             if(!row.target_id||!row.original)throw Error('Không xác định được lịch cần sửa.');
+             const original=row.original;
+             const {data,error}=await supabase.from('class_sessions').update(payload)
+               .eq('id',row.target_id).eq('school_id',draft.schoolId)
+               .eq('session_date',original.session_date).eq('start_time',original.start_time)
+               .eq('end_time',original.end_time).eq('class_name',original.class_name).select('id');
+             if(error)throw error;
+             if(!data?.length)throw Error('Lịch gốc đã thay đổi hoặc không đủ quyền.');
+           }else{
+             const {error}=await supabase.from('class_sessions').insert({...payload,
+               school_id:draft.schoolId,teacher_id:profile.id,
+               teacher_name:profile.full_name||'',created_by:profile.id});
+             if(error)throw error;
+           }
+           saved++;
+         }catch(e){failures.push(row.class_name+' '+row.session_date+': '+e.message);}
        }
-       saved++;
-     }catch(e){failures.push((row.class_name||'Lớp')+' '+row.session_date+': '+e.message);}
-   }
-   setSaving(false);
-   setMessages(m=>[...m,{role:'assistant',text:saved?'**Đã lưu '+saved+' buổi học** tại '+draft.schoolName+'.'+(failures.length?' Có '+failures.length+' buổi chưa lưu.':''):'Chưa lưu được buổi học nào.'},...(failures.length?[{role:'system',text:failures.join('\n')}]:[])]);
-   if(saved)onSaved?.();
-   if(!failures.length)setDraft(null);
-   else setDraft(prev=>prev?{...prev,items:prev.items.filter(r=>failures.some(f=>f.startsWith((r.class_name||'Lớp')+' '+r.session_date+':')))}:null);
+     }
+     setMessages(m=>[...m,{role:'assistant',text:
+       '**Đã lưu '+saved+' buổi học.** '+(deleted?'Đã thay thế '+deleted+' buổi cũ trong khoảng chọn. ':'')+
+       (failures.length?'Có '+failures.length+' buổi chưa lưu.':'Lịch đã đồng bộ theo tài khoản của bạn.')}]);
+     if(saved||deleted)onSaved?.();
+     if(!failures.length)setDraft(null);
+     else setDraft(prev=>prev?{...prev,items:prev.items.filter(r=>failures.some(f=>f.startsWith(r.class_name+' '+r.session_date+':')))}:null);
+   }catch(e){
+     setMessages(m=>[...m,{role:'system',text:'Không thể lưu lịch: '+(e?.message||'Vui lòng thử lại.')+' Dữ liệu cũ không bị thay thế nếu giao dịch thất bại.'}]);
+   }finally{setSaving(false);}
  }
  async function ask(question){
    const message=String(question||'').trim();
