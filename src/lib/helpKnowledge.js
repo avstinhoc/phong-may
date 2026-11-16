@@ -18,7 +18,7 @@ export const helpTopics = [
       "Chọn đúng trường ở menu trái rồi mở Lịch dạy giáo viên.",
       "Chọn ngày bất kỳ để xem lịch 7 ngày; mỗi buổi hiện giờ bắt đầu, kết thúc, lớp và số tiết thực tế.",
       "Ở phần Tạo buổi học / chấm công, chọn lớp, ngày, giờ bắt đầu/kết thúc, giáo viên phụ trách, số tiết rồi lưu; danh sách buổi dạy có thao tác sửa hoặc xóa.",
-      "Để nhập lịch từ file, mở Nhập lịch từ ảnh, file hoặc chat AI; chọn tệp và khoảng Từ ngày – Đến ngày; chọn Gemini, đồng ý xử lý và nhấn Đọc tệp.",
+      "Để nhập lịch từ ảnh hoặc file, mở Lịch dạy giáo viên → Thêm hoặc điều chỉnh lịch dạy → Ảnh, tệp & AI; chọn tệp và khoảng ngày, đọc, kiểm tra bản nháp rồi xác nhận lưu.",
       "Có thể chat tự nhiên để yêu cầu lọc vài tiết hoặc chọn buổi dạy thay từ lịch giáo viên khác; Trợ lý IC3 AI có chế độ Sửa lịch: yêu cầu thêm/sửa buổi học, AI chuẩn bị bản nháp để giáo viên kiểm tra và bấm Xác nhận lưu lịch; không tự thay đổi dữ liệu.",
       "Kiểm tra từng dòng, trường/lớp, ngày và giờ học, chọn Lặp hằng tuần nếu cần rồi nhấn Xác nhận lưu lịch."
     ],notes:["Lịch của các trường có thể dùng những khung giờ khác nhau.","Lịch nhập từ AI có thể nhận sai; bắt buộc kiểm tra trước khi lưu.","Gemini cần GEMINI_API_KEY trên Vercel và có giới hạn số lượt sử dụng."],
@@ -42,7 +42,7 @@ export const helpTopics = [
       "Mở Đăng ký & duyệt trong nhóm PHÒNG MÁY.",
       "Chỉ hiển thị đăng ký chờ duyệt của các lớp bạn tạo. Nếu bật tự duyệt trong Lớp & mã đăng ký, đăng ký hợp lệ tự thêm vào danh sách chính thức; tên trùng hoặc biệt danh không được duyệt.",
       "Nút Mở trang đăng ký dẫn đến chức năng liên quan đăng ký; quản lý mã và đường dẫn cụ thể tại Lớp & mã đăng ký.",
-      "Nhấn Thêm học sinh nếu cần nhập tay: họ tên, lớp, mã học sinh (nếu có) rồi lưu.",
+      "Nhấn Thêm học sinh để nhập tay, hoặc mở Trợ lý IC3 AI → chọn Nhập danh sách học sinh → chọn lớp chính mình tạo → gửi ảnh/Excel/PDF, chỉnh bản nháp và xác nhận lưu.",
       "Danh sách được sắp xếp họ tên theo A–Z và đánh STT từ 1. Nút Dọn hồ sơ trùng ẩn các hồ sơ trùng khỏi danh sách đang học sau khi xác nhận, không xóa lịch sử điểm, lỗi hoặc điểm danh."
     ],notes:["Mã lớp không còn hiệu lực nếu đã bị Admin ngừng mã đăng ký."],
     keywords:["đăng ký","duyệt","từ chối","thêm học sinh","mã học sinh","hồ sơ chờ","form học sinh","register"]
@@ -54,7 +54,7 @@ export const helpTopics = [
       "Mở Danh sách học sinh, chọn trường và lớp cần xem.",
       "Chọn thẻ Hồ sơ & điểm danh để theo dõi các buổi B1, B2...; ô trống nghĩa là có mặt, bấm ô để đánh dấu vắng và lưu.",
       "Có thể thêm, sửa hoặc xóa buổi học ở phần quản lý buổi của lớp nếu tài khoản được cấp quyền.",
-      "Chuyển sang thẻ Điểm & nhận xét, chọn học sinh và nhập điểm QT, HK, TEST, mô phỏng, xếp loại hoặc nhận xét rồi lưu.",
+      "Chuyển sang thẻ Điểm & nhận xét, chọn học sinh để nhập trực tiếp QT, HK, TEST hoặc mô phỏng. Có thể dùng Trợ lý IC3 AI → Nhập bảng điểm để đọc ảnh/file và cập nhật điểm đã xác minh.",
       "Dùng nút Xuất Excel theo mẫu để lấy bảng đẹp; logo trường được thay tại Trường công tác."
     ],keywords:["danh sách","bảng điểm","qt1","qt2","hk1","test","nhận xét","b1","b2","xuất excel","hồ sơ"]
   },
@@ -162,19 +162,21 @@ export const helpTopics = [
   },
   {
     id:"ai",title:"Trợ lý IC3 AI",roles:["admin","teacher","staff"],
-    summary:"Một khung trò chuyện chung: tự nhận biết hỏi đáp, sửa lịch, tạo/chỉnh ảnh và sửa tệp. Thao tác lưu cần xác nhận.",
+    summary:"Hỏi cách dùng website; đọc ảnh, PDF, Excel hoặc văn bản để lập bản nháp lịch dạy, danh sách học sinh và bảng điểm. Giáo viên phải xác nhận trước khi lưu.",
     steps:[
-      "Nhấn nút Hỏi AI ở góc dưới bên phải để mở Trợ lý IC3 AI.",
-      "Trong Trò chuyện, chỉ cần nhập yêu cầu tự nhiên và gửi ảnh/Excel/PDF/Word/PowerPoint bằng kẹp giấy. AI tự chọn chức năng phù hợp và ảnh hiện ngay trong tin nhắn.",
-      "Nhắn thêm/sửa lịch, đổi giờ, đổi lớp hoặc gửi ảnh thời khóa biểu. AI tự tạo bản nháp tối đa 12 buổi trong trường đang chọn.",
-      "Xem và sửa lại ngày, lớp, giờ, số tiết trong bản nháp rồi nhấn Xác nhận lưu lịch. Trợ lý không tự ghi dữ liệu nếu bạn chưa xác nhận.",
-      "Nhắn tạo/chỉnh ảnh để AI xử lý, có thể gửi ảnh mẫu hoặc chọn Sửa ảnh này. Tạo ảnh từ Google Gemini cần quota/Billing Google; lỗi từ Google không trừ lượt IC3.",
-      "Gửi Excel, CSV, TXT, Word hoặc PDF và yêu cầu sửa. AI đề xuất ô Excel hoặc nội dung mới rồi cho tải tệp đã sửa; không sửa tệp gốc.",
-      "Với Word/PDF hoặc PowerPoint, AI có thể đọc nội dung và xuất bản Word mới nhưng không bảo đảm giữ nguyên bố cục trang cũ.",
-      "Admin có thể nhập yêu cầu đổi tên giáo viên. AI xác định tài khoản từ email/tên trong danh sách, hiển thị thông tin cũ/mới và chỉ đổi sau khi nhấn Xác nhận đổi tên.",
-      "Chạm vào tên chức năng in đậm trong câu trả lời để mở đúng mục web; Hướng dẫn nhanh có sổ tay không tốn lượt AI."
-    ],notes:["Các file và ảnh chỉ được gửi cho Gemini khi người dùng nhấn Gửi.","Tạo ảnh giới hạn 5 lượt/24 giờ và còn phụ thuộc hạn mức model Gemini.","Sửa lịch chỉ hỗ trợ thêm/sửa buổi học; thao tác xóa phải làm trực tiếp trong Lịch dạy giáo viên."],
-    keywords:["ai","chat gpt","hỏi ai","chatbot","trợ lý","tạo ảnh","chỉnh ảnh","gửi file","gửi ảnh","sửa lịch","sửa tệp","sửa excel","sửa word","đổi tên giáo viên"]
+      "Nhấn Hỏi AI ở góc dưới, mở thẻ Trò chuyện. Chọn đúng trường ở menu trái.",
+      "Ở Tác vụ, chọn Tự nhận diện yêu cầu hoặc chọn Nhập danh sách học sinh, Nhập bảng điểm, Thêm/sửa lịch dạy, Chỉ hỏi đáp.",
+      "Khi nhập học sinh/điểm, chọn Lớp của bạn. Chỉ thấy lớp do chính tài khoản giáo viên này tạo ở trường đang chọn.",
+      "Đính kèm ảnh JPG/PNG, PDF, Excel, CSV, TXT hoặc Word bằng biểu tượng kẹp giấy, nhập yêu cầu rõ ràng rồi nhấn Gửi.",
+      "AI đọc từng dòng và tạo BẢN NHÁP: học sinh có họ tên, giới tính, mã HS; điểm có QT, HK, TEST, mô phỏng. AI sẽ cảnh báo tên trùng, điểm ngoài 0–10 và học sinh không khớp.",
+      "Bạn sửa từng dòng, bỏ dòng sai, kiểm tra ảnh nguồn, tick Tôi đã đối chiếu rồi nhấn Xác nhận lưu. Học sinh trùng không được tạo thêm; điểm cũ mặc định không bị ghi đè.",
+      "Đối với lịch dạy, nhờ AI tạo/sửa lịch hoặc gửi ảnh thời khóa biểu; hệ thống tính ngày theo thứ và hiển thị giờ, lớp, số tiết trong bản nháp trước khi xác nhận.",
+      "Nếu AI không đọc chắc chữ hoặc điểm, hãy chụp ảnh rõ hơn hay chia file. AI không có quyền tự lưu hoặc xóa dữ liệu khi chưa được giáo viên xác nhận.",
+      "Với chức năng đổi tên tài khoản giáo viên, chỉ Admin có quyền; AI chỉ đề nghị và cần xác nhận riêng.",
+      "Trong Hướng dẫn nhanh, chọn chức năng để xem các bước mà không cần tốn lượt Gemini."
+    ],
+    notes:["Tệp chỉ gửi tới Gemini khi người dùng nhấn Gửi.","Giáo viên chỉ được nhập vào lớp mình tạo; không nhập danh sách người khác.","Tính năng AI tạo/sửa ảnh và sửa tệp đã được loại khỏi trợ lý."],
+    keywords:["ai","trợ lý","hỏi ai","chatbot","nhập học sinh","danh sách","nhập điểm","bảng điểm","pdf","excel","ảnh","lịch dạy","xác nhận lưu"]
   },
   {
     id:"login",title:"Đăng nhập & xác thực giáo viên",roles:["admin","teacher","staff"],
@@ -204,6 +206,8 @@ export const helpPageTitles=Object.fromEntries(helpTopics.filter(t=>t.id!=="logi
 export const helpQuestions=[
   {title:"Nhập thời khóa biểu bằng ảnh hoặc Excel",page:"attendance",question:"Cách nhập thời khóa biểu bằng ảnh, PDF hoặc Excel và lưu đúng ngày giờ?"},
   {title:"Điểm danh một lớp",page:"rollcall",question:"Hướng dẫn điểm danh học sinh theo buổi và lưu kết quả."},
+  {title:"Nhập học sinh từ ảnh/Excel",page:"students",question:"Cách dùng Trợ lý IC3 AI đọc ảnh hoặc Excel để thêm danh sách học sinh vào lớp của tôi?"},
+  {title:"Nhập bảng điểm từ ảnh/Excel",page:"roster",question:"Cách dùng Trợ lý IC3 AI để cập nhật điểm QT1, QT2, TEST và giữ điểm cũ?"},
   {title:"Gán học sinh vào PC",page:"computers",question:"Làm sao gán học sinh vào máy tính và đổi trạng thái máy?"},
   {title:"Xuất báo cáo Excel/PDF",page:"reports",question:"Hướng dẫn xuất Excel hoặc PDF đẹp để nộp trường, có logo."},
   {title:"Tạo lớp và gửi mã đăng ký",page:"settings",question:"Làm sao tạo mã lớp và gửi liên kết đăng ký cho học sinh?"},
