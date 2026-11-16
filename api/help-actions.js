@@ -1,6 +1,7 @@
 import {mondayOf,addDays,vnToday,planIntent,expandWeekly,weekday,normalizeIntent} from '../src/lib/weekPlanner.js';
 import {createClient} from '@supabase/supabase-js';
 import {officeText} from './officeExtract.js';
+import {isValidSchoolId} from '../src/lib/schoolIds.js';
 
 const error=(res,status,message)=>res.status(status).json({error:message});
 const clean=s=>typeof s==='string'?s.trim():'';
@@ -186,7 +187,7 @@ export default async function handler(req,res){
 
   // Timetable planner: the AI only extracts classes/weekday/time; code determines dates.
   const schoolId=clean(b.schoolId);
-  if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(schoolId))return error(res,400,'Mã trường chưa hợp lệ. Hãy chọn trường trong menu bên trái.');
+  if(!isValidSchoolId(schoolId))return error(res,400,'Mã trường chưa hợp lệ. Hãy chọn trường trong menu bên trái.');
   const {data:school,error:schoolError}=await db.from('schools').select('id,name').eq('id',schoolId).maybeSingle();
   if(schoolError||!school)return error(res,403,'Bạn chưa được cấp quyền trường này.');
   const teacherId=profile.id; // one self-owned calendar; Admin other-calendar view was removed.
