@@ -567,6 +567,8 @@ function Students({ profile, refresh, reload, ping, navigate }) {
   const [approvalBusy,setApprovalBusy]=useState(null);
   const [show, setShow] = useState(false);
   const [search, setSearch] = useState("");
+  const [nameEditing,setNameEditing]=useState(null);
+  const [nameBusy,setNameBusy]=useState(false);
   const [form, setForm] = useState({
     full_name: "", class_name: "", school_name: profile.school_name || "",
     student_code: "", phone: "", date_of_birth:"", status: "active"
@@ -575,13 +577,13 @@ function Students({ profile, refresh, reload, ping, navigate }) {
   const filtered = rows.filter(s=>
     s.status!=="inactive" &&
     `${s.full_name} ${s.class_name} ${s.student_code||""}`.toLowerCase().includes(search.toLowerCase())
-  ).sort((a,b)=>a.full_name.localeCompare(b.full_name,'vi',{sensitivity:'base'})||
+  ).sort((a,b)=>compareStudentName(a,b)||
     String(a.class_name||"").localeCompare(String(b.class_name||""),'vi',{numeric:true}));
   const ownedClasses=schoolClasses.rows.filter(c=>c.created_by===profile.id&&!c.archived_at)
     .sort((a,b)=>a.class_name.localeCompare(b.class_name,'vi',{numeric:true}));
   const ownedClassCodes=new Set(ownedClasses.map(c=>c.registration_code));
   const waiting = registrations.rows.filter(r=>r.status==="pending" && ownedClassCodes.has(r.registration_code))
-    .sort((a,b)=>a.full_name.localeCompare(b.full_name,'vi',{sensitivity:'base'}));
+    .sort((a,b)=>compareStudentName(a,b));
   const suspectStudents=rows.filter(s=>s.status==="active" && s.name_review_status && s.name_review_status!=="allow" &&
     (profile.role==="admin" || ownedClasses.some(c=>c.id===s.class_id)));
 
@@ -645,17 +647,28 @@ function Students({ profile, refresh, reload, ping, navigate }) {
   }
 
   async function rejectSuspect(s){
-    if(!window.confirm("Đưa hồ sơ "+s.full_name+" vào trạng thái Từ chối?\nLịch sử điểm, điểm danh và ghi nhận được giữ nguyên; chỗ ngồi sẽ được giải phóng."))return;
-    const {error}=await supabase.rpc('ic3_reject_suspect_student',{p_student_id:s.id});
-    if(error)ping(error.message);else{ping('Đã chuyển hồ sơ sang trạng thái từ chối và giữ lịch sử.');reload();}
+    if(!window.confirm('Xóa VĨNH VIỄN toàn bộ hồ sơ '+s.full_name+'?\nĐiểm, điểm danh, biên bản và xếp máy liên quan đều bị xóa. Không có cách khôi phục.'))return;
+    if(window.prompt('Nhập XÓA để xóa vĩnh viễn hồ sơ học sinh:')!=='XÓA')return;
+    const {error}=await supabase.rpc('ic3_permanent_delete_flagged_student',{p_student_id:s.id});
+    if(error)ping(error.message);else{ping('Đã xóa vĩnh viễn hồ sơ và dữ liệu học sinh liên quan.');reload();}
   }
 
   async function rejectRegistration(r) {
-    if (!confirm("Từ chối đăng ký của " + r.full_name + "?")) return;
-    const { error } = await supabase.from("student_registrations")
-      .update({ status: "rejected" }).eq("id", r.id);
-    if (error) ping(error.message);
-    else { ping("Đã từ chối đăng ký"); reload(); }
+    if(!window.confirm('Từ chối và xóa vĩnh viễn yêu cầu đăng ký của '+r.full_name+'? Không thể khôi phục.'))return;
+    const {error}=await supabase.rpc('ic3_delete_rejected_registration',{p_registration_id:r.id});
+    if(error)ping(error.message);
+    else{ping('Đã xóa yêu cầu đăng ký.');reload();}
+  }
+
+  async function saveName(e){
+    e.preventDefault();if(!nameEditing||nameBusy)return;
+    setNameBusy(true);
+    const {error}=await supabase.rpc('ic3_update_student_name',{
+      p_student_id:nameEditing.id,p_new_name:properName(nameEditing.full_name)
+    });
+    setNameBusy(false);
+    if(error)ping(error.message);
+    else{setNameEditing(null);ping('Đã sửa tên học sinh.');reload();}
   }
 
   return <>
@@ -699,7 +712,7 @@ function Students({ profile, refresh, reload, ping, navigate }) {
             {r.review_note&&<small className="negative">Cần kiểm tra: {r.review_note}</small>}
           </div>
           <button className="mini-btn success" onClick={() => approveRegistration(r)}>Duyệt</button>
-          <button className="mini-btn danger" onClick={() => rejectRegistration(r)}>Từ chối</button>
+          <button className="mini-btn danger" onClick={() => rejectRegistration(r)}>Từ chối & xóa</button>
         </div>
       ))}
       {!waiting.length && <p className="muted">Chưa có hồ sơ đăng ký trực tuyến chờ duyệt.</p>}
@@ -708,14 +721,15 @@ function Students({ profile, refresh, reload, ping, navigate }) {
     {suspectStudents.length>0&&<section className="panel student-name-review-panel">
       <div className="panel-head"><div>
         <h3>Rà soát tên học sinh đã được duyệt ({suspectStudents.length})</h3>
-        <p>Các hồ sơ này được tạo trước khi bộ lọc tên nâng cấp. Không tự xóa điểm hoặc lịch sử; giáo viên kiểm tra rồi từ chối nếu là tên đùa.</p>
+        <p>Học sinh đăng ký tên không hợp lệ có thể sửa đúng họ tên. Chỉ khi xác nhận từ chối, hệ thống mới xóa vĩnh viễn hồ sơ và dữ liệu liên quan.</p>
       </div></div>
       {suspectStudents.map(st=><div className="task-row" key={st.id}>
         <span className="status pending">{st.name_review_status==="reject"?"Tên không phù hợp":"Cần xác minh"}</span>
         <div className="student-review-details"><b>{st.full_name}</b>
           <small>Lớp {st.class_name} · {st.name_review_reason||"Tên cần kiểm tra"}</small>
         </div>
-        <button className="mini-btn danger" onClick={()=>rejectSuspect(st)}>Từ chối hồ sơ</button>
+        <button className="mini-btn" onClick={()=>setNameEditing({id:st.id,full_name:st.full_name})}>Sửa tên</button>
+        <button className="mini-btn danger" onClick={()=>rejectSuspect(st)}>Từ chối & xóa</button>
       </div>)}
     </section>}
 
@@ -728,7 +742,7 @@ function Students({ profile, refresh, reload, ping, navigate }) {
     <div className="panel table-panel">
       <div className="table-wrap">
         <table>
-          <thead><tr><th>STT</th><th>HỌC SINH (A–Z)</th><th>GIỚI TÍNH</th><th>LỚP</th><th>TRƯỜNG</th><th>TRẠNG THÁI</th><th>THAO TÁC</th></tr></thead>
+          <thead><tr><th>STT</th><th>HỌC SINH (A–Z THEO TÊN)</th><th>GIỚI TÍNH</th><th>LỚP</th><th>TRƯỜNG</th><th>TRẠNG THÁI</th><th>THAO TÁC</th></tr></thead>
           <tbody>
             {filtered.map((s,index) => (
               <tr key={s.id}>
@@ -741,6 +755,7 @@ function Students({ profile, refresh, reload, ping, navigate }) {
                 <td><span className={`status ${s.status === "pending" ? "pending" : "active"}`}>{s.status === "pending" ? "Chờ duyệt" : s.status === "rejected" ? "Từ chối" : "Đang học"}</span></td>
                 <td className="actions">
                   {s.status === "pending" && <button className="mini-btn success" onClick={() => approve(s)}>Duyệt</button>}
+                  <button className="mini-btn" onClick={()=>setNameEditing({id:s.id,full_name:s.full_name})}>Sửa tên</button>
                   <button className="mini-btn danger" onClick={() => remove(s)}><Trash2 size={14} /></button>
                 </td>
               </tr>
@@ -751,6 +766,15 @@ function Students({ profile, refresh, reload, ping, navigate }) {
       </div>
     </div>
 
+    {nameEditing&&<Modal title="Sửa họ và tên học sinh" onClose={()=>setNameEditing(null)}>
+       <form className="form-stack" onSubmit={saveName}>
+         <label>Họ và tên đầy đủ có dấu
+          <input autoFocus required value={nameEditing.full_name} onChange={e=>setNameEditing(v=>({...v,full_name:e.target.value}))}/>
+         </label>
+         <p className="muted">Chỉ thay đổi tên hiển thị, không xóa điểm, điểm danh hoặc mã học sinh.</p>
+         <button className="btn primary" disabled={nameBusy}>{nameBusy?'Đang lưu…':'Lưu tên học sinh'}</button>
+       </form>
+    </Modal>}
     {show && <Modal title="Thêm học sinh" onClose={() => setShow(false)}>
       <form className="form-stack" onSubmit={save}>
         <label>Họ và tên<input required value={form.full_name} onChange={e => setForm({ ...form, full_name: e.target.value })} /></label>
