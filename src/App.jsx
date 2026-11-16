@@ -319,7 +319,7 @@ function AuthScreen({ mode, setMode, ping }) {
         </div>
         {mode==="login"&&<button className="btn outline full" type="button" onClick={()=>{setMode("forgot");setMessage("");}}>Quên mật khẩu?</button>}
         {mode!=="forgot"&&<button className="btn outline full" type="button" disabled={busy || cooldownSeconds > 0} onClick={resend}>{cooldownSeconds > 0 ? `Không gửi lại email trong ${cooldownSeconds}s` : "Gửi lại email xác nhận"}</button>}
-        {mode==="forgot"&&<p className="muted">Chức năng áp dụng cho cả Admin và giáo viên. Email xác thực có thể nằm trong tab Quảng cáo hoặc Thư rác tùy nhà cung cấp.</p>
+        {mode==="forgot"&&<p className="muted">Chức năng áp dụng cho cả Admin và giáo viên. Email xác thực có thể nằm trong tab Quảng cáo hoặc Thư rác tùy nhà cung cấp.</p>}
         <div className="auth-foot">Tài khoản giáo viên mới cần quản trị viên cấp quyền trước khi sử dụng.</div>
       </div>
     </div>
