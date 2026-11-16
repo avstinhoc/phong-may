@@ -578,6 +578,8 @@ function Students({ profile, refresh, reload, ping, navigate }) {
   const ownedClassCodes=new Set(ownedClasses.map(c=>c.registration_code));
   const waiting = registrations.rows.filter(r=>r.status==="pending" && ownedClassCodes.has(r.registration_code))
     .sort((a,b)=>a.full_name.localeCompare(b.full_name,'vi',{sensitivity:'base'}));
+  const suspectStudents=rows.filter(s=>s.status==="active" && s.name_review_status && s.name_review_status!=="allow" &&
+    (profile.role==="admin" || ownedClasses.some(c=>c.id===s.class_id)));
 
   async function save(e) {
     e.preventDefault();
@@ -632,6 +634,12 @@ function Students({ profile, refresh, reload, ping, navigate }) {
     else{ping('Đã ẩn '+data.archived+' hồ sơ trùng trong '+data.groups+' nhóm, giữ nguyên lịch sử.');reload();}
   }
 
+  async function rejectSuspect(s){
+    if(!window.confirm("Đưa hồ sơ "+s.full_name+" vào trạng thái Từ chối?\nLịch sử điểm, điểm danh và ghi nhận được giữ nguyên; chỗ ngồi sẽ được giải phóng."))return;
+    const {error}=await supabase.rpc('ic3_reject_suspect_student',{p_student_id:s.id});
+    if(error)ping(error.message);else{ping('Đã chuyển hồ sơ sang trạng thái từ chối và giữ lịch sử.');reload();}
+  }
+
   async function rejectRegistration(r) {
     if (!confirm("Từ chối đăng ký của " + r.full_name + "?")) return;
     const { error } = await supabase.from("student_registrations")
@@ -678,6 +686,7 @@ function Students({ profile, refresh, reload, ping, navigate }) {
           <div>
             <b>{r.full_name}</b>
             <small>Mã lớp: {r.registration_code} · {r.gender||"Chưa có giới tính"} · Máy mong muốn: {r.computer_code||"Chưa chọn"}</small>
+            {r.review_note&&<small className="negative">Cần kiểm tra: {r.review_note}</small>}
           </div>
           <button className="mini-btn success" onClick={() => approveRegistration(r)}>Duyệt</button>
           <button className="mini-btn danger" onClick={() => rejectRegistration(r)}>Từ chối</button>
@@ -685,6 +694,20 @@ function Students({ profile, refresh, reload, ping, navigate }) {
       ))}
       {!waiting.length && <p className="muted">Chưa có hồ sơ đăng ký trực tuyến chờ duyệt.</p>}
     </div>
+
+    {suspectStudents.length>0&&<section className="panel student-name-review-panel">
+      <div className="panel-head"><div>
+        <h3>Rà soát tên học sinh đã được duyệt ({suspectStudents.length})</h3>
+        <p>Các hồ sơ này được tạo trước khi bộ lọc tên nâng cấp. Không tự xóa điểm hoặc lịch sử; giáo viên kiểm tra rồi từ chối nếu là tên đùa.</p>
+      </div></div>
+      {suspectStudents.map(st=><div className="task-row" key={st.id}>
+        <span className="status pending">{st.name_review_status==="reject"?"Tên không phù hợp":"Cần xác minh"}</span>
+        <div className="student-review-details"><b>{st.full_name}</b>
+          <small>Lớp {st.class_name} · {st.name_review_reason||"Tên cần kiểm tra"}</small>
+        </div>
+        <button className="mini-btn danger" onClick={()=>rejectSuspect(st)}>Từ chối hồ sơ</button>
+      </div>)}
+    </section>}
 
     <div className="toolbar">
       <div className="searchbox"><Search size={17} /><input placeholder="Tìm tên, lớp, mã học sinh..." value={search} onChange={e => setSearch(e.target.value)} /></div>
@@ -700,7 +723,8 @@ function Students({ profile, refresh, reload, ping, navigate }) {
             {filtered.map((s,index) => (
               <tr key={s.id}>
                 <td>{index+1}</td>
-                <td><b>{s.full_name}</b></td>
+                <td><b>{s.full_name}</b>{s.name_review_status!=="allow"&&s.name_review_status&&
+                  <small className="negative">Cần rà soát tên</small>}</td>
                 <td>{s.gender||"—"}</td>
                 <td>{s.class_name || "—"}</td>
                 <td>{s.school_name || "—"}</td>
