@@ -711,6 +711,8 @@ function Computers({ profile, refresh, reload, ping }) {
     <div className="computer-grid">
       {[...rows].sort((a,b)=>comparePC(a.computer_code,b.computer_code)).map(c => {
         const users = classAssignments.filter(a => a.computer_id === c.id && a.active);
+        const machineViolationCount=users.reduce((total,a)=>
+          total+records.rows.filter(r=>r.student_id===a.student_id&&r.record_type==="violation").length,0);
         return (
           <div className={`computer-card ${["maintenance","broken"].includes(c.status) ? "maintenance" : users.length ? "occupied" : ""}`} key={c.id}>
             <div className="pc-top">
@@ -723,11 +725,19 @@ function Computers({ profile, refresh, reload, ping }) {
             <p>{c.location || "Chưa phân khu"}</p>
             <small>Sức chứa: {users.length}/{c.capacity || 2} học sinh</small>
             <div className="pc-users">
+              {className&&machineViolationCount>0&&<div className="pc-violation-summary">
+                <span className="pc-violation-badge">{machineViolationCount} lỗi</span>
+                {users.map(a=>{
+                  const count=records.rows.filter(r=>r.student_id===a.student_id&&r.record_type==="violation").length;
+                  const full=students.rows.find(st=>st.id===a.student_id)?.full_name||"Học sinh";
+                  return count?<small key={a.student_id}>{full.trim().split(/\s+/).slice(-2).join(" ")}: {count} lỗi</small>:null;
+                })}
+              </div>}
               {users.length ? users.map(a => (
                 <div className="pc-user-row" key={a.id}>
                   <span>• {(students.rows.find(s => s.id === a.student_id)?.full_name || "Học sinh").trim().split(/\s+/).slice(-2).join(" ")}</span>
                   <button className="mini-btn danger" onClick={() => release(a)}>Gỡ</button>
-                  {records.rows.filter(r=>r.student_id===a.student_id && r.record_type==="violation").map(r=><small className="negative" key={r.id}>{r.title}{r.note ? `: ${r.note}` : ""}</small>)}
+                  {records.rows.filter(r=>r.student_id===a.student_id && r.record_type==="violation").slice(-3).map(r=><small className="negative" key={r.id}>{r.title}</small>)}
                 </div>
               )) : <span>Chưa có học sinh</span>}
             </div>
