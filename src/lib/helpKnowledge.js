@@ -60,12 +60,14 @@ export const helpTopics = [
   },
   {
     id:"records",title:"Điểm, lỗi & thưởng",roles:["admin","teacher","staff"],
-    summary:"Ghi nhận điểm thực hành, thưởng, lỗi/vi phạm theo học sinh và ngày.",
+    summary:"Ghi điểm và vi phạm theo từng lớp; xem số lỗi trên máy, chờ xác nhận biên bản khi đủ 3 hoặc 4 lần.",
     steps:[
       "Mở Điểm, lỗi & thưởng.",
-      "Chọn học sinh, loại ghi nhận (Điểm / Thưởng / Vi phạm), tiêu đề, điểm số, ngày và ghi chú.",
-      "Lưu ghi nhận; xem danh sách bên dưới để theo dõi lịch sử.",
-      "Các ghi nhận được tổng hợp trong mục Đánh giá học sinh."
+      "Chọn Lọc theo lớp và Lọc học sinh để thao tác đúng danh sách.",
+      "Để ghi lỗi, chọn Lỗi / vi phạm và ghi Nhắc 1, 1 Lỗi hoặc nội dung tùy chọn, rồi nhấn Lưu ghi nhận.",
+      "Chọn ngưỡng 3 hoặc 4 lần vi phạm ở ô Ngưỡng lập biên bản. Đủ số lần sẽ tạo biên bản nháp.",
+      "Trong Biên bản vi phạm, giáo viên ghi ý kiến rồi chọn Xác nhận biên bản; có thể In biên bản để nộp trường.",
+      "Sơ đồ Phòng máy của giáo viên và trang học sinh theo mã lớp sẽ hiện tổng số lỗi tại từng máy, không công khai nội dung biên bản."
     ],keywords:["điểm","thưởng","lỗi","vi phạm","ghi nhận","nội quy"]
   },
   {
@@ -160,14 +162,14 @@ export const helpTopics = [
   },
   {
     id:"ai",title:"Trợ lý IC3 AI",roles:["admin","teacher","staff"],
-    summary:"Hỏi đáp website, gửi ảnh thu nhỏ trong hội thoại, tạo/chỉnh ảnh, chỉnh Excel/Word/văn bản rồi tải tệp mới; lập kế hoạch sửa lịch với xác nhận.",
+    summary:"Một khung trò chuyện chung: tự nhận biết hỏi đáp, sửa lịch, tạo/chỉnh ảnh và sửa tệp. Thao tác lưu cần xác nhận.",
     steps:[
       "Nhấn nút Hỏi AI ở góc dưới bên phải để mở Trợ lý IC3 AI.",
-      "Trong Trò chuyện, chọn Hỏi đáp để hỏi cách dùng website, gửi ảnh/Excel/PDF/Word/PowerPoint bằng biểu tượng kẹp giấy rồi nhấn Gửi. Ảnh hiển thị ngay trong tin nhắn.",
-      "Chọn Sửa lịch để mô tả muốn thêm buổi học, đổi giờ, đổi lớp hoặc gửi ảnh thời khóa biểu. AI tạo bản nháp tối đa 12 buổi trong đúng trường đang chọn.",
+      "Trong Trò chuyện, chỉ cần nhập yêu cầu tự nhiên và gửi ảnh/Excel/PDF/Word/PowerPoint bằng kẹp giấy. AI tự chọn chức năng phù hợp và ảnh hiện ngay trong tin nhắn.",
+      "Nhắn thêm/sửa lịch, đổi giờ, đổi lớp hoặc gửi ảnh thời khóa biểu. AI tự tạo bản nháp tối đa 12 buổi trong trường đang chọn.",
       "Xem và sửa lại ngày, lớp, giờ, số tiết trong bản nháp rồi nhấn Xác nhận lưu lịch. Trợ lý không tự ghi dữ liệu nếu bạn chưa xác nhận.",
-      "Chọn Tạo / sửa ảnh, nhập mô tả rồi bấm Gửi để tạo ảnh; có thể gửi ảnh mẫu để chỉnh hoặc bấm Sửa ảnh này ở ảnh AI vừa tạo. Nhấn Lưu ảnh để tải về.",
-      "Chọn Sửa tệp, đính kèm Excel, CSV, TXT, Word hoặc PDF rồi yêu cầu chỉnh nội dung. Kiểm tra các ô Excel được đề xuất trước khi nhấn Tải tệp đã sửa. File tải về là bản mới, không sửa file gốc.",
+      "Nhắn tạo/chỉnh ảnh để AI xử lý, có thể gửi ảnh mẫu hoặc chọn Sửa ảnh này. Tạo ảnh từ Google Gemini cần quota/Billing Google; lỗi từ Google không trừ lượt IC3.",
+      "Gửi Excel, CSV, TXT, Word hoặc PDF và yêu cầu sửa. AI đề xuất ô Excel hoặc nội dung mới rồi cho tải tệp đã sửa; không sửa tệp gốc.",
       "Với Word/PDF hoặc PowerPoint, AI có thể đọc nội dung và xuất bản Word mới nhưng không bảo đảm giữ nguyên bố cục trang cũ.",
       "Admin có thể nhập yêu cầu đổi tên giáo viên. AI xác định tài khoản từ email/tên trong danh sách, hiển thị thông tin cũ/mới và chỉ đổi sau khi nhấn Xác nhận đổi tên.",
       "Chạm vào tên chức năng in đậm trong câu trả lời để mở đúng mục web; Hướng dẫn nhanh có sổ tay không tốn lượt AI."
@@ -176,12 +178,13 @@ export const helpTopics = [
   },
   {
     id:"login",title:"Đăng nhập & xác thực giáo viên",roles:["admin","teacher","staff"],
-    summary:"Giáo viên đăng ký bằng email, xác thực thư rồi chờ Admin duyệt.",
+    summary:"Giáo viên đăng ký/xác thực email, Admin duyệt; cả giáo viên và Admin đều có chức năng Quên mật khẩu.",
     steps:[
       "Ở trang chủ khi chưa đăng nhập, chọn Đăng ký tài khoản giáo viên, nhập họ tên, email và mật khẩu.",
-      "Kiểm tra hộp thư Gmail (cả Spam), nhấn link xác thực và quay lại website đăng nhập.",
+      "Kiểm tra Hộp thư đến, Quảng cáo và Thư rác, nhấn link xác thực và quay lại website đăng nhập.",
       "Nếu không có email hoặc bị lỗi 429, tránh bấm gửi liên tục; Admin kiểm tra SMTP ở Supabase hoặc dùng Gửi lại email xác nhận khi hết giới hạn.",
-      "Đăng nhập, sau đó chờ Admin duyệt tại Quản lý tài khoản. Khi được duyệt, tài khoản mới truy cập các chức năng giáo viên."
+      "Nếu quên mật khẩu, ở Đăng nhập chọn Quên mật khẩu, nhập email; mở email đặt lại mật khẩu và nhập mật khẩu mới tối thiểu 8 ký tự.",
+      "Đăng nhập, sau đó chờ Admin duyệt tại Quản lý tài khoản. Khi được duyệt, tài khoản mới truy cập chức năng giáo viên."
     ],keywords:["đăng nhập","đăng ký giáo viên","email","xác thực","quên mật khẩu","429","smtp"]
   },
   {
