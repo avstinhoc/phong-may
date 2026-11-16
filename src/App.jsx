@@ -158,8 +158,8 @@ function App() {
         </div>
         <nav className="nav-scroll" aria-label="Menu chính">
           {[["GIẢNG DẠY", ["dashboard", "attendance", "rollcall", "roster", "records", "evaluation"]],
-            ["PHÒNG MÁY", ["computers", "students", "cleaning"]],
-            ["QUẢN LÝ", ["schools", "settings", "teacherSchedules", "finance", "reports", "accounts"]]].map(([group, ids]) => <React.Fragment key={group}>
+            ["PHÒNG MÁY", ["computers", "students", "cleaning", "settings"]],
+            ["QUẢN LÝ", ["schools", "teacherSchedules", "finance", "reports", "accounts"]]].map(([group, ids]) => <React.Fragment key={group}>
             <div className="nav-label">{group}</div>
             {ids.map(id => nav.find(n => n[0] === id)).filter(([id]) => !["accounts","teacherSchedules"].includes(id) || profile.role === "admin").map(([id,label,Icon]) => <button key={id} className={`nav-item ${page === id ? "active" : ""}`} onClick={()=>{setPage(id);setMobileNav(false);}}><Icon size={18}/>{label}</button>)}
           </React.Fragment>)}

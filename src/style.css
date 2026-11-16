@@ -446,3 +446,10 @@
 .help-panel .help-chat-scroll{flex:1;min-height:0}
 .help-panel .help-composer{border-top:1px solid #e3eced}
 .help-panel .help-composer textarea{font-size:12px;line-height:1.6}
+
+/* Admin school roster replaces logo controls with a compact, readable list. */
+.school-assigned-teachers{display:flex;align-items:flex-start;flex-wrap:wrap;gap:6px;min-width:200px;max-width:630px}
+.school-teacher-name{display:inline-flex;align-items:center;padding:6px 10px;border-radius:8px;
+  background:#eaf6f3;border:1px solid #cee9e4;color:#1b6864;font-weight:700;font-size:11px;line-height:1.35}
+.school-assigned-teachers .muted,.school-assigned-teachers .negative{font-size:11px;line-height:1.6}
+@media(max-width:640px){.school-assigned-teachers{min-width:150px;max-width:none}}
