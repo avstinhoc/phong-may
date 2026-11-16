@@ -38,12 +38,12 @@ export function validateExtractedRows(kind,items,{limit=120}={}){
     const normalized=normalizeScoreKey(key);
     if(!normalized){warnings.push('Dòng '+(i+1)+': cột '+key+' không được nhận diện');continue;}
     const num=typeof value==='number'?value:Number(String(value||'').replace(',','.'));
-    if(!Number.isFinite(num)||num<0||num>10||Math.round(num*100)!==num*100){
+    if(!Number.isFinite(num)||num<0||num>10||Math.abs(Math.round(num*100)-num*100)>1e-7){
       warnings.push('Dòng '+(i+1)+': điểm '+normalized+' không hợp lệ (0–10)');continue;
     }
     scores[normalized]=num;
    }
-   if(!Object.keys(scores).length){warnings.push('Dòng '+(i+1)+': '+full_name+' chưa có điểm hợp lệ');continue;}
+   if(!Object.keys(scores).length){warnings.push('Dòng '+(i+1)+': '+full_name+' chưa có điểm hợp lệ');return;}
    rows.push({full_name,scores});
   }
  });
