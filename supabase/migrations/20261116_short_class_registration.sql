@@ -53,6 +53,7 @@ BEGIN
  FOR rec IN
  SELECT c.id,c.school_id,c.class_name,c.registration_code
  FROM public.classes c
+ WHERE c.archived_at IS NULL
  ORDER BY CASE WHEN c.registration_code='IC3-DA2FE7F3-F372-4FE6-97FE-5B112E15F4FB' THEN 0 ELSE 1 END,
           c.created_at,c.id
  LOOP
