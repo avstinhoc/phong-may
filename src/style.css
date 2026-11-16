@@ -641,3 +641,58 @@
 .timetable-import-embedded .import-footer .btn{min-height:40px;font-size:12px}
 @media(max-width:1050px){.timetable-steps{grid-template-columns:1fr}.timetable-import-embedded .import-controls{grid-template-columns:repeat(2,minmax(0,1fr))}.timetable-import-embedded .import-controls label:first-child{grid-column:1/-1}}
 @media(max-width:660px){.timetable-upload-intro{grid-template-columns:36px minmax(0,1fr);padding:14px;gap:10px}.timetable-intro-icon{width:36px;height:36px}.timetable-upload-intro>span{grid-column:1/-1;max-width:none;text-align:left;justify-self:start}.timetable-chat{padding:13px}.timetable-chat .chat-form{grid-template-columns:1fr}.timetable-chat .chat-form .btn{height:43px}.timetable-chat .chat-bubble{max-width:100%}.timetable-file-card{padding:12px}.timetable-import-embedded .import-controls{grid-template-columns:1fr}.timetable-import-embedded .import-controls label:first-child{grid-column:auto}.timetable-section-heading{align-items:flex-start}.timetable-file-card .import-action-row label{width:100%}.timetable-file-card .import-action-row .btn{width:100%}.timetable-import-embedded .timetable-status{flex-direction:column;gap:4px}.timetable-import-embedded .import-footer{align-items:stretch}.timetable-import-embedded .import-footer .btn{width:100%}}
+
+
+/* Workplaces: companies and learning centers with linked schools */
+.workplace-manager{--wk-stroke:#dce9eb;--wk-text:#163f4d;--wk-teal:#0b897e;display:grid;gap:16px;min-width:0}
+.workplace-manager :is(input,select,button){font:inherit;min-width:0}
+.workplace-hero{border:1px solid #d0e9e4;background:linear-gradient(108deg,#e9f8f4,#f7fbfd);border-radius:17px;padding:23px;display:flex;align-items:center;gap:15px}
+.workplace-hero-mark{background:#cceee7;color:#0a7b72;border-radius:14px;display:grid;place-items:center;flex:none;width:52px;height:52px}
+.workplace-hero h2{color:#124353;font-size:21px;margin:0 0 7px;line-height:1.4}
+.workplace-hero p{font-size:12px;color:#62818b;margin:0;line-height:1.7}
+.workplace-create{padding:19px 21px;margin:0!important}
+.workplace-create h3{font-size:16px;line-height:1.5;margin:0 0 4px}
+.workplace-create .muted{margin:0 0 15px}
+.workplace-create-form{display:grid;grid-template-columns:minmax(150px,.7fr) minmax(200px,1.8fr) auto;align-items:end;gap:14px}
+.workplace-manager :is(.workplace-create-form,.workplace-school-add) label{display:flex;flex-direction:column;gap:8px;min-width:0;font-size:12px;font-weight:700;color:#456673;line-height:1.5}
+.workplace-manager :is(input,select){width:100%;border:1px solid #d2e2e5;border-radius:10px;background:#fff;padding:10px 12px;min-height:43px;font-size:12px;color:#214553}
+.workplace-manager :is(input,select):focus-visible{outline:2px solid #0d9a8a;outline-offset:2px}
+.workplace-create-form .btn{min-height:43px;white-space:nowrap;font-size:12px}
+.workplace-list-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.workplace-list-heading h3{margin:0;color:#1d4652;font-size:16px}
+.workplace-list-heading span{font-size:12px;color:#73909a}
+.workplace-empty{margin:0!important;padding:30px;display:flex;align-items:center;gap:10px;flex-direction:column;text-align:center;background:#fbfefe;color:#218578}
+.workplace-empty strong{font-size:14px;color:#244b56}
+.workplace-empty p{max-width:520px;color:#708c96;font-size:12px;line-height:1.7;margin:0}
+.workplace-card-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;min-width:0}
+.workplace-card{margin:0!important;padding:20px;min-width:0;border:1px solid var(--wk-stroke)!important;border-radius:16px!important;display:flex;flex-direction:column;gap:14px}
+.workplace-card-heading{display:flex;align-items:center;gap:12px;min-width:0}
+.workplace-logo{width:55px;height:55px;display:grid;place-items:center;flex:none;color:#117e71;background:#e0f5f0;border:1px solid #d2eee7;border-radius:13px;overflow:hidden}
+.workplace-logo img{width:100%;height:100%;object-fit:contain}
+.workplace-card-title{flex:1;min-width:0}
+.workplace-card-title small{display:block;color:#708b95;font-size:10px;margin-bottom:3px}
+.workplace-card-title h3{font-size:16px;margin:0 0 4px;color:#1b4551;overflow-wrap:anywhere;line-height:1.5}
+.workplace-card-title>span{display:block;color:#0f8b7d;font-size:11px;font-weight:700}
+.workplace-card-actions{display:flex;gap:6px;flex-shrink:0}
+.workplace-card-actions .mini-btn{min-height:34px}
+.workplace-logo-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.workplace-logo-actions label{cursor:pointer}
+.workplace-logo-actions .mini-btn{display:inline-flex;align-items:center;gap:5px}
+.workplace-schools-heading{display:flex;align-items:center;gap:9px;padding-top:13px;border-top:1px solid #e9f0f1;font-size:13px;color:#214b55}
+.workplace-schools{display:grid;gap:8px;min-width:0}
+.workplace-school-row{display:flex;align-items:center;justify-content:space-between;gap:8px;border:1px solid #e2ebed;border-radius:10px;background:#f9fcfc;padding:10px;min-width:0}
+.workplace-school-row>span{display:flex;align-items:center;gap:8px;color:#224b55;font-size:12px;font-weight:650;min-width:0;overflow-wrap:anywhere}
+.workplace-school-row>span svg{flex:none;color:#0f8f81}
+.workplace-school-row button{flex:none;white-space:nowrap}
+.workplace-schools>.muted{padding:6px;font-size:12px;margin:0}
+.workplace-school-add{display:grid;gap:13px;border-top:1px solid #e8eff0;padding-top:13px;margin-top:auto}
+.workplace-attach-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:9px;align-items:center}
+.workplace-attach-row .btn{min-height:43px;padding:0 13px;white-space:nowrap;font-size:11px}
+.workplace-safe-note{display:flex;align-items:flex-start;gap:10px;margin:0;background:#f0faf7;color:#3b6c68;border:1px solid #cfece2;border-radius:12px;padding:13px 15px;font-size:12px;line-height:1.65}
+.workplace-safe-note svg{flex:none;margin-top:1px}
+.workplace-manager>.btn{justify-self:start}
+.school-workplace-tags{display:flex;gap:6px;align-items:center;flex-wrap:wrap;max-width:100%}
+.school-workplace-tag{display:inline-flex;align-items:center;padding:5px 8px;border-radius:8px;background:#e8f6f2;border:1px solid #c7e8df;color:#087a6c;font-size:11px;line-height:1.4;overflow-wrap:anywhere}
+.class-management td code{display:inline-block;max-width:100%;overflow-wrap:anywhere;border-radius:8px;background:#f0f7f8;padding:7px 9px;color:#196080;font-size:11px}
+@media(max-width:1060px){.workplace-card-grid{grid-template-columns:1fr}}
+@media(max-width:760px){.workplace-create-form{grid-template-columns:1fr}.workplace-hero{padding:17px}.workplace-hero h2{font-size:18px}.workplace-card{padding:14px}.workplace-card-heading{flex-wrap:wrap}.workplace-card-actions{width:100%;justify-content:flex-end}.workplace-attach-row{grid-template-columns:1fr}.workplace-attach-row .btn{width:100%}.workplace-school-row{align-items:flex-start;flex-wrap:wrap}.workplace-school-row button{margin-left:auto}}
