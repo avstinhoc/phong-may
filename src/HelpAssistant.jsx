@@ -75,8 +75,10 @@ const detectMode=(question,attached)=>{
  const q=normalize(question);
  if(/^(cach|huong dan|lam sao|cho toi biet|hoi|tai sao|vi sao)\b/.test(q))return 'chat';
  if(/(doi|sua|chinh sua|cap nhat|dat lai|thay).{0,18}ten.{0,14}(giao vien|tai khoan)/.test(q))return 'account';
- if(/(them|tao|sua|doi|doi gio|doi ngay|dieu chinh|chinh|lap|cap nhat|day thay|doi tiet|xep|nhap).{0,75}(lich|buoi hoc|thoi khoa bieu|tiet day)/.test(q)||
-    /(lich|thoi khoa bieu|buoi hoc|tiet day).{0,75}(them|tao|sua|doi|chinh|xep|cap nhat|nhap)/.test(q))return 'schedule';
+ const schedule=/(lich|thoi khoa bieu|tkb|tiet day|buoi hoc)/.test(q);
+ const action=/(them|tao|sua|doi|chinh|nhap|doc|lap|xep|cap nhat|thay the|thay lich|ghi de|xoa lich cu|ap dung|dua len|thay moi|thay vao|day thay|tinh tu|bat dau tu|tu thu|dan vao|sao chep)/.test(q);
+ if(schedule&&action)return 'schedule';
+ if(attached&&schedule)return 'schedule';
  return 'chat';
 };
 
@@ -87,6 +89,8 @@ export function HelpAssistant({profile,page,onNavigate,onSaved,scheduleTeacher=n
  const [messages,setMessages]=useState([]),[pending,setPending]=useState(false),[saving,setSaving]=useState(false);
  const [query,setQuery]=useState(''),[expanded,setExpanded]=useState(page||'dashboard');
  const [draft,setDraft]=useState(null),[lightbox,setLightbox]=useState(null);
+ const [showAllDraft,setShowAllDraft]=useState(false),[partialAck,setPartialAck]=useState(false);
+ const previousScheduleFile=useRef(null);
  const fileInput=useRef(null),chatEnd=useRef(null),inputRef=useRef(null),urls=useRef(new Set());
  const topics=useMemo(()=>visibleHelpTopics(profile.role),[profile.role]);
  useEffect(()=>{
@@ -119,60 +123,103 @@ export function HelpAssistant({profile,page,onNavigate,onSaved,scheduleTeacher=n
  }
  function newChat(){
    for(const u of urls.current)URL.revokeObjectURL(u);
-   urls.current.clear();setMessages([]);setDraft(null);clearFile();setText('');setMode('chat');setLightbox(null);
+   urls.current.clear();previousScheduleFile.current=null;setMessages([]);setDraft(null);clearFile();setText('');setMode('chat');setLightbox(null);
  }
  const updateDraft=(i,key,value)=>setDraft(prev=>prev?{...prev,items:prev.items.map((r,j)=>i===j?{...r,[key]:value}:r)}:null);
  async function saveDraft(){
    if(!draft?.items?.length||saving)return;
    if(!profile.school_id||profile.school_id!==draft.schoolId){
-     setMessages(m=>[...m,{role:'system',text:'Bạn đã chuyển trường. Hãy quay lại trường của bản nháp trước khi lưu.'}]);return;
+     setMessages(m=>[...m,{role:'system',text:'Bạn đã đổi trường. Quay lại đúng trường của bản nháp rồi lưu.'}]);return;
+   }
+   if(draft.teacherId!==profile.id){
+     setMessages(m=>[...m,{role:'system',text:'Chức năng chỉ cho phép sửa lịch của tài khoản đang đăng nhập.'}]);return;
+   }
+   if(draft.warnings?.length&&!partialAck){
+     setMessages(m=>[...m,{role:'system',text:'Bản nháp có những ô chưa chắc chắn. Hãy kiểm tra và xác nhận đã rà soát cảnh báo trước khi lưu.'}]);return;
    }
    for(const row of draft.items){
      if(!String(row.class_name||'').trim()||!isDate(row.session_date)||
         !isClock(row.start_time)||!isClock(row.end_time)||
         mins(row.start_time)>=mins(row.end_time)||!Number.isInteger(Number(row.period_count))||
         Number(row.period_count)<1||Number(row.period_count)>20){
-       setMessages(m=>[...m,{role:'system',text:'Bản nháp còn thiếu lớp/ngày/giờ hoặc số tiết. Hãy chỉnh lại trước khi lưu.'}]);return;
+       setMessages(m=>[...m,{role:'system',text:'Bản nháp thiếu lớp, ngày, giờ hoặc số tiết. Chỉnh từng ô trước khi lưu.'}]);return;
      }
    }
-   if(draft.teacherId!==profile.id&&profile.role!=='admin'){
-     setMessages(m=>[...m,{role:'system',text:'Chỉ Admin được thêm lịch cho tài khoản giáo viên khác.'}]);return;
+   const overlaps=new Set();
+   for(let i=0;i<draft.items.length;i++)for(let j=i+1;j<draft.items.length;j++){
+     const a=draft.items[i],b=draft.items[j];
+     if(a.session_date===b.session_date&&a.start_time<b.end_time&&a.end_time>b.start_time)
+       overlaps.add(a.session_date+' '+a.start_time+' / '+b.start_time);
    }
-   if(!window.confirm('Xác nhận lưu '+draft.items.length+' buổi cho '+draft.teacherName+' tại '+draft.schoolName+'? Các buổi Sửa sẽ thay đổi lịch đã có.'))return;
+   if(overlaps.size){
+     setMessages(m=>[...m,{role:'system',text:'Bản nháp bị chồng giờ cùng ngày: '+[...overlaps].slice(0,4).join(', ')+'. Hãy sửa trước khi lưu.'}]);return;
+   }
+   const replacing=Boolean(draft.replaceScope);
+   if(replacing&&(draft.items.some(x=>x.operation!=='create')||draft.warnings?.length)){
+     setMessages(m=>[...m,{role:'system',text:'Không thể thay lịch cũ khi còn đề xuất sửa buổi riêng lẻ hoặc cảnh báo chưa rõ.'}]);return;
+   }
+   if(replacing){
+     const ok=window.confirm('THAY THẾ TOÀN BỘ lịch dạy cá nhân tại '+draft.schoolName+
+       ' từ '+draft.replaceScope.start+' đến '+draft.replaceScope.end+'?\n\n'+
+       'Lịch cũ trong khoảng này và dữ liệu điểm danh của các buổi bị xóa sẽ MẤT VĨNH VIỄN. '+draft.items.length+' buổi mới sẽ được tạo.');
+     if(!ok||window.prompt('Nhập THAY THẾ để xác nhận xóa lịch cũ và ghi lịch mới:')!=='THAY THẾ')return;
+   }else if(!window.confirm('Lưu '+draft.items.length+' buổi dạy đã kiểm tra tại '+draft.schoolName+'?'))return;
    setSaving(true);
-   let saved=0,failures=[];
-   for(const row of draft.items){
-     const payload={class_name:row.class_name.trim(),session_date:row.session_date,start_time:row.start_time,
-       end_time:row.end_time,period_count:Number(row.period_count)};
-     try{
-       if(row.operation==='edit'){
-         if(!row.target_id||!row.original)throw Error('Không xác định được buổi gốc để sửa.');
-         const old=row.original;
-         const {data,error}=await supabase.from('class_sessions').update(payload)
-           .eq('id',row.target_id).eq('school_id',draft.schoolId)
-           .eq('session_date',old.session_date).eq('start_time',old.start_time).eq('end_time',old.end_time).eq('class_name',old.class_name).select('id');
-         if(error)throw error;
-         if(!data?.length)throw Error('Buổi này đã thay đổi hoặc không còn quyền sửa. Tải lại lịch rồi thử lại.');
-       }else{
-         const {error}=await supabase.from('class_sessions').insert({...payload,
-           school_id:draft.schoolId,teacher_id:draft.teacherId||profile.id,
-           teacher_name:draft.teacherName||profile.full_name||'',created_by:profile.id});
-         if(error)throw error;
+   let saved=0,deleted=0,failures=[];
+   try{
+     const items=draft.items.map(r=>({class_name:r.class_name.trim(),session_date:r.session_date,
+       start_time:r.start_time,end_time:r.end_time,period_count:Number(r.period_count),
+       school_name:draft.schoolName}));
+     if(replacing){
+       const {data,error}=await supabase.rpc('ic3_replace_own_timetable',{
+         p_school_id:draft.schoolId,p_start_date:draft.replaceScope.start,
+         p_end_date:draft.replaceScope.end,p_items:items});
+       if(error)throw error;
+       saved=data?.created||0;deleted=data?.deleted||0;
+     }else if(draft.items.every(r=>r.operation==='create')){
+       const {data,error}=await supabase.rpc('import_timetable',{items});
+       if(error)throw error;
+       saved=data?.created||0;
+     }else{
+       for(const row of draft.items){
+         const payload={class_name:row.class_name.trim(),session_date:row.session_date,
+           start_time:row.start_time,end_time:row.end_time,period_count:Number(row.period_count)};
+         try{
+           if(row.operation==='edit'){
+             if(!row.target_id||!row.original)throw Error('Không xác định được lịch cần sửa.');
+             const original=row.original;
+             const {data,error}=await supabase.from('class_sessions').update(payload)
+               .eq('id',row.target_id).eq('school_id',draft.schoolId)
+               .eq('session_date',original.session_date).eq('start_time',original.start_time)
+               .eq('end_time',original.end_time).eq('class_name',original.class_name).select('id');
+             if(error)throw error;
+             if(!data?.length)throw Error('Lịch gốc đã thay đổi hoặc không đủ quyền.');
+           }else{
+             const {error}=await supabase.from('class_sessions').insert({...payload,
+               school_id:draft.schoolId,teacher_id:profile.id,
+               teacher_name:profile.full_name||'',created_by:profile.id});
+             if(error)throw error;
+           }
+           saved++;
+         }catch(e){failures.push(row.class_name+' '+row.session_date+': '+e.message);}
        }
-       saved++;
-     }catch(e){failures.push((row.class_name||'Lớp')+' '+row.session_date+': '+e.message);}
-   }
-   setSaving(false);
-   setMessages(m=>[...m,{role:'assistant',text:saved?'**Đã lưu '+saved+' buổi học** tại '+draft.schoolName+'.'+(failures.length?' Có '+failures.length+' buổi chưa lưu.':''):'Chưa lưu được buổi học nào.'},...(failures.length?[{role:'system',text:failures.join('\n')}]:[])]);
-   if(saved)onSaved?.();
-   if(!failures.length)setDraft(null);
-   else setDraft(prev=>prev?{...prev,items:prev.items.filter(r=>failures.some(f=>f.startsWith((r.class_name||'Lớp')+' '+r.session_date+':')))}:null);
+     }
+     setMessages(m=>[...m,{role:'assistant',text:
+       '**Đã lưu '+saved+' buổi học.** '+(deleted?'Đã thay thế '+deleted+' buổi cũ trong khoảng chọn. ':'')+
+       (failures.length?'Có '+failures.length+' buổi chưa lưu.':'Lịch đã đồng bộ theo tài khoản của bạn.')}]);
+     if(saved||deleted)onSaved?.();
+     if(!failures.length)setDraft(null);
+     else setDraft(prev=>prev?{...prev,items:prev.items.filter(r=>failures.some(f=>f.startsWith(r.class_name+' '+r.session_date+':')))}:null);
+   }catch(e){
+     setMessages(m=>[...m,{role:'system',text:'Không thể lưu lịch: '+(e?.message||'Vui lòng thử lại.')+' Dữ liệu cũ không bị thay thế nếu giao dịch thất bại.'}]);
+   }finally{setSaving(false);}
  }
  async function ask(question){
    const message=String(question||'').trim();
    if((!message&&!file)||pending||saving)return;
    if(message.length>1300){setMessages(m=>[...m,{role:'system',text:'Câu hỏi vượt quá 1.300 ký tự. Bạn rút gọn giúp tui nha.'}]);return;}
-   const actualMode=detectMode(message,file);
+   const attachedForIntent=file||previousScheduleFile.current;
+   const actualMode=detectMode(message,attachedForIntent);
    if(actualMode==='account'&&profile.role!=='admin'){
      setMessages(m=>[...m,{role:'system',text:'Chỉ tài khoản Admin mới được đổi tên giáo viên. Bạn có thể hỏi AI cách gửi yêu cầu cho Admin.'}]);return;
    }
@@ -183,8 +230,13 @@ export function HelpAssistant({profile,page,onNavigate,onSaved,scheduleTeacher=n
    if(actualMode==='image'&&file&&!/^image\/(jpeg|png|webp)$/.test(fileMime(file))){
      setMessages(m=>[...m,{role:'system',text:'Để chỉnh sửa hình ảnh, vui lòng chọn ảnh JPG, PNG hoặc WebP.'}]);return;
    }
-   const attachedFile=file;
-   const userText=message||'Hãy đọc tệp đính kèm và hướng dẫn thao tác phù hợp trong IC3 GS6.';
+   const reuseOld=actualMode==='schedule'&&!file&&previousScheduleFile.current&&
+      /(nay|do|anh|tep|file|lich moi|vua gui|tuan nay|thay the)/.test(normalize(message));
+   const attachedFile=file||(reuseOld?previousScheduleFile.current:null);
+   // Keep the last user-provided file only in this chat so a later explicit
+   // reference to "ảnh/lịch này" can be analyzed without asking to re-upload.
+   if(file)previousScheduleFile.current=file;
+   const userText=message||(actualMode==='schedule'?'Đọc thời khóa biểu trong ảnh hoặc tệp này và tạo bản nháp lịch dạy đúng lớp, thứ, giờ.':'Hãy đọc tệp đính kèm và hướng dẫn thao tác trong IC3 GS6.');
    const history=messages.filter(m=>['user','assistant'].includes(m.role)).slice(-8).map(m=>({role:m.role,text:m.text}));
    let img=null;
    if(attachedFile&&/^image\/(jpeg|png|webp)$/.test(fileMime(attachedFile))){
@@ -200,7 +252,7 @@ export function HelpAssistant({profile,page,onNavigate,onSaved,scheduleTeacher=n
      const endpoint=actualMode==='chat'?'/api/help':'/api/help-actions';
      const body=actualMode==='chat'?{question:userText,page,history,attachment}:
        {question:userText,mode:actualMode,schoolId:profile.school_id,
-         teacherId:scheduleTeacher?.id||profile.id,attachment};
+         teacherId:profile.id,attachment};
      const response=await fetch(endpoint,{
        method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+session.access_token},
        body:JSON.stringify(body)
@@ -216,7 +268,11 @@ export function HelpAssistant({profile,page,onNavigate,onSaved,scheduleTeacher=n
      if(actualMode==='schedule'&&result.proposals?.length){
        setDraft({items:result.proposals,schoolId:profile.school_id,
          schoolName:result.proposals[0]?.school_name||profile.school_name,
-         teacherId:result.teacher_id||profile.id,teacherName:result.teacher_name||profile.full_name});
+         teacherId:result.teacher_id||profile.id,teacherName:result.teacher_name||profile.full_name,
+         replaceScope:result.replace_scope||null,
+         rangeStart:result.range_start||null,rangeEnd:result.range_end||null,
+         warnings:result.warnings||[]});
+       setShowAllDraft(false);setPartialAck(false);
      }
      if(result.warnings?.length)setMessages(m=>[...m,{role:'system',text:result.warnings.join('\n')}].slice(-30));
      clearFile();
@@ -286,8 +342,17 @@ export function HelpAssistant({profile,page,onNavigate,onSaved,scheduleTeacher=n
          </div>)}
          {draft?.items?.length>0&&<div className="help-schedule-card">
            <div className="help-schedule-header"><CalendarDays size={16}/><strong>Bản nháp lịch học</strong><span>{draft.items.length} buổi</span></div>
-           <p className="help-schedule-context">Trường: <strong>{draft.schoolName}</strong> · Giáo viên: <strong>{draft.teacherName}</strong>. Kiểm tra từng ô trước khi lưu.</p>
-           <div className="help-schedule-list">{draft.items.map((r,i)=><div className="help-schedule-item" key={(r.target_id||'new')+'-'+i}>
+           <p className="help-schedule-context">Trường: <strong>{draft.schoolName}</strong> · Giáo viên: <strong>{draft.teacherName}</strong> · Từ <strong>{draft.rangeStart||draft.items[0]?.session_date}</strong> đến <strong>{draft.rangeEnd||draft.items.at(-1)?.session_date}</strong>.</p>
+           {draft.replaceScope&&<p className="help-schedule-replace-warning">Thay lịch cũ trong khoảng {draft.replaceScope.start} đến {draft.replaceScope.end}. Chỉ khi bạn xác nhận, lịch cũ cùng dữ liệu điểm danh mới bị xóa.</p>}
+           {!!draft.warnings?.length&&<div className="help-schedule-warning">
+             <strong>AI chưa chắc chắn về {draft.warnings.length} điểm:</strong>
+             <ul>{draft.warnings.slice(0,8).map((w,i)=><li key={i}>{w}</li>)}</ul>
+             <label><input type="checkbox" checked={partialAck} onChange={e=>setPartialAck(e.target.checked)}/> Tôi đã đọc cảnh báo và chỉ muốn lưu các buổi xác định được.</label>
+           </div>}
+           {draft.items.length>12&&<button type="button" className="help-show-all" onClick={()=>setShowAllDraft(v=>!v)}>
+             {showAllDraft?'Thu gọn bản nháp':'Xem đủ '+draft.items.length+' buổi để kiểm tra và sửa'}
+           </button>}
+           <div className="help-schedule-list">{(showAllDraft?draft.items:draft.items.slice(0,12)).map((r,i)=><div className="help-schedule-item" key={(r.target_id||'new')+'-'+i}>
              <div className="help-schedule-item-head"><b>{r.operation==='edit'?'Sửa buổi có sẵn':'Thêm buổi mới'}</b><button type="button" title="Bỏ buổi này" onClick={()=>setDraft(d=>({...d,items:d.items.filter((_,j)=>i!==j)}))}><X size={14}/></button></div>
              <div className="help-schedule-grid">
                <label className="wide">Lớp<input value={r.class_name} maxLength={120} onChange={e=>updateDraft(i,'class_name',e.target.value)}/></label>
@@ -298,7 +363,10 @@ export function HelpAssistant({profile,page,onNavigate,onSaved,scheduleTeacher=n
              </div>
            </div>)}</div>
            <div className="help-schedule-actions"><button type="button" onClick={()=>setDraft(null)} disabled={saving}>Hủy</button>
-             <button className="primary" type="button" onClick={saveDraft} disabled={saving||!draft.items.length}><CheckCircle2 size={14}/>{saving?'Đang lưu…':'Xác nhận lưu lịch'}</button>
+             <button className="primary" type="button" onClick={saveDraft}
+               disabled={saving||!draft.items.length||(!!draft.warnings?.length&&!partialAck)}>
+               <CheckCircle2 size={14}/>{saving?'Đang lưu…':draft.replaceScope?'Xác nhận thay lịch cũ':'Xác nhận lưu lịch'}
+             </button>
            </div>
          </div>}
          {pending&&<div className="help-message theirs"><span className="help-speaker">Trợ lý IC3 AI</span><p>Đang xử lý yêu cầu của bạn…</p></div>}

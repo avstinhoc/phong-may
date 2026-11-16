@@ -34,7 +34,7 @@ export function TeachingCalendar({rows=[],focusDate,onDateChange,school,teacher}
         {index===0&&<th className={'cal-shift '+period.id} rowSpan={period.slots.length} scope="rowgroup"><span>{period.label}</span></th>}
         <th className="cal-time-cell" scope="row">{slot.gap?'Tiết trống':slot.empty?'—':(()=>{
           const ends=[...new Set(visible.filter(r=>timeValue(r)===slot.time&&r.session_date>=start&&r.session_date<=end).map(endTime))].sort();
-          return <span className="cal-time-range"><b>{slot.time}</b><span>{ends.length===1?'– '+ends[0]:'– xem từng ngày'}</span></span>;
+          return <span className="cal-time-range">{slot.time}{ends.length===1?' – '+ends[0]:' – xem ô lịch'}</span>;
         })()}</th>
         {days.map(d=>{const date=key(d);
           const lessons=slot.time?visible.filter(r=>r.session_date===date&&timeValue(r)===slot.time):[];

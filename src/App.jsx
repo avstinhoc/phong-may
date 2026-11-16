@@ -9,7 +9,8 @@ import { TeacherPayroll } from "./TeacherPayroll";
 import { ClassSettings } from "./ClassSettings";
 import { ReportsCenter } from "./ReportsCenter";
 import { HelpAssistant } from "./HelpAssistant";
-import { properName, searchName, comparePC } from "./lib/students";
+import { ProfileSettings } from "./ProfileSettings";
+import { properName, searchName, comparePC, compareStudentName } from "./lib/students";
 import { normalizeComputerCode,validFullName } from "./lib/registration";
 import { TeachingCalendar } from "./TeachingCalendar";
 import { RollCall } from "./RollCall";
@@ -19,7 +20,7 @@ import {
   Award, Sparkles, Settings, LogOut, Plus, Search, Download, RefreshCw,
   CheckCircle2, Clock3, AlertTriangle, School, Menu, X, UserPlus,
   ShieldCheck, Trash2, FileSpreadsheet, ClipboardCheck, FileText,
-  ChevronLeft, ChevronRight, Printer, UserCheck
+  ChevronLeft, ChevronRight, Printer, UserCheck, UserRound
 } from "lucide-react";
 
 const nav = [
@@ -28,7 +29,6 @@ const nav = [
   ["roster", "Danh sách học sinh", ClipboardList],
   ["computers", "Phòng máy", Monitor],
   ["attendance", "Lịch dạy giáo viên", CalendarDays],
-  ["teacherSchedules", "Lịch giáo viên khác", CalendarDays],
   ["rollcall", "Điểm danh học sinh", UserCheck],
   ["records", "Điểm, lỗi & thưởng", ClipboardList],
   ["cleaning", "Vệ sinh máy", ClipboardCheck],
@@ -37,7 +37,8 @@ const nav = [
   ["reports", "Báo cáo", FileText],
   ["schools", "Trường công tác", School],
   ["settings", "Lớp & mã đăng ký", Settings],
-  ["accounts", "Quản lý tài khoản", ShieldCheck]
+  ["accounts", "Quản lý tài khoản", ShieldCheck],
+  ["personal", "Cá nhân", UserRound]
 ];
 
 const money = n =>
@@ -64,7 +65,6 @@ function App() {
   const school = schools.find(s => s.id === schoolId);
   const profile = account ? {...account, school_id: school?.id || null, school_name: school?.name || "", school_logo:school?.logo_data||null} : null;
   const [page, setPage] = useState("dashboard");
-  const [adminScheduleTeacher,setAdminScheduleTeacher]=useState(null);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState("");
   const [authMode, setAuthMode] = useState("login");
@@ -161,19 +161,20 @@ function App() {
         <nav className="nav-scroll" aria-label="Menu chính">
           {[["GIẢNG DẠY", ["dashboard", "attendance", "rollcall", "roster", "records", "evaluation"]],
             ["PHÒNG MÁY", ["computers", "students", "cleaning", "settings"]],
-            ["QUẢN LÝ", ["schools", "teacherSchedules", "finance", "reports", "accounts"]]].map(([group, ids]) => <React.Fragment key={group}>
+            ["QUẢN LÝ", ["schools", "finance", "reports", "accounts"]]].map(([group, ids]) => <React.Fragment key={group}>
             <div className="nav-label">{group}</div>
-            {ids.map(id => nav.find(n => n[0] === id)).filter(([id]) => !["accounts","teacherSchedules"].includes(id) || profile.role === "admin").map(([id,label,Icon]) => <button key={id} className={`nav-item ${page === id ? "active" : ""}`} onClick={()=>{setPage(id);setMobileNav(false);}}><Icon size={18}/>{label}</button>)}
+            {ids.map(id => nav.find(n => n[0] === id)).filter(([id]) => id!=="accounts" || profile.role === "admin").map(([id,label,Icon]) => <button key={id} className={`nav-item ${page === id ? "active" : ""}`} onClick={()=>{setPage(id);setMobileNav(false);}}><Icon size={18}/>{label}</button>)}
           </React.Fragment>)}
         </nav>
         <div className="sidebar-bottom">
-          <div className="user-mini">
-            <div className="avatar">{(profile.full_name || "U").slice(0, 1).toUpperCase()}</div>
+          <button type="button" className="user-mini personal-entry" onClick={()=>{setPage('personal');setMobileNav(false);}} title="Mở trang cá nhân">
+            <div className="avatar">{profile.avatar_data?<img src={profile.avatar_data} alt="Ảnh đại diện"/>:(profile.full_name || "U").slice(0, 1).toUpperCase()}</div>
             <div>
               <b>{profile.full_name || session.user.email}</b>
               <small>{profile.role === "admin" ? "Quản trị viên" : profile.role === "teacher" ? "Giáo viên" : "Học sinh"}</small>
             </div>
-          </div>
+          </button>
+          <button className={'nav-item '+(page==='personal'?'active':'')} onClick={()=>{setPage('personal');setMobileNav(false);}}><UserRound size={18}/>Cá nhân</button>
           <button className="nav-item" onClick={signOut}><LogOut size={18} />Đăng xuất</button>
         </div>
       </aside>
@@ -188,19 +189,20 @@ function App() {
           <div className="top-actions"><button className="btn" onClick={signOut}><LogOut size={16}/>Đăng xuất</button>
             <span className="role-pill">{profile.role === "admin" ? "ADMIN" : profile.role === "teacher" ? "GIÁO VIÊN" : "HỌC SINH"}</span>
             <button className="icon-btn" title="Làm mới" onClick={reload}><RefreshCw size={18} /></button>
-            <div className="avatar">{(profile.full_name || "U").slice(0, 1).toUpperCase()}</div>
+            <button type="button" className="avatar avatar-action" onClick={()=>setPage('personal')} title="Cá nhân">{profile.avatar_data?<img src={profile.avatar_data} alt="Ảnh đại diện"/>:(profile.full_name || "U").slice(0, 1).toUpperCase()}</button>
           </div>
         </header>
 
         {notice && <div className="toast"><CheckCircle2 size={17} />{notice}</div>}
 
-        <div className="content" key={["schools","settings","finance","reports","accounts"].includes(page)?page:schoolId}>
+        <div className="content" key={["schools","settings","finance","reports","accounts","personal"].includes(page)?page:schoolId}>
           {(page === "schools" || !schools.length) && <SchoolManager schools={schools} role={profile.role} onCreated={id => {setSchoolId(id); reload();}} onChanged={deletedId => {if(deletedId === schoolId) setSchoolId(""); reload();}} ping={ping} />}
           {page === "accounts" && profile.role === "admin" && <Accounts profile={profile} />}
+          {page === "personal" && <ProfileSettings key={profile.id} profile={profile} email={session.user.email} reload={reload} ping={ping}/>}
           {page === "settings" && <ClassSettings profile={profile} ping={ping} schools={schools} onChanged={reload} />}
           {page === "finance" && <TeacherPayroll profile={profile} refresh={refresh} ping={ping} schools={schools} />}
           {page === "reports" && <ReportsCenter profile={profile} refresh={refresh} ping={ping} schools={schools} />}
-          {!schoolId && !["schools","settings","finance","reports","accounts"].includes(page) && <div className="notice-box">Thêm trường đầu tiên để bắt đầu quản lý học sinh và lịch dạy.</div>}
+          {!schoolId && !["schools","settings","finance","reports","accounts","personal"].includes(page) && <div className="notice-box">Thêm trường đầu tiên để bắt đầu quản lý học sinh và lịch dạy.</div>}
           {schoolId && <>
           {page === "dashboard" && <Dashboard profile={profile} refresh={refresh} setPage={setPage} />}
           {page === "roster" && <StudentRoster profile={profile} refresh={refresh} ping={ping} />}
@@ -208,7 +210,6 @@ function App() {
           {page === "computers" && <Computers profile={profile} refresh={refresh} reload={reload} ping={ping} />}
           {page === "rollcall" && isTeacher && <RollCallView profile={profile} refresh={refresh} reload={reload} ping={ping} focusDate={calendarDate} setFocusDate={setCalendarDate} />}
           {page === "attendance" && isTeacher && <Attendance profile={profile} refresh={refresh} reload={reload} ping={ping} focusDate={calendarDate} setFocusDate={setCalendarDate} onImported={async(date,name)=>{setCalendarDate(date);const {data,error}=await supabase.rpc("create_my_school",{school_name:name});if(!error)setSchoolId(data);reload();}} />}
-          {page === "teacherSchedules" && profile.role === "admin" && <Attendance adminView adminSelection={adminScheduleTeacher} onAdminSelection={setAdminScheduleTeacher} profile={profile} refresh={refresh} reload={reload} ping={ping} focusDate={calendarDate} setFocusDate={setCalendarDate} />}
           {page === "records" && isTeacher && <Records profile={profile} refresh={refresh} reload={reload} ping={ping} />}
           {page === "cleaning" && isTeacher && <Cleaning profile={profile} refresh={refresh} reload={reload} ping={ping} />}
           {page === "evaluation" && <Evaluation profile={profile} refresh={refresh} reload={reload} ping={ping} />}
@@ -216,11 +217,9 @@ function App() {
         </div>
         <footer>IC3 GS6 Computer Lab <span>•</span> Dữ liệu được lưu trên Supabase</footer>
       </main>
-      <HelpAssistant key={profile.id} profile={profile} page={page} scheduleTeacher={
-        page==="teacherSchedules"&&profile.role==="admin"?
-        (adminScheduleTeacher?.id?adminScheduleTeacher:{id:profile.id,name:profile.full_name}):
-        {id:profile.id,name:profile.full_name}
-      } onSaved={reload} onNavigate={id=>{setPage(id);setMobileNav(false);}} />
+      <HelpAssistant key={profile.id} profile={profile} page={page}
+        scheduleTeacher={{id:profile.id,name:profile.full_name}}
+        onSaved={reload} onNavigate={id=>{setPage(id);setMobileNav(false);}} />
     </div>
   );
 }
@@ -568,6 +567,8 @@ function Students({ profile, refresh, reload, ping, navigate }) {
   const [approvalBusy,setApprovalBusy]=useState(null);
   const [show, setShow] = useState(false);
   const [search, setSearch] = useState("");
+  const [nameEditing,setNameEditing]=useState(null);
+  const [nameBusy,setNameBusy]=useState(false);
   const [form, setForm] = useState({
     full_name: "", class_name: "", school_name: profile.school_name || "",
     student_code: "", phone: "", date_of_birth:"", status: "active"
@@ -576,13 +577,13 @@ function Students({ profile, refresh, reload, ping, navigate }) {
   const filtered = rows.filter(s=>
     s.status!=="inactive" &&
     `${s.full_name} ${s.class_name} ${s.student_code||""}`.toLowerCase().includes(search.toLowerCase())
-  ).sort((a,b)=>a.full_name.localeCompare(b.full_name,'vi',{sensitivity:'base'})||
+  ).sort((a,b)=>compareStudentName(a,b)||
     String(a.class_name||"").localeCompare(String(b.class_name||""),'vi',{numeric:true}));
   const ownedClasses=schoolClasses.rows.filter(c=>c.created_by===profile.id&&!c.archived_at)
     .sort((a,b)=>a.class_name.localeCompare(b.class_name,'vi',{numeric:true}));
   const ownedClassCodes=new Set(ownedClasses.map(c=>c.registration_code));
   const waiting = registrations.rows.filter(r=>r.status==="pending" && ownedClassCodes.has(r.registration_code))
-    .sort((a,b)=>a.full_name.localeCompare(b.full_name,'vi',{sensitivity:'base'}));
+    .sort((a,b)=>compareStudentName(a,b));
   const suspectStudents=rows.filter(s=>s.status==="active" && s.name_review_status && s.name_review_status!=="allow" &&
     (profile.role==="admin" || ownedClasses.some(c=>c.id===s.class_id)));
 
@@ -646,17 +647,28 @@ function Students({ profile, refresh, reload, ping, navigate }) {
   }
 
   async function rejectSuspect(s){
-    if(!window.confirm("Đưa hồ sơ "+s.full_name+" vào trạng thái Từ chối?\nLịch sử điểm, điểm danh và ghi nhận được giữ nguyên; chỗ ngồi sẽ được giải phóng."))return;
-    const {error}=await supabase.rpc('ic3_reject_suspect_student',{p_student_id:s.id});
-    if(error)ping(error.message);else{ping('Đã chuyển hồ sơ sang trạng thái từ chối và giữ lịch sử.');reload();}
+    if(!window.confirm('Xóa VĨNH VIỄN toàn bộ hồ sơ '+s.full_name+'?\nĐiểm, điểm danh, biên bản và xếp máy liên quan đều bị xóa. Không có cách khôi phục.'))return;
+    if(window.prompt('Nhập XÓA để xóa vĩnh viễn hồ sơ học sinh:')!=='XÓA')return;
+    const {error}=await supabase.rpc('ic3_permanent_delete_flagged_student',{p_student_id:s.id});
+    if(error)ping(error.message);else{ping('Đã xóa vĩnh viễn hồ sơ và dữ liệu học sinh liên quan.');reload();}
   }
 
   async function rejectRegistration(r) {
-    if (!confirm("Từ chối đăng ký của " + r.full_name + "?")) return;
-    const { error } = await supabase.from("student_registrations")
-      .update({ status: "rejected" }).eq("id", r.id);
-    if (error) ping(error.message);
-    else { ping("Đã từ chối đăng ký"); reload(); }
+    if(!window.confirm('Từ chối và xóa vĩnh viễn yêu cầu đăng ký của '+r.full_name+'? Không thể khôi phục.'))return;
+    const {error}=await supabase.rpc('ic3_delete_rejected_registration',{p_registration_id:r.id});
+    if(error)ping(error.message);
+    else{ping('Đã xóa yêu cầu đăng ký.');reload();}
+  }
+
+  async function saveName(e){
+    e.preventDefault();if(!nameEditing||nameBusy)return;
+    setNameBusy(true);
+    const {error}=await supabase.rpc('ic3_update_student_name',{
+      p_student_id:nameEditing.id,p_new_name:properName(nameEditing.full_name)
+    });
+    setNameBusy(false);
+    if(error)ping(error.message);
+    else{setNameEditing(null);ping('Đã sửa tên học sinh.');reload();}
   }
 
   return <>
@@ -700,7 +712,7 @@ function Students({ profile, refresh, reload, ping, navigate }) {
             {r.review_note&&<small className="negative">Cần kiểm tra: {r.review_note}</small>}
           </div>
           <button className="mini-btn success" onClick={() => approveRegistration(r)}>Duyệt</button>
-          <button className="mini-btn danger" onClick={() => rejectRegistration(r)}>Từ chối</button>
+          <button className="mini-btn danger" onClick={() => rejectRegistration(r)}>Từ chối & xóa</button>
         </div>
       ))}
       {!waiting.length && <p className="muted">Chưa có hồ sơ đăng ký trực tuyến chờ duyệt.</p>}
@@ -709,14 +721,15 @@ function Students({ profile, refresh, reload, ping, navigate }) {
     {suspectStudents.length>0&&<section className="panel student-name-review-panel">
       <div className="panel-head"><div>
         <h3>Rà soát tên học sinh đã được duyệt ({suspectStudents.length})</h3>
-        <p>Các hồ sơ này được tạo trước khi bộ lọc tên nâng cấp. Không tự xóa điểm hoặc lịch sử; giáo viên kiểm tra rồi từ chối nếu là tên đùa.</p>
+        <p>Học sinh đăng ký tên không hợp lệ có thể sửa đúng họ tên. Chỉ khi xác nhận từ chối, hệ thống mới xóa vĩnh viễn hồ sơ và dữ liệu liên quan.</p>
       </div></div>
       {suspectStudents.map(st=><div className="task-row" key={st.id}>
         <span className="status pending">{st.name_review_status==="reject"?"Tên không phù hợp":"Cần xác minh"}</span>
         <div className="student-review-details"><b>{st.full_name}</b>
           <small>Lớp {st.class_name} · {st.name_review_reason||"Tên cần kiểm tra"}</small>
         </div>
-        <button className="mini-btn danger" onClick={()=>rejectSuspect(st)}>Từ chối hồ sơ</button>
+        <button className="mini-btn" onClick={()=>setNameEditing({id:st.id,full_name:st.full_name})}>Sửa tên</button>
+        <button className="mini-btn danger" onClick={()=>rejectSuspect(st)}>Từ chối & xóa</button>
       </div>)}
     </section>}
 
@@ -729,7 +742,7 @@ function Students({ profile, refresh, reload, ping, navigate }) {
     <div className="panel table-panel">
       <div className="table-wrap">
         <table>
-          <thead><tr><th>STT</th><th>HỌC SINH (A–Z)</th><th>GIỚI TÍNH</th><th>LỚP</th><th>TRƯỜNG</th><th>TRẠNG THÁI</th><th>THAO TÁC</th></tr></thead>
+          <thead><tr><th>STT</th><th>HỌC SINH (A–Z THEO TÊN)</th><th>GIỚI TÍNH</th><th>LỚP</th><th>TRƯỜNG</th><th>TRẠNG THÁI</th><th>THAO TÁC</th></tr></thead>
           <tbody>
             {filtered.map((s,index) => (
               <tr key={s.id}>
@@ -742,6 +755,7 @@ function Students({ profile, refresh, reload, ping, navigate }) {
                 <td><span className={`status ${s.status === "pending" ? "pending" : "active"}`}>{s.status === "pending" ? "Chờ duyệt" : s.status === "rejected" ? "Từ chối" : "Đang học"}</span></td>
                 <td className="actions">
                   {s.status === "pending" && <button className="mini-btn success" onClick={() => approve(s)}>Duyệt</button>}
+                  <button className="mini-btn" onClick={()=>setNameEditing({id:s.id,full_name:s.full_name})}>Sửa tên</button>
                   <button className="mini-btn danger" onClick={() => remove(s)}><Trash2 size={14} /></button>
                 </td>
               </tr>
@@ -752,6 +766,15 @@ function Students({ profile, refresh, reload, ping, navigate }) {
       </div>
     </div>
 
+    {nameEditing&&<Modal title="Sửa họ và tên học sinh" onClose={()=>setNameEditing(null)}>
+       <form className="form-stack" onSubmit={saveName}>
+         <label>Họ và tên đầy đủ có dấu
+          <input autoFocus required value={nameEditing.full_name} onChange={e=>setNameEditing(v=>({...v,full_name:e.target.value}))}/>
+         </label>
+         <p className="muted">Chỉ thay đổi tên hiển thị, không xóa điểm, điểm danh hoặc mã học sinh.</p>
+         <button className="btn primary" disabled={nameBusy}>{nameBusy?'Đang lưu…':'Lưu tên học sinh'}</button>
+       </form>
+    </Modal>}
     {show && <Modal title="Thêm học sinh" onClose={() => setShow(false)}>
       <form className="form-stack" onSubmit={save}>
         <label>Họ và tên<input required value={form.full_name} onChange={e => setForm({ ...form, full_name: e.target.value })} /></label>
@@ -944,6 +967,9 @@ function Attendance({ profile, refresh, reload, ping, focusDate, setFocusDate, o
   },[profile.school_id,profile.id]);
   const [editingId, setEditingId] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [selectedSessionIds,setSelectedSessionIds]=useState([]);
+  const allowedSessionRows=visibleRows;
+  const allSessionsSelected=allowedSessionRows.length>0 && allowedSessionRows.every(r=>selectedSessionIds.includes(r.id));
   const [form, setForm] = useState({
     class_name: "", session_date: today(), start_time: "17:00",
     end_time: "19:00", teacher_name: profile.full_name || "", teacher_id:profile.id,
@@ -969,6 +995,24 @@ function Attendance({ profile, refresh, reload, ping, focusDate, setFocusDate, o
     setSaving(false);
     if (error) ping(error.message);
     else { ping("Đã lưu buổi học"); setFocusDate(form.session_date); setEditingId(null); reload(); }
+  }
+
+  async function bulkDeleteSessions(){
+    const ids=selectedSessionIds.filter(id=>allowedSessionRows.some(r=>r.id===id));
+    if(!ids.length)return;
+    if(!window.confirm('Xóa vĩnh viễn '+ids.length+' buổi học đã chọn? Điểm danh gắn với các buổi này sẽ bị xóa theo. Không thể hoàn tác.'))return;
+    if(window.prompt('Để xác nhận xóa '+ids.length+' buổi, nhập XÓA:')!=='XÓA')return;
+    setSaving(true);
+    let query=supabase.from('class_sessions').delete().in('id',ids).eq('school_id',profile.school_id);
+    if(!adminView)query=query.or('teacher_id.eq.'+profile.id+',and(teacher_id.is.null,created_by.eq.'+profile.id+')');
+    const {data,error}=await query.select('id');
+    setSaving(false);
+    if(error){ping('Không xóa được lịch: '+error.message);return;}
+    const deleted=new Set((data||[]).map(r=>r.id));
+    setSelectedSessionIds(current=>current.filter(id=>!deleted.has(id)));
+    if(editingId&&deleted.has(editingId))setEditingId(null);
+    ping('Đã xóa '+deleted.size+'/'+ids.length+' buổi đã chọn.');
+    reload();
   }
 
   async function removeSession(r) {
@@ -1062,14 +1106,26 @@ function Attendance({ profile, refresh, reload, ping, focusDate, setFocusDate, o
     </section>
 
     <div className="panel table-panel">
-      <h3>Buổi học đã tạo</h3>
+      <div className="schedule-table-header">
+        <h3>Buổi học đã tạo</h3>
+        <div className="actions">
+          <span className="muted">Đã chọn {selectedSessionIds.filter(id=>visibleRows.some(r=>r.id===id)).length} buổi</span>
+          <button type="button" className="btn outline schedule-delete-selected" onClick={bulkDeleteSessions}
+            disabled={saving||!selectedSessionIds.some(id=>visibleRows.some(r=>r.id===id))}>
+            <Trash2 size={15}/> Xóa lịch đã chọn
+          </button>
+        </div>
+      </div>
+      <div className="table-wrap">
       <table>
-        <thead><tr><th>NGÀY</th><th>LỚP</th><th>GIÁO VIÊN</th><th>GIỜ</th><th>SỐ TIẾT</th><th></th></tr></thead>
+        <thead><tr><th><input type="checkbox" title="Chọn tất cả lịch đang hiển thị" aria-label="Chọn tất cả lịch đang hiển thị"
+          checked={allSessionsSelected} onChange={e=>setSelectedSessionIds(e.target.checked?visibleRows.map(r=>r.id):[])} /></th><th>NGÀY</th><th>LỚP</th><th>GIÁO VIÊN</th><th>GIỜ</th><th>SỐ TIẾT</th><th></th></tr></thead>
         <tbody>{visibleRows.map(r => (
-          <tr key={r.id}><td>{dateText(r.session_date)}</td><td>{r.class_name}</td><td>{r.teacher_name}</td><td>{r.start_time} – {r.end_time}</td><td>{r.period_count}</td><td><button className="btn outline" onClick={()=>{setEditingId(r.id);setForm({class_name:r.class_name,session_date:r.session_date,start_time:r.start_time.slice(0,5),end_time:r.end_time.slice(0,5),teacher_name:r.teacher_name||"",teacher_id:r.teacher_id||profile.id,period_count:r.period_count});}}>Sửa</button><button className="btn outline" onClick={()=>removeSession(r)}>Xóa</button></td></tr>
+          <tr key={r.id}><td><input type="checkbox" aria-label={'Chọn buổi '+r.class_name+' ngày '+r.session_date}
+            checked={selectedSessionIds.includes(r.id)} onChange={e=>setSelectedSessionIds(old=>e.target.checked?[...new Set([...old,r.id])]:old.filter(id=>id!==r.id))}/></td><td>{dateText(r.session_date)}</td><td>{r.class_name}</td><td>{r.teacher_name}</td><td>{r.start_time} – {r.end_time}</td><td>{r.period_count}</td><td><button className="btn outline" onClick={()=>{setEditingId(r.id);setForm({class_name:r.class_name,session_date:r.session_date,start_time:r.start_time.slice(0,5),end_time:r.end_time.slice(0,5),teacher_name:r.teacher_name||"",teacher_id:r.teacher_id||profile.id,period_count:r.period_count});}}>Sửa</button><button className="btn outline" onClick={()=>removeSession(r)}>Xóa</button></td></tr>
         ))}</tbody>
-      </table>
-      {!visibleRows.length && <Empty text="Giáo viên đang chọn chưa có lịch tại trường này." />}
+      </table></div>
+      {!visibleRows.length && <Empty text="Chưa có lịch dạy ở trường này." />}
     </div>
   </>;
 }

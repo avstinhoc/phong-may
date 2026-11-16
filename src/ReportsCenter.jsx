@@ -1,5 +1,6 @@
 import React,{useEffect,useMemo,useState} from 'react';
 import {supabase} from './lib/supabase';
+import {compareStudentName} from './lib/students';
 import {teacherRows,teacherTotals,exportMonthlyExcel,printMonthlyPdf,exportGeneralXlsx,printGeneralPdf,amount,vnDate,schoolYear} from './lib/teacherReports';
 const firstMonth=()=>new Date().toLocaleDateString('en-CA').slice(0,7);
 const scoreNames=['QT1','QT2','HK1','QT3','QT4','HK2','TEST 1','TEST 2','TEST 3','TEST 4','TEST 5','Mô phỏng lần 1','Mô phỏng lần 2','Mô phỏng lần 3','Mô phỏng lần 4','Mô phỏng lần 5'];
@@ -62,7 +63,7 @@ export function ReportsCenter({profile,refresh,ping,schools=[]}){
  const total=teacherTotals(monthly);
  const names=[...new Set([...students.map(s=>s.class_name),...lessons.map(s=>s.class_name)].filter(Boolean))].sort();
  const results=data.student_results||[];
- const chosen=students.filter(s=>s.status==='active'&&(!className||s.class_name===className)).sort((a,b)=>clean(a.full_name).localeCompare(clean(b.full_name),'vi'));
+ const chosen=students.filter(s=>s.status==='active'&&(!className||s.class_name===className)).sort(compareStudentName);
  const selectedSessions=lessons.filter(s=>!className||s.class_name===className).sort((a,b)=>a.session_date.localeCompare(b.session_date));
  const statusMap=new Map((data.attendance||[]).map(a=>[a.student_id+':'+a.session_id,a.status]));
  const ready={
