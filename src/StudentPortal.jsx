@@ -12,7 +12,15 @@ export function StudentPortal(){
   const [busy,setBusy]=useState(false);
   async function load(nextCode=code,nextSecret=secret){
     setBusy(true);setError('');
-    const normalizedCode=nextCode.trim().toUpperCase();
+    let normalizedCode=nextCode.trim().toUpperCase();
+    const resolved=await supabase.rpc('ic3_resolve_class_code',{p_code:normalizedCode});
+    if(resolved.error||!resolved.data){
+      setPayload(null);setViolationBadges([]);setBusy(false);
+      setError('Mã lớp chưa tồn tại hoặc đã ngừng đăng ký.');
+      return;
+    }
+    normalizedCode=resolved.data;
+    setCode(normalizedCode);
     const [main,badges]=await Promise.all([
       supabase.rpc('get_student_class_portal',{
         p_code:normalizedCode,p_secret:nextSecret.trim()||null}),
@@ -38,7 +46,7 @@ export function StudentPortal(){
     <header className="portal-header">
       {payload?.logo?<img className="portal-logo" src={payload.logo} alt="Logo trường"/>:<div className="brand-mark">IC3</div>}
       <div><b>IC3 GS6 · Lớp học của chúng mình</b><small>Máy tính • Lịch dạy • Vệ sinh • Điểm & phần thưởng</small></div>
-      <a className="portal-home" href="/register">Đăng ký lớp</a>
+      <a className="portal-home" href={code?'/register?code='+encodeURIComponent(code):'/register'}>Đăng ký lớp</a>
     </header>
     <main className="portal-content">
       <section className="portal-hero">
