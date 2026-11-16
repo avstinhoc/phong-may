@@ -551,3 +551,93 @@
 .help-schedule-warning input{accent-color:#008c82}
 .help-show-all{display:block;width:100%;border:1px solid #abd8d4;color:#067a73;border-radius:10px;background:#f1faf9;cursor:pointer;margin:10px 0;padding:9px;font-weight:700;font-size:12px}
 @media(max-width:900px){.personal-grid{grid-template-columns:1fr}.personal-hero{padding:20px}.personal-avatar-large{width:78px;height:78px;font-size:28px}}
+
+/* 2026-11: schedule AI workspace, shared alignment and responsive consistency */
+.app-shell :is(button,input,select,textarea){font-family:inherit}
+.app-shell :is(.panel,.table-panel,.schedule-workspace,.timetable-assistant){min-width:0}
+.app-shell :is(.panel,.timetable-assistant) :is(h2,h3,p,small,strong){overflow-wrap:break-word}
+.app-shell :is(input:not([type="checkbox"]):not([type="radio"]),select,textarea){max-width:100%;min-width:0}
+.app-shell .table-wrap{max-width:100%;overscroll-behavior-x:contain}
+.app-shell th,.app-shell td{vertical-align:middle;line-height:1.5}
+.app-shell .btn{min-height:38px;line-height:1.4;text-align:center}
+.app-shell :is(button,input,select,textarea):focus-visible{outline:2px solid #0f9587;outline-offset:2px}
+.sidebar-bottom .personal-entry{display:grid;grid-template-columns:36px minmax(0,1fr) 18px;gap:11px;align-items:center;width:100%;min-height:66px;padding:11px 10px;margin-bottom:7px;border:1px solid transparent;border-radius:12px;background:#1a3b45;color:#fff;text-align:left}
+.sidebar-bottom .personal-entry:hover,.sidebar-bottom .personal-entry:focus-visible,.sidebar-bottom .personal-entry.active{background:#25535b;border-color:#397781}
+.sidebar-bottom .personal-entry>div:nth-child(2){min-width:0}
+.sidebar-bottom .personal-entry b{font-size:12px;line-height:1.45;overflow-wrap:anywhere}
+.sidebar-bottom .personal-entry small{display:block;margin-top:3px;font-size:11px;line-height:1.4}
+.profile-chevron{justify-self:end;color:#b7d7d5}
+.schedule-workspace{--schedule-line:#dbe8e9;--schedule-ink:#164456;--schedule-muted:#64808b;--schedule-teal:#0b8b7d}
+.schedule-workspace :is(button,input,select,textarea){font-size:13px}
+.schedule-workspace-heading{gap:14px}
+.schedule-workspace-heading h2{font-size:20px;line-height:1.4}
+.schedule-workspace-heading p{font-size:13px;line-height:1.65}
+.schedule-entry-tabs{max-width:100%}
+.schedule-entry-tabs button{font-size:13px;min-height:42px}
+.timetable-import-embedded{display:flex;flex-direction:column;gap:0}
+.timetable-upload-intro{display:grid;grid-template-columns:42px minmax(0,1fr) auto;align-items:center;gap:14px;margin:0 0 14px;padding:19px 20px}
+.timetable-intro-icon{display:grid;place-items:center;width:42px;height:42px;background:#d5f3ec;color:#06766c;border:1px solid #c0e6dc;border-radius:13px}
+.timetable-intro-copy{min-width:0}
+.timetable-upload-intro strong{font-size:16px;line-height:1.5}
+.timetable-upload-intro p{font-size:12px;line-height:1.65}
+.timetable-upload-intro>span{max-width:240px;overflow-wrap:anywhere;line-height:1.5;text-align:center}
+.timetable-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:0 0 16px}
+.timetable-steps span{display:block;min-width:0;border:1px solid #e2eced;background:#f8fbfb;border-radius:11px;padding:11px 12px;color:#577580;font-size:12px;line-height:1.65}
+.timetable-steps b{color:#087d71;white-space:nowrap;margin-right:5px}
+.timetable-import-embedded .timetable-chat,.timetable-chat{margin:0 0 17px;padding:19px;background:linear-gradient(180deg,#f1faf8 0%,#fbfdfd 100%);border:1px solid #cfe9e3;border-radius:16px}
+.timetable-chat-heading{display:flex;align-items:flex-start;gap:12px}
+.timetable-chat-icon{width:38px;height:38px;display:grid;place-items:center;flex:none;color:#0b8778;background:#def5ef;border-radius:12px}
+.timetable-chat-heading>div{min-width:0}
+.timetable-chat-heading h3{font-size:16px;line-height:1.45;margin:1px 0 5px;color:#174354}
+.timetable-chat-heading p{color:#6a8790;font-size:12px;line-height:1.65;margin:0}
+.timetable-chat .chat-history{min-height:64px;max-height:260px;gap:10px;padding:2px 3px;margin:15px 0}
+.timetable-chat .chat-bubble{font-size:12px;max-width:min(84%,740px);min-width:0;padding:12px 14px;border-radius:13px;line-height:1.6}
+.timetable-chat .chat-bubble b{font-size:11px}
+.timetable-chat .chat-bubble p{margin:5px 0 0;white-space:pre-wrap;overflow-wrap:anywhere}
+.timetable-chat .chat-history>.muted{margin:0;align-self:center;padding:15px 5px;text-align:center;font-size:12px;color:#7c969e}
+.timetable-chat .chat-form{display:grid;grid-template-columns:minmax(0,1fr) 104px;align-items:stretch;gap:10px}
+.timetable-chat .chat-form textarea{width:100%;min-height:78px;padding:13px 14px;border:1px solid #cbdfe1;border-radius:12px;background:#fff;font-size:13px;line-height:1.6}
+.timetable-chat .chat-form .btn{height:100%;min-height:46px;align-self:stretch;font-size:13px;border-radius:11px}
+.timetable-file-card{border:1px solid var(--schedule-line);border-radius:16px;background:#fff;padding:18px;margin:0 0 15px;min-width:0}
+.timetable-section-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:13px}
+.timetable-section-heading>div{display:flex;align-items:center;gap:10px;min-width:0;color:var(--schedule-ink)}
+.timetable-section-heading strong{font-size:14px;line-height:1.5}
+.timetable-section-heading small{color:#77939a;font-size:11px}
+.timetable-import-embedded .import-controls{grid-template-columns:minmax(245px,1.8fr) repeat(2,minmax(155px,1fr));align-items:end;gap:14px;margin:0 0 13px}
+.timetable-file-card :is(.import-controls label,.import-action-row label){font-size:12px;font-weight:650;line-height:1.45;gap:8px;min-width:0;color:#385c67}
+.timetable-file-card :is(.import-controls input,.import-action-row select){height:44px;min-height:44px;max-width:100%;width:100%;border:1px solid #d3e2e5;border-radius:10px;padding:8px 12px;background:#fff;color:#244655;font-size:12px}
+.timetable-file-card input[type=file]{padding:6px 8px;line-height:30px}
+.timetable-file-card input[type=file]::file-selector-button{height:30px;border:0;border-radius:7px;background:#eaf5f3;color:#086e66;padding:0 10px;font:inherit;font-weight:700;margin-right:10px;cursor:pointer}
+.timetable-import-embedded .import-action-row{display:flex;align-items:end;flex-wrap:wrap;gap:12px;margin:13px 0 10px}
+.timetable-file-card .import-action-row label{width:min(310px,100%);min-width:0}
+.timetable-file-card .import-action-row .btn{height:44px;min-width:100px;padding:0 18px;font-size:12px}
+.timetable-file-card .import-image-preview{display:block;width:min(100%,510px);max-height:330px;object-fit:contain;object-position:left top;margin:12px 0;background:#f7faf9;border-radius:12px;border:1px solid #dfebeb;padding:8px}
+.timetable-file-card>.muted{overflow-wrap:anywhere;margin:10px 0;font-size:12px}
+.timetable-file-card .timetable-privacy-note{margin:12px 0 0;font-size:11px;line-height:1.7;border-radius:9px}
+.timetable-import-embedded .timetable-status{display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap;padding:13px 15px;margin:0 0 13px;font-size:12px;line-height:1.6;border-radius:11px;overflow-wrap:anywhere}
+.timetable-status strong{min-width:78px;font-size:12px;color:inherit}
+.timetable-status span{min-width:0;flex:1}
+.timetable-status.is-success{background:#edfaf3;border-color:#c9ebd8;color:#236a51}
+.timetable-status.is-info{background:#eff8fa;border-color:#cee7eb;color:#356b78}
+.timetable-status.is-warning{background:#fff8ea;border-color:#f0dda9;color:#89641d}
+.timetable-status.is-error{background:#fff4ed;border-color:#efc7b1;color:#944c25}
+.timetable-draft-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin:15px 0 10px;color:#184a55}
+.timetable-draft-heading strong{font-size:14px}
+.timetable-draft-heading span{font-size:11px;color:#77939a}
+.timetable-draft-table-wrap{overflow-x:auto;border:1px solid #e1ebec;border-radius:12px}
+.timetable-draft-table-wrap .import-edit-table{min-width:870px;table-layout:auto;font-size:12px}
+.timetable-draft-table-wrap .import-edit-table th{padding:11px 9px;font-size:11px;letter-spacing:0;white-space:nowrap}
+.timetable-draft-table-wrap .import-edit-table td{padding:8px 6px;white-space:nowrap}
+.timetable-draft-table-wrap .import-edit-table input{min-width:0;width:100%;height:40px;min-height:40px;padding:6px 8px;border-radius:9px;white-space:nowrap;font-size:12px}
+.timetable-draft-table-wrap .import-edit-table td:nth-child(1){min-width:175px}
+.timetable-draft-table-wrap .import-edit-table td:nth-child(2){min-width:80px}
+.timetable-draft-table-wrap .import-edit-table td:nth-child(3){min-width:140px}
+.timetable-draft-table-wrap .import-edit-table td:nth-child(4),.timetable-draft-table-wrap .import-edit-table td:nth-child(5){min-width:116px}
+.timetable-draft-table-wrap .import-edit-table td:nth-child(6){min-width:76px}
+.timetable-draft-empty{border:1px dashed #cbdfe1;border-radius:12px;background:#f9fcfc;color:#789099;font-size:12px;line-height:1.65;padding:20px;text-align:center}
+.timetable-import-embedded .import-footer{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:15px 0 0}
+.timetable-import-embedded .import-footer .field-inline{width:auto;max-width:100%;font-size:12px;color:#587580;line-height:1.5}
+.timetable-import-embedded .import-footer .field-inline input[type=checkbox]{flex:none;width:16px;height:16px;accent-color:#0b8b7d}
+.timetable-import-embedded .import-footer .btn{min-height:40px;font-size:12px}
+@media(max-width:1050px){.timetable-steps{grid-template-columns:1fr}.timetable-import-embedded .import-controls{grid-template-columns:repeat(2,minmax(0,1fr))}.timetable-import-embedded .import-controls label:first-child{grid-column:1/-1}}
+@media(max-width:660px){.timetable-upload-intro{grid-template-columns:36px minmax(0,1fr);padding:14px;gap:10px}.timetable-intro-icon{width:36px;height:36px}.timetable-upload-intro>span{grid-column:1/-1;max-width:none;text-align:left;justify-self:start}.timetable-chat{padding:13px}.timetable-chat .chat-form{grid-template-columns:1fr}.timetable-chat .chat-form .btn{height:43px}.timetable-chat .chat-bubble{max-width:100%}.timetable-file-card{padding:12px}.timetable-import-embedded .import-controls{grid-template-columns:1fr}.timetable-import-embedded .import-controls label:first-child{grid-column:auto}.timetable-section-heading{align-items:flex-start}.timetable-file-card .import-action-row label{width:100%}.timetable-file-card .import-action-row .btn{width:100%}.timetable-import-embedded .timetable-status{flex-direction:column;gap:4px}.timetable-import-embedded .import-footer{align-items:stretch}.timetable-import-embedded .import-footer .btn{width:100%}}
