@@ -588,6 +588,10 @@ function Students({ profile, refresh, reload, ping, navigate }) {
 
   async function save(e) {
     e.preventDefault();
+    const {data:review,error:reviewError}=await supabase.rpc('ic3_name_review',{p_name:form.full_name});
+    if(reviewError){ping('Không kiểm tra được tên học sinh: '+reviewError.message);return;}
+    if(review?.decision==='reject'){ping(review.reason||'Tên học sinh không phù hợp.');return;}
+    if(review?.decision==='review'&&!window.confirm('Tên này cần xác minh: '+review.reason+'\nBạn đã kiểm tra giấy tờ/danh sách lớp và muốn thêm thủ công?'))return;
     const { error } = await supabase.from("students").insert({
       ...form, full_name:properName(form.full_name),date_of_birth:form.date_of_birth||null, school_id: profile.school_id, created_by: profile.id
     });
@@ -601,6 +605,8 @@ function Students({ profile, refresh, reload, ping, navigate }) {
   }
 
   async function approve(s) {
+    if(s.name_review_status==='reject'){ping('Tên chưa nghiêm túc. Cần sửa đúng họ tên trước khi duyệt.');return;}
+    if(s.name_review_status==='review'&&!window.confirm('Tên cần xác minh: '+s.full_name+'\nBạn đã kiểm tra họ tên thật?'))return;
     const { error } = await supabase.from("students")
       .update({ status: "active" }).eq("id", s.id);
     if (error) ping(error.message);
