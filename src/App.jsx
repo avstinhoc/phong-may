@@ -163,18 +163,18 @@ function App() {
             ["PHÒNG MÁY", ["computers", "students", "cleaning", "settings"]],
             ["QUẢN LÝ", ["schools", "finance", "reports", "accounts"]]].map(([group, ids]) => <React.Fragment key={group}>
             <div className="nav-label">{group}</div>
+            <ChevronRight size={17} className="profile-chevron"/>
             {ids.map(id => nav.find(n => n[0] === id)).filter(([id]) => id!=="accounts" || profile.role === "admin").map(([id,label,Icon]) => <button key={id} className={`nav-item ${page === id ? "active" : ""}`} onClick={()=>{setPage(id);setMobileNav(false);}}><Icon size={18}/>{label}</button>)}
           </React.Fragment>)}
         </nav>
         <div className="sidebar-bottom">
-          <button type="button" className="user-mini personal-entry" onClick={()=>{setPage('personal');setMobileNav(false);}} title="Mở trang cá nhân">
+          <button type="button" className={'user-mini personal-entry '+(page==='personal'?'active':'')} aria-label="Mở trang Cá nhân" aria-current={page==='personal'?'page':undefined} onClick={()=>{setPage('personal');setMobileNav(false);}} title="Mở trang cá nhân">
             <div className="avatar">{profile.avatar_data?<img src={profile.avatar_data} alt="Ảnh đại diện"/>:(profile.full_name || "U").slice(0, 1).toUpperCase()}</div>
             <div>
               <b>{profile.full_name || session.user.email}</b>
               <small>{profile.role === "admin" ? "Quản trị viên" : profile.role === "teacher" ? "Giáo viên" : "Học sinh"}</small>
             </div>
           </button>
-          <button className={'nav-item '+(page==='personal'?'active':'')} onClick={()=>{setPage('personal');setMobileNav(false);}}><UserRound size={18}/>Cá nhân</button>
           <button className="nav-item" onClick={signOut}><LogOut size={18} />Đăng xuất</button>
         </div>
       </aside>
@@ -947,7 +947,7 @@ function Attendance({ profile, refresh, reload, ping, focusDate, setFocusDate, o
   // the separate management view to inspect/edit one teacher at a time.
   const selectedTeacher=adminView?(adminSelection?.id||profile.id):profile.id;
   const targetTeacher=adminView?selectedTeacher:profile.id;
-  const [editorMode,setEditorMode]=useState("manual");
+  const [editorMode,setEditorMode]=useState("import");
   const visibleRows=rows.filter(r=>targetTeacher==="unassigned"?
     (!r.teacher_id&&!r.created_by):
     (r.teacher_id===targetTeacher||(!r.teacher_id&&r.created_by===targetTeacher)));
