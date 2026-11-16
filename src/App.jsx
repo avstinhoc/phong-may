@@ -943,6 +943,9 @@ function Attendance({ profile, refresh, reload, ping, focusDate, setFocusDate, o
   },[profile.school_id,profile.id]);
   const [editingId, setEditingId] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [selectedSessionIds,setSelectedSessionIds]=useState([]);
+  const allowedSessionRows=visibleRows;
+  const allSessionsSelected=allowedSessionRows.length>0 && allowedSessionRows.every(r=>selectedSessionIds.includes(r.id));
   const [form, setForm] = useState({
     class_name: "", session_date: today(), start_time: "17:00",
     end_time: "19:00", teacher_name: profile.full_name || "", teacher_id:profile.id,
@@ -968,6 +971,24 @@ function Attendance({ profile, refresh, reload, ping, focusDate, setFocusDate, o
     setSaving(false);
     if (error) ping(error.message);
     else { ping("Đã lưu buổi học"); setFocusDate(form.session_date); setEditingId(null); reload(); }
+  }
+
+  async function bulkDeleteSessions(){
+    const ids=selectedSessionIds.filter(id=>allowedSessionRows.some(r=>r.id===id));
+    if(!ids.length)return;
+    if(!window.confirm('Xóa vĩnh viễn '+ids.length+' buổi học đã chọn? Điểm danh gắn với các buổi này sẽ bị xóa theo. Không thể hoàn tác.'))return;
+    if(window.prompt('Để xác nhận xóa '+ids.length+' buổi, nhập XÓA:')!=='XÓA')return;
+    setSaving(true);
+    let query=supabase.from('class_sessions').delete().in('id',ids).eq('school_id',profile.school_id);
+    if(!adminView)query=query.or('teacher_id.eq.'+profile.id+',and(teacher_id.is.null,created_by.eq.'+profile.id+')');
+    const {data,error}=await query.select('id');
+    setSaving(false);
+    if(error){ping('Không xóa được lịch: '+error.message);return;}
+    const deleted=new Set((data||[]).map(r=>r.id));
+    setSelectedSessionIds(current=>current.filter(id=>!deleted.has(id)));
+    if(editingId&&deleted.has(editingId))setEditingId(null);
+    ping('Đã xóa '+deleted.size+'/'+ids.length+' buổi đã chọn.');
+    reload();
   }
 
   async function removeSession(r) {
@@ -1061,14 +1082,26 @@ function Attendance({ profile, refresh, reload, ping, focusDate, setFocusDate, o
     </section>
 
     <div className="panel table-panel">
-      <h3>Buổi học đã tạo</h3>
+      <div className="schedule-table-header">
+        <h3>Buổi học đã tạo</h3>
+        <div className="actions">
+          <span className="muted">Đã chọn {selectedSessionIds.filter(id=>visibleRows.some(r=>r.id===id)).length} buổi</span>
+          <button type="button" className="btn outline schedule-delete-selected" onClick={bulkDeleteSessions}
+            disabled={saving||!selectedSessionIds.some(id=>visibleRows.some(r=>r.id===id))}>
+            <Trash2 size={15}/> Xóa lịch đã chọn
+          </button>
+        </div>
+      </div>
+      <div className="table-wrap">
       <table>
-        <thead><tr><th>NGÀY</th><th>LỚP</th><th>GIÁO VIÊN</th><th>GIỜ</th><th>SỐ TIẾT</th><th></th></tr></thead>
+        <thead><tr><th><input type="checkbox" title="Chọn tất cả lịch đang hiển thị" aria-label="Chọn tất cả lịch đang hiển thị"
+          checked={allSessionsSelected} onChange={e=>setSelectedSessionIds(e.target.checked?visibleRows.map(r=>r.id):[])} /></th><th>NGÀY</th><th>LỚP</th><th>GIÁO VIÊN</th><th>GIỜ</th><th>SỐ TIẾT</th><th></th></tr></thead>
         <tbody>{visibleRows.map(r => (
-          <tr key={r.id}><td>{dateText(r.session_date)}</td><td>{r.class_name}</td><td>{r.teacher_name}</td><td>{r.start_time} – {r.end_time}</td><td>{r.period_count}</td><td><button className="btn outline" onClick={()=>{setEditingId(r.id);setForm({class_name:r.class_name,session_date:r.session_date,start_time:r.start_time.slice(0,5),end_time:r.end_time.slice(0,5),teacher_name:r.teacher_name||"",teacher_id:r.teacher_id||profile.id,period_count:r.period_count});}}>Sửa</button><button className="btn outline" onClick={()=>removeSession(r)}>Xóa</button></td></tr>
+          <tr key={r.id}><td><input type="checkbox" aria-label={'Chọn buổi '+r.class_name+' ngày '+r.session_date}
+            checked={selectedSessionIds.includes(r.id)} onChange={e=>setSelectedSessionIds(old=>e.target.checked?[...new Set([...old,r.id])]:old.filter(id=>id!==r.id))}/></td><td>{dateText(r.session_date)}</td><td>{r.class_name}</td><td>{r.teacher_name}</td><td>{r.start_time} – {r.end_time}</td><td>{r.period_count}</td><td><button className="btn outline" onClick={()=>{setEditingId(r.id);setForm({class_name:r.class_name,session_date:r.session_date,start_time:r.start_time.slice(0,5),end_time:r.end_time.slice(0,5),teacher_name:r.teacher_name||"",teacher_id:r.teacher_id||profile.id,period_count:r.period_count});}}>Sửa</button><button className="btn outline" onClick={()=>removeSession(r)}>Xóa</button></td></tr>
         ))}</tbody>
-      </table>
-      {!visibleRows.length && <Empty text="Giáo viên đang chọn chưa có lịch tại trường này." />}
+      </table></div>
+      {!visibleRows.length && <Empty text="Chưa có lịch dạy ở trường này." />}
     </div>
   </>;
 }
