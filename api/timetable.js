@@ -1,5 +1,6 @@
 import {createClient} from '@supabase/supabase-js';
 import {planIntent,vnToday,mondayOf} from '../src/lib/weekPlanner.js';
+import {requestTimetableGemini,GeminiTimetableError} from '../src/lib/geminiTimetableRequest.js';
 
 const dateValid=s=>typeof s==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(s)&&!Number.isNaN(Date.parse(s))&&new Date(s).toISOString().slice(0,10)===s;
 const clean=v=>typeof v==='string'?v.trim().slice(0,250):'';
@@ -83,13 +84,12 @@ export default async function handler(req,res){
   parts.unshift({text:guide});
   const {error:qe}=await db.rpc('consume_timetable_quota');
   if(qe)return res.status(429).json({error:'Tạm thời không thể xử lý AI: '+qe.message});
-  const upstream=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(process.env.GEMINI_MODEL||'gemini-2.5-flash')+':generateContent',{
-   method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':process.env.GEMINI_API_KEY},
-   body:JSON.stringify({contents:[{parts}],generationConfig:{temperature:0.1,responseMimeType:'application/json'}}),
-   signal:AbortSignal.timeout(47000)
+  const {data:raw,model:usedModel,fallbackUsed}=await requestTimetableGemini({
+   apiKey:process.env.GEMINI_API_KEY,
+   model:process.env.GEMINI_MODEL||'gemini-2.5-flash',
+   fallbackModel:process.env.GEMINI_FALLBACK_MODEL||'gemini-2.5-flash-lite',
+   parts
   });
-  if(!upstream.ok){const err=upstream.status===429?'Gemini đang hết hạn mức hoặc bị giới hạn tốc độ.':'Gemini trả lỗi '+upstream.status+'. Kiểm tra model và cấu hình API trên Vercel.';return res.status(502).json({error:err});}
-  const raw=await upstream.json();
   const content=raw.candidates?.[0]?.content?.parts?.map(p=>p.text||'').join('')||'{}';
   const output=JSON.parse(content);
   if(!Array.isArray(output.rows)||output.rows.length>120)throw Error('Invalid AI rows');
@@ -121,8 +121,11 @@ export default async function handler(req,res){
   const summary=typeof output.summary==='string'?output.summary.trim().slice(0,800):'';
   return res.status(200).json({rows:good,warnings,summary,reply,repeat_weekly:output.repeat_weekly===true,
     observed_cells:Number.isInteger(observed)&&observed>0?observed:null,
-    replace_draft:mode==='extract'||output.replace_draft===true});
+    replace_draft:mode==='extract'||output.replace_draft===true,model_used:usedModel,fallback_used:fallbackUsed});
  }catch(e){
-  return res.status(502).json({error:e.name==='TimeoutError'?'Gemini xử lý quá lâu; thử tệp nhỏ hơn.':'Không thể xử lý nội dung. Hãy thử tệp dễ đọc hơn hoặc nhập lịch thủ công.'});
+  console.error('IC3 timetable API',e?.name||'Error',e?.status||502);
+  if(e instanceof GeminiTimetableError)return res.status(e.status).json({error:e.message});
+  if(e instanceof SyntaxError)return res.status(502).json({error:'AI đã phản hồi nhưng dữ liệu thời khóa biểu chưa đúng định dạng. Hãy thử đọc lại tệp.'});
+  return res.status(502).json({error:'Không thể xử lý nội dung lần này. Bản nháp cũ vẫn được giữ nguyên; hãy thử lại hoặc nhập lịch thủ công.'});
  }
 }
