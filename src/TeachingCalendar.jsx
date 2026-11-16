@@ -26,13 +26,16 @@ export function TeachingCalendar({rows=[],focusDate,onDateChange,school,teacher}
   <label className="field-inline">Chọn ngày xem lịch <input type="date" style={{width:175}} value={focusDate||key(new Date())} onChange={e=>e.target.value&&onDateChange(e.target.value)}/></label>
   <div className="calendar-grid-scroll" role="region" aria-label="Bảng lịch sáng chiều theo ngày" tabIndex={0}>
     <table className="calendar-grid" aria-label="Lịch dạy với các tiết trống theo cùng hàng giờ">
-      <thead><tr><th className="cal-period-col">Buổi</th><th className="cal-time-col">Khung giờ</th>
+      <thead><tr><th className="cal-period-col">Buổi</th><th className="cal-time-col">Bắt đầu – kết thúc</th>
       {days.map((d,i)=>{const date=key(d);return <th key={date} className={date===key(new Date())?'cal-today':''}>
         <strong>{weekday[i]}</strong><span>{d.getDate()}/{d.getMonth()+1}</span><small>{counts[date]||0} buổi</small>
       </th>})}</tr></thead>
       <tbody>{periods.map(period=>period.slots.map((slot,index)=><tr className={'cal-period-row '+(slot.gap?'cal-gap-row':'')} key={slot.key}>
         {index===0&&<th className={'cal-shift '+period.id} rowSpan={period.slots.length} scope="rowgroup"><span>{period.label}</span></th>}
-        <th className="cal-time-cell" scope="row">{slot.gap?'Tiết trống':slot.empty?'—':slot.time}</th>
+        <th className="cal-time-cell" scope="row">{slot.gap?'Tiết trống':slot.empty?'—':(()=>{
+          const ends=[...new Set(visible.filter(r=>timeValue(r)===slot.time&&r.session_date>=start&&r.session_date<=end).map(endTime))].sort();
+          return <span className="cal-time-range"><b>{slot.time}</b><span>{ends.length===1?'– '+ends[0]:'– xem từng ngày'}</span></span>;
+        })()}</th>
         {days.map(d=>{const date=key(d);
           const lessons=slot.time?visible.filter(r=>r.session_date===date&&timeValue(r)===slot.time):[];
           return <td key={date+slot.key} className={(date===key(new Date())?'cal-today ':'')+(!lessons.length?'cal-open-slot':'cal-filled-slot')}>
