@@ -202,8 +202,9 @@ export default async function handler(req,res){
      (Date.parse(endDate+'T12:00:00Z')-Date.parse(startDate+'T12:00:00Z'))/86400000>90)
     return error(res,400,'Khoảng tạo lịch không hợp lệ (tối đa 91 ngày).');
   const {data:lessons,error:lessonError}=await db.from('class_sessions')
-    .select('id,school_id,class_name,session_date,start_time,end_time,period_count,teacher_name,teacher_id')
-    .eq('school_id',schoolId).eq('teacher_id',teacherId)
+    .select('id,school_id,class_name,session_date,start_time,end_time,period_count,teacher_name,teacher_id,created_by')
+    .eq('school_id',schoolId)
+    .or('teacher_id.eq.'+teacherId+',and(teacher_id.is.null,created_by.eq.'+teacherId+')')
     .gte('session_date',startDate).lte('session_date',endDate)
     .order('session_date',{ascending:true}).limit(300);
   if(lessonError)return error(res,503,'Không thể tải lịch hiện tại để so sánh.');
@@ -276,6 +277,10 @@ export default async function handler(req,res){
       warnings.push('Một ô thiếu lớp hoặc giờ chính xác nên KHÔNG thêm vào bản nháp.');continue;
     }
     if(intent.weekly && row.operation==='create'){
+      if(Number.isInteger(row.weekday)&&row.weekday>=1&&row.weekday<=7&&
+         isDate(row.session_date)&&weekday(row.session_date)!==row.weekday){
+        warnings.push('Một ô có thứ và ngày mâu thuẫn nhau. Không tạo lịch cho ô này.');continue;
+      }
       if(!Number.isInteger(row.weekday)||row.weekday<1||row.weekday>7){
         if(isDate(row.session_date))row.weekday=weekday(row.session_date);
         else {warnings.push('Một ô không xác định được thứ trong tuần.');continue;}
