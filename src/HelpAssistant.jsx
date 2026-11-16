@@ -233,7 +233,9 @@ export function HelpAssistant({profile,page,onNavigate,onSaved,scheduleTeacher=n
    const reuseOld=actualMode==='schedule'&&!file&&previousScheduleFile.current&&
       /(nay|do|anh|tep|file|lich moi|vua gui|tuan nay|thay the)/.test(normalize(message));
    const attachedFile=file||(reuseOld?previousScheduleFile.current:null);
-   if(actualMode==='schedule'&&file)previousScheduleFile.current=file;
+   // Keep the last user-provided file only in this chat so a later explicit
+   // reference to "ảnh/lịch này" can be analyzed without asking to re-upload.
+   if(file)previousScheduleFile.current=file;
    const userText=message||(actualMode==='schedule'?'Đọc thời khóa biểu trong ảnh hoặc tệp này và tạo bản nháp lịch dạy đúng lớp, thứ, giờ.':'Hãy đọc tệp đính kèm và hướng dẫn thao tác trong IC3 GS6.');
    const history=messages.filter(m=>['user','assistant'].includes(m.role)).slice(-8).map(m=>({role:m.role,text:m.text}));
    let img=null;
