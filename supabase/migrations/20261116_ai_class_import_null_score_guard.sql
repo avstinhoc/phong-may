@@ -104,35 +104,7 @@ BEGIN
          CONTINUE;
        END IF;
        score_value:=trim(entry.value#>>'{}');
-       IF score_value IS NULL OR score_value !~ '^(10(\.0{1,2})?|[0-9](\.[0-9]{1,2})?)
-         issues:=issues||jsonb_build_array('Điểm của '||raw_name||' ('||entry.key||'): '
-           ||left(score_value,25)||' không thuộc 0–10');
-         CONTINUE;
-       END IF;
-       IF old_scores ? entry.key AND NOT p_overwrite_scores THEN
-         issues:=issues||jsonb_build_array('Điểm của '||raw_name||' ('||entry.key||') đã có, không ghi đè');
-         CONTINUE;
-       END IF;
-       changes:=changes||jsonb_build_object(entry.key,score_value::numeric);
-     END LOOP;
-     IF changes='{}'::jsonb THEN skipped_count:=skipped_count+1; CONTINUE; END IF;
-     INSERT INTO public.student_results(school_id,student_id,scores,updated_at)
-       VALUES(classroom.school_id,target_id,changes,now())
-     ON CONFLICT(student_id) DO UPDATE SET
-       scores=coalesce(public.student_results.scores,'{}'::jsonb)||EXCLUDED.scores,
-       updated_at=now();
-     updated_count:=updated_count+1;
-   END IF;
- END LOOP;
- RETURN jsonb_build_object('created',created_count,'updated',updated_count,
-   'skipped',skipped_count,'issues',issues,'class_name',classroom.class_name);
-END;
-$fn$;
-REVOKE ALL ON FUNCTION public.ic3_apply_ai_class_import(uuid,text,jsonb,boolean) FROM PUBLIC,anon;
-GRANT EXECUTE ON FUNCTION public.ic3_apply_ai_class_import(uuid,text,jsonb,boolean) TO authenticated;
-
--- Single-school legacy rows must belong to the same class owner, too.
- THEN
+       IF score_value IS NULL OR score_value !~ '^(10(\.0{1,2})?|[0-9](\.[0-9]{1,2})?)$' THEN
          issues:=issues||jsonb_build_array('Điểm của '||raw_name||' ('||entry.key||'): '
            ||left(score_value,25)||' không thuộc 0–10');
          CONTINUE;
