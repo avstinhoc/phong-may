@@ -203,8 +203,6 @@ END; $function$;
 DROP TRIGGER IF EXISTS ic3_name_review_trigger ON public.students;
 CREATE TRIGGER ic3_name_review_trigger BEFORE INSERT OR UPDATE OF full_name ON public.students
  FOR EACH ROW EXECUTE FUNCTION public.ic3_set_student_name_review();
-UPDATE public.students s SET name_review_status=review.result->>'decision',
- name_review_reason=review.result->>'reason'
- FROM LATERAL (SELECT public.ic3_name_review(s.full_name) AS result) review
- WHERE s.name_review_status IS DISTINCT FROM review.result->>'decision'
-    OR s.name_review_reason IS DISTINCT FROM review.result->>'reason';
+UPDATE public.students SET
+ name_review_status=(public.ic3_name_review(full_name)->>'decision'),
+ name_review_reason=(public.ic3_name_review(full_name)->>'reason');
