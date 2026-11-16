@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase, configurationError, authMessage, isEmailSendLimit } from "./lib/supabase";
 import { SchoolManager, Accounts, TimetableImport } from "./Management";
+import { WorkplaceManager } from "./WorkplaceManager";
 import { StudentRoster } from "./StudentRoster";
 import { StudentPortal } from "./StudentPortal";
 import { AuthCallback, emailCallbackUrl } from "./AuthCallback";
@@ -20,7 +21,7 @@ import {
   Award, Sparkles, Settings, LogOut, Plus, Search, Download, RefreshCw,
   CheckCircle2, Clock3, AlertTriangle, School, Menu, X, UserPlus,
   ShieldCheck, Trash2, FileSpreadsheet, ClipboardCheck, FileText,
-  ChevronLeft, ChevronRight, Printer, UserCheck, UserRound
+  ChevronLeft, ChevronRight, Printer, UserCheck, UserRound, Building2
 } from "lucide-react";
 
 const nav = [
@@ -35,6 +36,7 @@ const nav = [
   ["finance", "Chấm công & tiền công", Clock3],
   ["evaluation", "Đánh giá học sinh", Sparkles],
   ["reports", "Báo cáo", FileText],
+  ["workplaces", "Công ty / Trung tâm", Building2],
   ["schools", "Trường công tác", School],
   ["settings", "Lớp & mã đăng ký", Settings],
   ["accounts", "Quản lý tài khoản", ShieldCheck],
@@ -60,6 +62,8 @@ function App() {
   const [session, setSession] = useState(null);
   const [account, setProfile] = useState(null);
   const [schools, setSchools] = useState([]);
+  const [workplaces,setWorkplaces] = useState([]);
+  const [workplaceSchools,setWorkplaceSchools] = useState([]);
   const [schoolId, setSchoolId] = useState("");
   const [profileError, setProfileError] = useState("");
   const school = schools.find(s => s.id === schoolId);
@@ -104,11 +108,18 @@ function App() {
       if (live) {
         setProfile(error ? null : data);
         setProfileError(error?.message || (!data ? "Chưa có hồ sơ. Hãy chạy migration để đồng bộ tài khoản Auth sang profiles." : ""));
-        const result = await supabase.from("schools").select("id,name,logo_data").order("name");
+        const [result,unitsResult,linksResult]=await Promise.all([
+          supabase.from("schools").select("id,name,logo_data").order("name"),
+          supabase.from("workplaces").select("id,name,kind,created_by,logo_data").order("name"),
+          supabase.from("workplace_schools").select("workplace_id,school_id")
+        ]);
         if (!live) return;
         if (result.error) setProfileError(result.error.message);
         setSchools(result.data || []);
+        setWorkplaces(unitsResult.data || []);
+        setWorkplaceSchools(linksResult.data || []);
         setSchoolId(current => (result.data || []).some(s => s.id === current) ? current : result.data?.[0]?.id || "");
+        if(unitsResult.error||linksResult.error)setNotice('Chưa tải được công ty/trung tâm. Hãy kiểm tra migration Supabase.');
         setLoading(false);
       }
       } catch(e) { if(live) { setProfileError(authMessage(e)); setLoading(false); } }
@@ -125,7 +136,7 @@ function App() {
   const signOut = async () => {
     await supabase.auth.signOut();
     setProfile(null);
-    setSchools([]); setSchoolId(""); setPage("dashboard");
+    setSchools([]);setWorkplaces([]);setWorkplaceSchools([]); setSchoolId(""); setPage("dashboard");
   };
 
   if (!supabase) return <SetupScreen />;
@@ -156,12 +167,27 @@ function App() {
           <button className="mobile-close" onClick={() => setMobileNav(false)}><X size={18} /></button>
         </div>
         <div className="school-chip">
-          <School size={16} /><select aria-label="Trường đang quản lý" value={schoolId} onChange={e => setSchoolId(e.target.value)}><option value="" disabled>Chọn trường</option>{schools.map(s => <option value={s.id} key={s.id}>{s.name}</option>)}</select>
+          <School size={16} /><select aria-label="Trường đang quản lý" value={schoolId} onChange={e => setSchoolId(e.target.value)}>
+            <option value="" disabled>Chọn trường</option>
+            {workplaces.length?<>
+              {workplaces.map(unit=>{
+                const ids=new Set(workplaceSchools.filter(x=>x.workplace_id===unit.id).map(x=>x.school_id));
+                const list=schools.filter(s=>ids.has(s.id));
+                return list.length?<optgroup key={unit.id} label={(unit.kind==='company'?'Công ty':'Trung tâm')+' · '+unit.name}>
+                  {list.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
+                </optgroup>:null;
+              })}
+              <optgroup label="Trường chưa thuộc đơn vị">
+                {schools.filter(s=>!workplaceSchools.some(l=>l.school_id===s.id)).map(s=>
+                  <option value={s.id} key={s.id}>{s.name}</option>)}
+              </optgroup>
+            </>:schools.map(s=><option value={s.id} key={s.id}>{s.name}</option>)}
+           </select>
         </div>
         <nav className="nav-scroll" aria-label="Menu chính">
           {[["GIẢNG DẠY", ["dashboard", "attendance", "rollcall", "roster", "records", "evaluation"]],
             ["PHÒNG MÁY", ["computers", "students", "cleaning", "settings"]],
-            ["QUẢN LÝ", ["schools", "finance", "reports", "accounts"]]].map(([group, ids]) => <React.Fragment key={group}>
+            ["QUẢN LÝ", ["workplaces", "schools", "finance", "reports", "accounts"]]].map(([group, ids]) => <React.Fragment key={group}>
             <div className="nav-label">{group}</div>
             <ChevronRight size={17} className="profile-chevron"/>
             {ids.map(id => nav.find(n => n[0] === id)).filter(([id]) => id!=="accounts" || profile.role === "admin").map(([id,label,Icon]) => <button key={id} className={`nav-item ${page === id ? "active" : ""}`} onClick={()=>{setPage(id);setMobileNav(false);}}><Icon size={18}/>{label}</button>)}
@@ -195,14 +221,20 @@ function App() {
 
         {notice && <div className="toast"><CheckCircle2 size={17} />{notice}</div>}
 
-        <div className="content" key={["schools","settings","finance","reports","accounts","personal"].includes(page)?page:schoolId}>
-          {(page === "schools" || !schools.length) && <SchoolManager schools={schools} role={profile.role} onCreated={id => {setSchoolId(id); reload();}} onChanged={deletedId => {if(deletedId === schoolId) setSchoolId(""); reload();}} ping={ping} />}
+        <div className="content" key={["workplaces","schools","settings","finance","reports","accounts","personal"].includes(page)?page:schoolId}>
+          {(page === "schools" || (!schools.length && page!=="workplaces")) && <SchoolManager
+            schools={schools} workplaces={workplaces} workplaceSchools={workplaceSchools} role={profile.role}
+            onCreated={id => {setSchoolId(id); reload();}}
+            onChanged={deletedId => {if(deletedId === schoolId) setSchoolId(""); reload();}} ping={ping} />}
+          {page==="workplaces"&&<WorkplaceManager profile={profile} schools={schools} workplaces={workplaces}
+            links={workplaceSchools} onChanged={reload} ping={ping}
+            onGoSchools={()=>setPage("schools")}/>}
           {page === "accounts" && profile.role === "admin" && <Accounts profile={profile} />}
           {page === "personal" && <ProfileSettings key={profile.id} profile={profile} email={session.user.email} reload={reload} ping={ping}/>}
           {page === "settings" && <ClassSettings profile={profile} ping={ping} schools={schools} onChanged={reload} />}
           {page === "finance" && <TeacherPayroll profile={profile} refresh={refresh} ping={ping} schools={schools} />}
           {page === "reports" && <ReportsCenter profile={profile} refresh={refresh} ping={ping} schools={schools} />}
-          {!schoolId && !["schools","settings","finance","reports","accounts","personal"].includes(page) && <div className="notice-box">Thêm trường đầu tiên để bắt đầu quản lý học sinh và lịch dạy.</div>}
+          {!schoolId && !["workplaces","schools","settings","finance","reports","accounts","personal"].includes(page) && <div className="notice-box">Thêm trường đầu tiên để bắt đầu quản lý học sinh và lịch dạy.</div>}
           {schoolId && <>
           {page === "dashboard" && <Dashboard profile={profile} refresh={refresh} setPage={setPage} />}
           {page === "roster" && <StudentRoster profile={profile} refresh={refresh} ping={ping} />}
