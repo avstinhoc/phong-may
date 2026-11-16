@@ -131,7 +131,7 @@ BEGIN
  RETURN jsonb_build_object('status','pending','code',c.registration_code,
    'message',CASE WHEN name_review->>'decision'='review' THEN 'Tên cần giáo viên kiểm tra trước khi duyệt: '||(name_review->>'reason') ELSE 'Đã gửi đăng ký đến giáo viên. Hãy chờ duyệt hồ sơ.' END);
 END;
-$function$
+$function$;
 
 CREATE OR REPLACE FUNCTION public.approve_registration(registration_id uuid)
  RETURNS uuid
@@ -187,7 +187,7 @@ BEGIN
  UPDATE public.student_registrations SET status='approved',review_note='Duyệt thủ công' WHERE id=r.id;
  RETURN sid;
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.ic3_set_student_name_review()
