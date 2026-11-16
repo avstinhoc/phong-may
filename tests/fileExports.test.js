@@ -18,9 +18,10 @@ test('Excel patch edits one cell and keeps other sheets',async()=>{
  XLSX.utils.book_append_sheet(wb,one,'Dữ liệu');
  XLSX.utils.book_append_sheet(wb,two,'Thông tin');
  const initial=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+ const initialBuffer=initial instanceof ArrayBuffer?initial:initial.buffer.slice(initial.byteOffset,initial.byteOffset+initial.byteLength);
  const result=await buildEditedFile({
    name:'Lop.xlsx',format:'xlsx',edits:[{sheet:'Dữ liệu',cell:'B2',value:'Mới'}]
- },{arrayBuffer:async()=>initial.buffer.slice(initial.byteOffset,initial.byteOffset+initial.byteLength)});
+ },{arrayBuffer:async()=>initialBuffer});
  const output=XLSX.read(new Uint8Array(await result.blob.arrayBuffer()),{type:'array'});
  assert.equal(output.Sheets['Dữ liệu'].B2.v,'Mới');
  assert.equal(output.Sheets['Thông tin'].A2.v,'Phương');
