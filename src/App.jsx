@@ -27,6 +27,7 @@ const nav = [
   ["roster", "Danh sách học sinh", ClipboardList],
   ["computers", "Phòng máy", Monitor],
   ["attendance", "Lịch dạy giáo viên", CalendarDays],
+  ["teacherSchedules", "Lịch giáo viên khác", CalendarDays],
   ["rollcall", "Điểm danh học sinh", UserCheck],
   ["records", "Điểm, lỗi & thưởng", ClipboardList],
   ["cleaning", "Vệ sinh máy", ClipboardCheck],
@@ -158,9 +159,9 @@ function App() {
         <nav className="nav-scroll" aria-label="Menu chính">
           {[["GIẢNG DẠY", ["dashboard", "attendance", "rollcall", "roster", "records", "evaluation"]],
             ["PHÒNG MÁY", ["computers", "students", "cleaning"]],
-            ["QUẢN LÝ", ["schools", "settings", "finance", "reports", "accounts"]]].map(([group, ids]) => <React.Fragment key={group}>
+            ["QUẢN LÝ", ["schools", "settings", "teacherSchedules", "finance", "reports", "accounts"]]].map(([group, ids]) => <React.Fragment key={group}>
             <div className="nav-label">{group}</div>
-            {ids.map(id => nav.find(n => n[0] === id)).filter(([id]) => id !== "accounts" || profile.role === "admin").map(([id,label,Icon]) => <button key={id} className={`nav-item ${page === id ? "active" : ""}`} onClick={()=>{setPage(id);setMobileNav(false);}}><Icon size={18}/>{label}</button>)}
+            {ids.map(id => nav.find(n => n[0] === id)).filter(([id]) => !["accounts","teacherSchedules"].includes(id) || profile.role === "admin").map(([id,label,Icon]) => <button key={id} className={`nav-item ${page === id ? "active" : ""}`} onClick={()=>{setPage(id);setMobileNav(false);}}><Icon size={18}/>{label}</button>)}
           </React.Fragment>)}
         </nav>
         <div className="sidebar-bottom">
@@ -205,6 +206,7 @@ function App() {
           {page === "computers" && <Computers profile={profile} refresh={refresh} reload={reload} ping={ping} />}
           {page === "rollcall" && isTeacher && <RollCallView profile={profile} refresh={refresh} reload={reload} ping={ping} focusDate={calendarDate} setFocusDate={setCalendarDate} />}
           {page === "attendance" && isTeacher && <Attendance profile={profile} refresh={refresh} reload={reload} ping={ping} focusDate={calendarDate} setFocusDate={setCalendarDate} onImported={async(date,name)=>{setCalendarDate(date);const {data,error}=await supabase.rpc("create_my_school",{school_name:name});if(!error)setSchoolId(data);reload();}} />}
+          {page === "teacherSchedules" && profile.role === "admin" && <Attendance adminView profile={profile} refresh={refresh} reload={reload} ping={ping} focusDate={calendarDate} setFocusDate={setCalendarDate} />}
           {page === "records" && isTeacher && <Records profile={profile} refresh={refresh} reload={reload} ping={ping} />}
           {page === "cleaning" && isTeacher && <Cleaning profile={profile} refresh={refresh} reload={reload} ping={ping} />}
           {page === "evaluation" && <Evaluation profile={profile} refresh={refresh} reload={reload} ping={ping} />}
@@ -773,15 +775,28 @@ function RollCallView({profile,refresh,reload,ping,focusDate,setFocusDate}){
   </>;
 }
 
-function Attendance({ profile, refresh, reload, ping, focusDate, setFocusDate, onImported }) {
+function Attendance({ profile, refresh, reload, ping, focusDate, setFocusDate, onImported, adminView=false }) {
   const { rows, error: scheduleError } = useRows("class_sessions", profile, refresh);
   const classes = useRows("classes", profile, refresh);
   const [teacherChoices,setTeacherChoices]=useState([{id:profile.id,full_name:profile.full_name||"Giáo viên"}]);
+  // Every personal calendar is scoped to its signed-in teacher. Admin can use
+  // the separate management view to inspect/edit one teacher at a time.
+  const [selectedTeacher,setSelectedTeacher]=useState(profile.id);
+  const targetTeacher=adminView?selectedTeacher:profile.id;
+  const visibleRows=rows.filter(r=>targetTeacher==="unassigned"?
+    (!r.teacher_id&&!r.created_by):
+    (r.teacher_id===targetTeacher||(!r.teacher_id&&r.created_by===targetTeacher)));
+  const viewingName=teacherChoices.find(t=>t.id===targetTeacher)?.full_name||
+    (targetTeacher==="unassigned"?"Chưa phân công":profile.full_name||"Giáo viên");
   useEffect(()=>{
     let live=true;
+    if(profile.role!=="admin")return ()=>{live=false;};
     supabase.from("profiles").select("id,full_name,role,is_active").eq("is_active",true)
       .in("role",["admin","teacher","staff"]).order("full_name").then(({data,error})=>{
-        if(live&&!error&&data?.length)setTeacherChoices(data);
+        if(live&&!error&&data?.length){
+          setTeacherChoices(data.some(t=>t.id===profile.id)?data:
+            [{id:profile.id,full_name:profile.full_name||"Giáo viên"},...data]);
+        }
       });
     return ()=>{live=false;};
   },[profile.school_id,profile.id]);
@@ -800,12 +815,15 @@ function Attendance({ profile, refresh, reload, ping, focusDate, setFocusDate, o
     const payload = {
       ...form,
       school_id: profile.school_id,
-      teacher_id: form.teacher_id || profile.id,
-      teacher_name:teacherChoices.find(t=>t.id===form.teacher_id)?.full_name||form.teacher_name,
+      teacher_id: adminView?(targetTeacher==="unassigned"?form.teacher_id:targetTeacher):profile.id,
+      teacher_name:teacherChoices.find(t=>t.id===(adminView?(targetTeacher==="unassigned"?form.teacher_id:targetTeacher):profile.id))?.full_name||profile.full_name,
       created_by: profile.id,
       period_count: Number(form.period_count)
     };
-    const { error } = editingId ? await supabase.from("class_sessions").update(payload).eq("id",editingId) : await supabase.from("class_sessions").insert(payload);
+    if(adminView&&targetTeacher==="unassigned"&&!editingId){setSaving(false);ping("Chọn giáo viên ở bộ lọc để tạo lịch; ở mục Chưa phân công chỉ dùng Sửa để gán buổi học cũ.");return;}
+    const { error } = editingId ? await supabase.from("class_sessions").update(payload)
+      .eq("id",editingId).eq("school_id",profile.school_id) :
+      await supabase.from("class_sessions").insert(payload);
     setSaving(false);
     if (error) ping(error.message);
     else { ping("Đã lưu buổi học"); setFocusDate(form.session_date); setEditingId(null); reload(); }
@@ -823,13 +841,33 @@ function Attendance({ profile, refresh, reload, ping, focusDate, setFocusDate, o
   );
 
   return <>
-    <TeachingCalendar rows={rows} focusDate={focusDate} onDateChange={setFocusDate} school={profile.school_name} teacher={profile.full_name} />
+    {adminView?<section className="panel teacher-schedule-switcher">
+      <h2>Quản lý lịch theo giáo viên</h2>
+      <p className="muted">Admin chọn từng giáo viên để xem và sửa lịch riêng, không trộn lịch nhiều người. Lịch cá nhân nằm ở mục Lịch dạy giáo viên.</p>
+      <label>Chọn giáo viên
+        <select aria-label="Chọn giáo viên để xem lịch" value={selectedTeacher}
+          onChange={e=>{
+            const id=e.target.value;
+            setSelectedTeacher(id);
+            setEditingId(null);
+            const found=teacherChoices.find(t=>t.id===id);
+            setForm(old=>({...old,teacher_id:id==="unassigned"?profile.id:id,
+              teacher_name:found?.full_name||profile.full_name||""}));
+          }}>
+          {teacherChoices.map(t=><option key={t.id} value={t.id}>{t.full_name}{t.id===profile.id?" (bạn)":""}</option>)}
+          {rows.some(r=>!r.teacher_id&&!r.created_by)&&<option value="unassigned">Buổi học chưa phân công</option>}
+        </select>
+      </label>
+      <p className="muted">{visibleRows.length} buổi học đang hiển thị của {viewingName}.</p>
+    </section>:<div className="notice-box">Đây là <b>lịch cá nhân</b> của {profile.full_name}. Admin có thể mở mục <b>Lịch giáo viên khác</b> ở nhóm Quản lý để xem người khác.</div>}
+    <TeachingCalendar rows={visibleRows} focusDate={focusDate} onDateChange={setFocusDate} school={profile.school_name} teacher={viewingName} />
     {scheduleError && <p role="alert" className="notice-box">Không tải được lịch: {scheduleError}</p>}
-    <TimetableImport profile={profile} reload={reload} onImported={onImported} />
+{!adminView&&<TimetableImport profile={profile} reload={reload} onImported={onImported} />}
     <SectionHead title="Lịch học & chấm công" desc="Lập lịch theo lớp, ghi nhận giờ dạy và số tiết học" />
     <div className="two-col">
       <div className="panel">
         <h3>{editingId ? "Sửa buổi học" : "Tạo buổi học / chấm công"}</h3>
+        {adminView&&targetTeacher==="unassigned"&&<p className="muted">Các buổi cũ chưa có giáo viên. Bấm Sửa tại một dòng rồi chọn giáo viên phụ trách để gán lại.</p>}
         <form className="form-stack" onSubmit={save}>
           <label>Lớp
             <input list="class-options" required value={form.class_name} onChange={e => setForm({ ...form, class_name: e.target.value })} placeholder="Chọn hoặc nhập tên lớp" />
@@ -841,9 +879,14 @@ function Attendance({ profile, refresh, reload, ping, focusDate, setFocusDate, o
             <label>Giờ kết thúc<input type="time" value={form.end_time} onChange={e => setForm({ ...form, end_time: e.target.value })} /></label>
           </div>
           <label>Giáo viên phụ trách
-            <select value={form.teacher_id} onChange={e=>{const teacher=teacherChoices.find(t=>t.id===e.target.value);setForm({...form,teacher_id:e.target.value,teacher_name:teacher?.full_name||""});}}>
-              {teacherChoices.map(t=><option key={t.id} value={t.id}>{t.full_name}</option>)}
-            </select>
+            {adminView&&targetTeacher==="unassigned"?
+              <select value={form.teacher_id} onChange={e=>{
+                const t=teacherChoices.find(x=>x.id===e.target.value);
+                setForm(v=>({...v,teacher_id:e.target.value,teacher_name:t?.full_name||""}));
+              }}>
+                {teacherChoices.map(t=><option key={t.id} value={t.id}>{t.full_name}</option>)}
+              </select>:
+              <input readOnly value={adminView?viewingName:profile.full_name||"Giáo viên"} />}
           </label>
 
           <label>Số tiết<input type="number" min="1" value={form.period_count} onChange={e => setForm({ ...form, period_count: e.target.value })} /></label>
@@ -864,11 +907,11 @@ function Attendance({ profile, refresh, reload, ping, focusDate, setFocusDate, o
       <h3>Buổi học đã tạo</h3>
       <table>
         <thead><tr><th>NGÀY</th><th>LỚP</th><th>GIÁO VIÊN</th><th>GIỜ</th><th>SỐ TIẾT</th><th></th></tr></thead>
-        <tbody>{rows.map(r => (
+        <tbody>{visibleRows.map(r => (
           <tr key={r.id}><td>{dateText(r.session_date)}</td><td>{r.class_name}</td><td>{r.teacher_name}</td><td>{r.start_time} – {r.end_time}</td><td>{r.period_count}</td><td><button className="btn outline" onClick={()=>{setEditingId(r.id);setForm({class_name:r.class_name,session_date:r.session_date,start_time:r.start_time.slice(0,5),end_time:r.end_time.slice(0,5),teacher_name:r.teacher_name||"",teacher_id:r.teacher_id||profile.id,period_count:r.period_count});}}>Sửa</button><button className="btn outline" onClick={()=>removeSession(r)}>Xóa</button></td></tr>
         ))}</tbody>
       </table>
-      {!rows.length && <Empty text="Chưa có lịch học." />}
+      {!visibleRows.length && <Empty text="Giáo viên đang chọn chưa có lịch tại trường này." />}
     </div>
   </>;
 }
