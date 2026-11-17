@@ -8,7 +8,9 @@ const ui=readFileSync(new URL('../src/SheetsConnectionPanel.jsx',import.meta.url
 test('cross-school workbook collision checked server-side before any Google Sheets call',()=>{
  assert.ok(server.includes('async function assertExclusiveWorkbook(url:string,link:Dict)'));
  assert.ok(server.includes('SUPABASE_SERVICE_ROLE_KEY'));
- assert.ok(server.includes('.eq("status","verified").neq("id",link.id)'));
+ assert.ok(server.includes('.eq("status","verified")'));
+ assert.ok(server.includes('data[0].id!==link.id'));
+ assert.ok(server.includes('order("created_at"'));
  assert.ok(server.indexOf('await assertExclusiveWorkbook(url,link)')<server.indexOf('const token=await googleToken();',server.indexOf('await assertExclusiveWorkbook(url,link)')));
  assert.ok(server.includes('mỗi giáo viên/trường phải dùng file riêng'));
 });
