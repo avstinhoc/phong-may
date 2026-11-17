@@ -46,13 +46,18 @@ export function StudentPortal(){
     <header className="portal-header">
       {payload?.logo?<img className="portal-logo" src={payload.logo} alt="Logo trường"/>:<div className="brand-mark">IC3</div>}
       <div><b>IC3 GS6 · Lớp học của chúng mình</b><small>Máy tính • Lịch dạy • Vệ sinh • Điểm & phần thưởng</small></div>
-      <a className="portal-home" href={code?'/register?code='+encodeURIComponent(code):'/register'}>Đăng ký lớp</a>
+      <span className="portal-header-hint">Lớp học · Thông tin & kết quả</span>
     </header>
     <main className="portal-content">
       <section className="portal-hero">
         <div><span className="portal-eyebrow">CỔNG THÔNG TIN HỌC SINH</span>
           <h1>{payload?`Xin chào lớp ${payload.class_name}! ✨`:'Chào mừng đến với lớp IC3 GS6! ✨'}</h1>
           <p>{payload?`Trường ${payload.school} · Cùng xem lớp mình hôm nay có gì mới nhé.`:'Nhập mã lớp giáo viên cấp để xem máy tính, bạn cùng lớp và lịch vệ sinh.'}</p>
+          <a className="portal-hero-register" href={code?'/register?code='+encodeURIComponent(code):'/register'}>
+            <span className="portal-register-icon" aria-hidden="true">✍️</span>
+            <span><strong>ĐĂNG KÝ LỚP</strong><small>Thêm bạn mới vào lớp ngay</small></span>
+            <span className="portal-register-arrow" aria-hidden="true">→</span>
+          </a>
         </div>
         <div className="portal-hero-art" aria-hidden="true">💻<span>🌟</span></div>
       </section>
