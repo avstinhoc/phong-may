@@ -2,6 +2,7 @@ import React,{useState} from 'react';
 import {Building2,School,Plus,Trash2,ImagePlus,ArrowRight,Link2Off} from 'lucide-react';
 import {supabase} from './lib/supabase';
 import {groupSchoolNames,schoolNameKey} from './lib/workplaceReports';
+import {provisionSchoolWorkbook} from './lib/sheetProvision';
 
 const KIND_LABEL={company:'Công ty',center:'Trung tâm'};
 const clean=value=>String(value||'').trim().replace(/\s+/g,' ');
@@ -92,6 +93,9 @@ export function WorkplaceManager({profile,schools=[],workplaces=[],links=[],ping
     {onConflict:'workplace_id,school_id',ignoreDuplicates:true}
    );
    if(linkError)throw new Error('Trường đã tạo nhưng chưa gắn với đơn vị: '+linkError.message);
+   const linked=await provisionSchoolWorkbook(supabase,schoolId);
+   if(!linked.ok)ping('Trường đã tạo nhưng chưa sao chép được Sheets: '+linked.message+
+    '. Bạn có thể dán link bản sao vào Danh sách học sinh.');
    setNewSchoolNames(values=>({...values,[unit.id]:''}));
   },'Đã thêm trường '+newName+' vào '+unit.name);
  }
