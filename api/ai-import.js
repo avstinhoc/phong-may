@@ -2,6 +2,7 @@ import {createClient} from '@supabase/supabase-js';
 import {officeText} from './officeExtract.js';
 import {validateExtractedRows,SCORE_KEYS,studentNameKey} from '../src/lib/aiClassImport.js';
 import {resolveImportClass} from '../src/lib/importClassResolver.js';
+import {requestTimetableGemini,GeminiTimetableError} from '../src/lib/geminiTimetableRequest.js';
 
 const fail=(res,status,error)=>res.status(status).json({error});
 const clean=x=>typeof x==='string'?x.trim():'';
@@ -69,7 +70,7 @@ export default async function handler(req,res){
   if(!parts.length&&!question)return fail(res,400,'Hãy gửi ảnh/tệp hoặc mô tả danh sách.');
   const {error:quotaError}=await db.rpc('consume_help_ai_quota');
   if(quotaError)return fail(res,429,quotaError.message||'Hết lượt trợ lý AI hôm nay.');
-  const model=process.env.GEMINI_MODEL||'gemini-2.5-flash';
+  const model=process.env.GEMINI_MODEL||'gemini-3.8-flash';
   if(!/^gemini-[a-z\d.-]+$/.test(model))return fail(res,503,'Cấu hình model Gemini chưa hợp lệ.');
   const subject=kind==='students'?'DANH SÁCH HỌC SINH':'BẢNG ĐIỂM';
   const rules=[
@@ -99,22 +100,13 @@ export default async function handler(req,res){
    );
   }
   rules.push('Tối đa 120 dòng. Nêu số dòng nhìn thấy bằng observed_count; nếu không chắc, để 0.');
-  const resp=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+model+':generateContent',{
-   method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':process.env.GEMINI_API_KEY},
-   body:JSON.stringify({
-    systemInstruction:{parts:[{text:rules.join('\n')}]},
-    contents:[{role:'user',parts:[{text:question||'Đọc nội dung tệp và lập bản nháp '+subject},...parts]}],
-    generationConfig:{temperature:0,responseMimeType:'application/json',maxOutputTokens:10000}
-   }),
-   signal:AbortSignal.timeout(50000)
+  const {data:output}=await requestTimetableGemini({
+    apiKey:process.env.GEMINI_API_KEY,
+    model,fallbackModel:process.env.GEMINI_FALLBACK_MODEL||'gemini-3.8-flash',
+    secondaryModel:'gemini-3.5-flash-lite',
+    systemText:rules.join('\n'),maxOutputTokens:10000,
+    parts:[{text:question||'Đọc nội dung tệp và lập bản nháp '+subject},...parts]
   });
-  if(!resp.ok){
-   console.error('ic3 AI import HTTP',resp.status);
-   return fail(res,resp.status===429?429:502,resp.status===429?
-     'Gemini đang hết hạn mức. Hãy thử lại hoặc nhập thủ công.':
-     'Gemini không đọc được dữ liệu lần này (HTTP '+resp.status+').');
-  }
-  const output=await resp.json();
   let extracted;
   try{extracted=JSON.parse(output.candidates?.[0]?.content?.parts?.map(p=>p.text||'').join('')||'{}');}
   catch{return fail(res,502,'Kết quả AI chưa đúng định dạng. Thử ảnh nét hơn hoặc chia nhỏ trang.');}
@@ -159,6 +151,7 @@ export default async function handler(req,res){
    answer:'Đã nhận diện '+rows.length+' dòng '+(kind==='students'?'học sinh':'điểm')+
      '. Kiểm tra bản nháp trước khi lưu.'});
  }catch(e){
+  if(e instanceof GeminiTimetableError)return fail(res,e.status,e.message);
   if(e?.name==='TimeoutError'||e?.name==='AbortError')
    return fail(res,504,'Gemini xử lý quá lâu. Hãy thử một ảnh hoặc một trang nhỏ hơn.');
   console.error('IC3 AI class import',e?.message||e?.name);
