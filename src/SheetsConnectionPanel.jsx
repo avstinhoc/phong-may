@@ -1,6 +1,7 @@
 import React,{useEffect,useMemo,useState} from 'react';
 import {supabase} from './lib/supabase';
 import {parseSheetUrl,validateSheetTabName,mapLessonsInOrder,validateLessonMapping} from './lib/googleSheetTemplate';
+import {replaceExistingTopLeftLogo} from './lib/replaceExcelLogo';
 
 const suggestedSheet='https://docs.google.com/spreadsheets/d/1O2A_f-SV5C3vkKDidDdgIxwIW96xOycs1qWSPYs1xkc/edit';
 const labelDate=v=>String(v||'').split('-').reverse().join('/');
@@ -10,7 +11,7 @@ const getMessage=async error=>{
  }
  return error?.message||'Không thể kết nối Google Sheets.';
 };
-export function SheetsConnectionPanel({profile,classes=[],sessions=[],onSynced}){
+export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=null,logoLabel='',onSynced}){
  const [open,setOpen]=useState(false),[link,setLink]=useState(null),
   [url,setUrl]=useState(''),[tabs,setTabs]=useState([]),[bindings,setBindings]=useState([]),
   [busy,setBusy]=useState(''),[error,setError]=useState(''),[message,setMessage]=useState(''),
@@ -114,20 +115,23 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],onSynced})
   await load();setMapping(validated);setPreview(null);
   setMessage('Đã ghép '+d.mapped+' buổi với các cột B trên Sheets.');
  }
- async function downloadOriginal(){
+ async function downloadOriginal(withLogo=false){
   const {data,error:e}=await supabase.functions.invoke('google-sheets-sync',{
     body:{action:'download',link_id:link.id}
   });
   if(e)throw Error(await getMessage(e));
-  const blob=data instanceof Blob?data:new Blob([data],{
+  let blob=data instanceof Blob?data:new Blob([data],{
    type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
   if(!blob.size)throw Error('Google Sheets chưa trả về file Excel.');
+  if(withLogo)blob=await replaceExistingTopLeftLogo(blob,logoData);
   const objectUrl=URL.createObjectURL(blob);
   const a=document.createElement('a');a.href=objectUrl;
-  a.download='DS_Diem_Danh_Google_Sheets_'+String(profile.school_name||'truong').replace(/[^\w.\-]/g,'_')+'.xlsx';
+  a.download='DS_Diem_Danh_Google_Sheets_'+String(profile.school_name||'truong').replace(/[^\w.\-]/g,'_')+(withLogo?'_Logo':'')+'.xlsx';
   document.body.appendChild(a);a.click();a.remove();
   setTimeout(()=>URL.revokeObjectURL(objectUrl),15000);
-  setMessage('Đã tải bản Excel trực tiếp từ Google Sheets gốc, giữ bố cục của các tab.');
+  setMessage(withLogo?
+   'Đã thay logo '+(logoLabel||'đã chọn')+' tại ảnh A1 trong file Excel; ô và công thức giữ từ Sheets gốc.':
+   'Đã tải bản Excel trực tiếp từ Google Sheets gốc, giữ bố cục của các tab.');
  }
  return <div className="sheets-link-wrapper">
   <button type="button" className={'sheets-link-toggle '+(open?'active':'')} onClick={()=>setOpen(x=>!x)}
@@ -200,7 +204,10 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],onSynced})
       <button className="btn outline" disabled={!selectedClass||!!busy} onClick={()=>run('preview',previewNow)}>
        {busy==='preview'?'Đang đọc…':'Xem trước thay đổi'}
       </button>
-      <button className="btn outline" disabled={!!busy} onClick={()=>run('download',downloadOriginal)}>Xuất Excel gốc</button>
+      <button className="btn outline" disabled={!!busy} onClick={()=>run('download',()=>downloadOriginal(false))}>Xuất Excel gốc</button>
+      <button className="btn outline" disabled={!!busy||!logoData}
+        onClick={()=>run('logo',()=>downloadOriginal(true))}
+        title={!logoData?'Chọn logo trường/trung tâm trong mục bên dưới':'Chỉ thay ảnh tại A1, giữ XML của các ô'}>Excel gốc + logo {logoLabel||'đã chọn'}</button>
      </div>
      {preview&&<div className="sheets-preview">
       <strong>Bản nháp · Chưa ghi dữ liệu</strong>
