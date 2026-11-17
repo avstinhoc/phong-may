@@ -65,6 +65,21 @@ async function googleToken(){
  return cache.token;
 }
 const idSafe=(id:string)=>/^[A-Za-z0-9_-]{25,160}$/.test(id);
+// A workbook is a private school boundary even when the school names match.
+// A user's RLS query cannot see other teachers' links, so check only on server.
+async function assertExclusiveWorkbook(url:string,link:Dict){
+ const secret=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+ if(!secret)throw fail("Máy chủ chưa bật kiểm tra an toàn Google Sheets. Báo quản trị viên.",503);
+ const admin=createClient(url,secret,{auth:{persistSession:false,autoRefreshToken:false}});
+ const {data,error}=await admin.from("school_sheet_links").select("id")
+    .eq("spreadsheet_id",link.spreadsheet_id).neq("id",link.id).limit(1);
+ if(error)throw fail("Không kiểm tra được quyền sở hữu file Google Sheets.",503);
+ if(data?.length)throw fail(
+   "File Google Sheets này đang được liên kết với hồ sơ trường khác. "+
+   "Để không trộn học sinh và điểm danh, mỗi giáo viên/trường phải dùng file riêng. "+
+   "Mở file mẫu → Tệp → Tạo bản sao, rồi dán link bản sao vào trường này.",409);
+}
+
 async function metadata(id:string,token:string){
  const url="https://sheets.googleapis.com/v4/spreadsheets/"+id+"?fields=spreadsheetId,properties(title),sheets(properties(sheetId,title,gridProperties))";
  return await (await api(url,token)).json();
@@ -488,6 +503,7 @@ Deno.serve(async(req:Request)=>{
    .eq("id",linkId).eq("owner_id",ownerId).maybeSingle();
   if(linkErr||!link)throw fail("Không có quyền quản lý liên kết này.",403);
   if(!idSafe(link.spreadsheet_id))throw fail("Mã Google Sheets không hợp lệ.");
+  await assertExclusiveWorkbook(url,link);
   const token=await googleToken();
   if(action==="auto_sync_school"){
    const offset=Math.max(0,Math.min(60,Number(payload.offset)||0));
