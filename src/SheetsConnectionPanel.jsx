@@ -4,7 +4,6 @@ import {parseSheetUrl,validateSheetTabName,mapLessonsInOrder,validateLessonMappi
 import {replaceExistingTopLeftLogo} from './lib/replaceExcelLogo';
 import {fixedDateScript} from './lib/sheetDateScript';
 
-const suggestedSheet='https://docs.google.com/spreadsheets/d/1O2A_f-SV5C3vkKDidDdgIxwIW96xOycs1qWSPYs1xkc/edit';
 const labelDate=v=>String(v||'').split('-').reverse().join('/');
 const getMessage=async error=>{
  if(error?.context?.json){
@@ -39,7 +38,7 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
    setSelectedClass(before=>data?.some(x=>x.class_name===before)?before:data?.[0]?.class_name||'');
   }else{
    setBindings([]);setSelectedClass('');setTabs([]);
-   setUrl(profile.school_name?.toLocaleLowerCase('vi').includes('duy tân')?suggestedSheet:'');
+   setUrl('');
   }
  }
  useEffect(()=>{let live=true;(async()=>{try{if(live)await load();}catch(e){if(live)setError(e.message);}})();
@@ -224,7 +223,7 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
   </button>
   {open&&<div className="sheets-link-content">
    {!profile.school_id?<p className="notice-box">Hãy chọn trường công tác ở menu trái trước khi liên kết.</p>:<>
-    <p className="muted">Mỗi giáo viên liên kết một file Google Sheets riêng theo trường đang chọn. Giữ nguyên file và các tab có sẵn; việc đồng bộ chỉ ghi sau khi xem trước và xác nhận.</p>
+    <p className="muted">Mỗi giáo viên/trường cần một file Google Sheets riêng, kể cả khi tên trường giống nhau. Khi đã cấp quyền, hệ thống tự bổ sung lớp và dữ liệu còn thiếu; các ô khác nhau chỉ báo xung đột, không tự ghi đè.</p>
     <div className="sheets-link-grid">
      <label>Đường dẫn Google Sheets của {profile.school_name}
       <input type="url" value={url} disabled={!!busy} onChange={e=>setUrl(e.target.value)}
@@ -239,7 +238,7 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
     </div>
     {!link&&<div className="sheets-link-help">
       <strong>Chưa có Google Sheets cho trường này?</strong>
-      <small>Bạn có thể thử tạo bản sao tự động từ mẫu của trường đã liên kết. Tài khoản dịch vụ cần quyền ghi vào Shared Drive; nếu đang dùng Google Drive cá nhân miễn phí, hãy tự chọn Tệp → Tạo bản sao trong file mẫu rồi dán link ở trên.</small>
+      <small>Bạn có thể thử tạo bản sao tự động từ mẫu của trường đã liên kết. Tài khoản dịch vụ cần quyền ghi vào Shared Drive. Với Google Drive cá nhân miễn phí, hãy mở mẫu của chính bạn → Tệp → Tạo bản sao, đổi tên theo trường và dán link bản sao vào ô trên. Không dùng chung một link cho hai trường.</small>
       <button className="btn outline" disabled={!!busy} onClick={()=>run('provision',provisionHere)}>Tạo Sheets cho trường này</button>
     </div>}
     {link&&<div className="sheets-link-meta">
