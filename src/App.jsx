@@ -14,6 +14,8 @@ import { HelpAssistant } from "./HelpAssistant";
 import { ProfileSettings } from "./ProfileSettings";
 import { properName, searchName, comparePC, compareStudentName } from "./lib/students";
 import { normalizeComputerCode,validFullName } from "./lib/registration";
+import {pendingRegistrationsForClass,nextFriendRegistration,canConfirmFlaggedName} from "./lib/studentRegistrationUI";
+import {buildIncidentReportHtml} from "./lib/incidentReportHtml";
 import { TeachingCalendar } from "./TeachingCalendar";
 import { Time24Input } from "./Time24Input";
 import { isVietnamTimeRange } from "./lib/vietnamTime";
@@ -403,6 +405,7 @@ function PublicStudentRegister({ ping }) {
   const [doneStatus,setDoneStatus]=useState("");
   const [notice,setNotice]=useState("");
   const [busy,setBusy]=useState(false);
+  const [friendFormKey,setFriendFormKey]=useState(0);
   useEffect(()=>{
     if(!initialCode)return;
     let live=true;
@@ -442,7 +445,10 @@ function PublicStudentRegister({ ping }) {
     finally{setBusy(false);}
   }
   function addFriend(){
-    setName("");setGender("");setComputer("");setNote("");
+    const next=nextFriendRegistration({code});
+    setCode(next.code);setName(next.name);setGender(next.gender);
+    setComputer(next.computer);setNote(next.note);
+    setFriendFormKey(n=>n+1);
     setNotice("");setDone(false);setDoneMessage("");setDoneStatus("");
   }
   return <div className="auth-wrap student-register-wrap">
@@ -455,12 +461,12 @@ function PublicStudentRegister({ ping }) {
           <a className="btn outline full" href={'/student?code='+encodeURIComponent(code)}>Về trang chủ lớp của mình</a>
           <button type="button" className="btn primary full" onClick={addFriend}>Thêm bạn tiếp theo</button>
         </div>
-        <small className="muted">Thêm bạn sẽ làm mới thông tin học sinh nhưng giữ đúng mã lớp này.</small>
+        <small className="muted">Thêm bạn sẽ giữ mã lớp, nhưng làm mới tên, giới tính, ghi chú và <b>số máy mong muốn</b>. Bạn có thể chọn máy khác cho từng bạn.</small>
       </> : <>
         <h1>Đăng ký học sinh IC3 GS6</h1>
         <p className="muted">Nhập <strong>họ và tên thật có dấu</strong>, không dùng biệt danh hoặc tên đùa.</p>
         {notice&&<div className="notice-box registration-warning" role="alert">{notice}</div>}
-        <form className="form-stack" onSubmit={submit}>
+        <form key={friendFormKey} className="form-stack" onSubmit={submit}>
           <label>Mã lớp đăng ký
             <input required value={code} readOnly={lockedCode}
               aria-readonly={lockedCode}
@@ -480,11 +486,16 @@ function PublicStudentRegister({ ping }) {
               <option value="Khác">Khác</option>
             </select>
           </label>
-          <label>Số máy mong muốn
-            <input value={computer} inputMode="text" maxLength={10}
-              onChange={e=>setComputer(e.target.value)}
-              onBlur={()=>{const v=normalizeComputerCode(computer);if(v!==null)setComputer(v);}}
-              placeholder="Ví dụ: 21, PC21, pc 21 hoặc PC021"/>
+          <label>Số máy mong muốn (có thể đổi cho từng bạn)
+            <div className="registration-pc-edit">
+              <input key={'pc-'+friendFormKey} value={computer} inputMode="text" maxLength={10} autoComplete="off"
+                aria-label="Số máy mong muốn cho học sinh đang đăng ký"
+                onChange={e=>setComputer(e.target.value)}
+                onBlur={()=>{const v=normalizeComputerCode(computer);if(v!==null)setComputer(v);}}
+                placeholder="Ví dụ: PC12"/>
+              {computer&&<button type="button" className="mini-btn" onClick={()=>setComputer("")}
+                aria-label="Xóa số máy để chọn số khác">Đổi máy</button>}
+            </div>
           </label>
           <small className="muted">Các cách nhập như 21, pc 21 hoặc PC021 đều nhận là PC21. Có thể bỏ trống nếu chưa chọn máy.</small>
           <label>Ghi chú (không bắt buộc)
@@ -622,6 +633,8 @@ function Students({ profile, refresh, reload, ping, navigate }) {
   const registrations = useRows("student_registrations", profile, refresh);
   const schoolClasses = useRows("classes", profile, refresh);
   const [approvalBusy,setApprovalBusy]=useState(null);
+  const [pendingClassFilter,setPendingClassFilter]=useState("");
+  const [reviewBusy,setReviewBusy]=useState(null);
   const [show, setShow] = useState(false);
   const [search, setSearch] = useState("");
   const [nameEditing,setNameEditing]=useState(null);
@@ -638,8 +651,8 @@ function Students({ profile, refresh, reload, ping, navigate }) {
     String(a.class_name||"").localeCompare(String(b.class_name||""),'vi',{numeric:true}));
   const ownedClasses=schoolClasses.rows.filter(c=>c.created_by===profile.id&&!c.archived_at)
     .sort((a,b)=>a.class_name.localeCompare(b.class_name,'vi',{numeric:true}));
-  const ownedClassCodes=new Set(ownedClasses.map(c=>c.registration_code));
-  const waiting = registrations.rows.filter(r=>r.status==="pending" && ownedClassCodes.has(r.registration_code))
+  const waitingAll=pendingRegistrationsForClass(registrations.rows,ownedClasses);
+  const waiting=pendingRegistrationsForClass(registrations.rows,ownedClasses,pendingClassFilter)
     .sort((a,b)=>compareStudentName(a,b));
   const suspectStudents=rows.filter(s=>s.status==="active" && s.name_review_status && s.name_review_status!=="allow" &&
     (profile.role==="admin" || ownedClasses.some(c=>c.id===s.class_id)));
@@ -703,6 +716,18 @@ function Students({ profile, refresh, reload, ping, navigate }) {
     else{ping('Đã ẩn '+data.archived+' hồ sơ trùng trong '+data.groups+' nhóm, giữ nguyên lịch sử.');reload();}
   }
 
+  async function confirmSuspect(s){
+    if(reviewBusy||!canConfirmFlaggedName(s))return;
+    if(!window.confirm('Bạn đã kiểm tra danh sách lớp/giấy tờ và xác nhận đây là họ tên thật của '+s.full_name+'?\nChỉ bỏ cảnh báo tên, không tạo hồ sơ mới hoặc thay đổi điểm.'))return;
+    setReviewBusy(s.id);
+    try{
+      const {error}=await supabase.rpc('ic3_confirm_student_name_review',{p_student_id:s.id});
+      if(error)throw error;
+      ping('Đã xác minh tên học sinh '+s.full_name+'. Dữ liệu lớp, điểm và máy được giữ nguyên.');
+      reload();
+    }catch(err){ping('Không thể xác minh tên: '+err.message);}
+    finally{setReviewBusy(null);}
+  }
   async function rejectSuspect(s){
     if(!window.confirm('Xóa VĨNH VIỄN toàn bộ hồ sơ '+s.full_name+'?\nĐiểm, điểm danh, biên bản và xếp máy liên quan đều bị xóa. Không có cách khôi phục.'))return;
     if(window.prompt('Nhập XÓA để xóa vĩnh viễn hồ sơ học sinh:')!=='XÓA')return;
@@ -758,7 +783,19 @@ function Students({ profile, refresh, reload, ping, navigate }) {
     <div className="panel" style={{ marginBottom: 16 }}>
       <div className="panel-head">
         <div><h3>Đăng ký trực tuyến chờ duyệt</h3><p>Học sinh điền form công khai tại đường dẫn /register</p></div>
-        <span className="status pending">{waiting.length} chờ duyệt</span>
+        <span className="status pending">{waitingAll.length} chờ duyệt</span>
+      </div>
+      <div className="pending-class-filter">
+        <label>Lọc danh sách đăng ký theo lớp
+          <select aria-label="Lọc hồ sơ chờ duyệt theo lớp" value={pendingClassFilter}
+            onChange={e=>setPendingClassFilter(e.target.value)}>
+            <option value="">Tất cả lớp ({waitingAll.length})</option>
+            {ownedClasses.map(c=><option key={c.id} value={c.id}>
+              Lớp {c.class_name} ({waitingAll.filter(r=>r.registration_code===c.registration_code).length})
+            </option>)}
+          </select>
+        </label>
+        <span className="muted">Đang xem {waiting.length}/{waitingAll.length} hồ sơ chờ duyệt</span>
       </div>
       {waiting.map(r => (
         <div className="task-row" key={r.id}>
@@ -772,7 +809,9 @@ function Students({ profile, refresh, reload, ping, navigate }) {
           <button className="mini-btn danger" onClick={() => rejectRegistration(r)}>Từ chối & xóa</button>
         </div>
       ))}
-      {!waiting.length && <p className="muted">Chưa có hồ sơ đăng ký trực tuyến chờ duyệt.</p>}
+      {!waiting.length && <p className="muted">{waitingAll.length?
+        "Không có hồ sơ chờ duyệt trong lớp đã chọn. Hãy đổi bộ lọc để xem lớp khác.":
+        "Chưa có hồ sơ đăng ký trực tuyến chờ duyệt."}</p>}
     </div>
 
     {suspectStudents.length>0&&<section className="panel student-name-review-panel">
@@ -785,8 +824,15 @@ function Students({ profile, refresh, reload, ping, navigate }) {
         <div className="student-review-details"><b>{st.full_name}</b>
           <small>Lớp {st.class_name} · {st.name_review_reason||"Tên cần kiểm tra"}</small>
         </div>
-        <button className="mini-btn" onClick={()=>setNameEditing({id:st.id,full_name:st.full_name})}>Sửa tên</button>
-        <button className="mini-btn danger" onClick={()=>rejectSuspect(st)}>Từ chối & xóa</button>
+        <div className="student-review-actions">
+          <button type="button" className="mini-btn success" disabled={!!reviewBusy||!canConfirmFlaggedName(st)}
+            title={!canConfirmFlaggedName(st)?"Tên chưa hợp lệ, hãy sửa tên trước":"Xác nhận đã kiểm tra tên thật"}
+            onClick={()=>confirmSuspect(st)}>{reviewBusy===st.id?"Đang duyệt…":"Duyệt"}</button>
+          <button type="button" className="mini-btn" disabled={!!reviewBusy}
+            onClick={()=>setNameEditing({id:st.id,full_name:st.full_name})}>Sửa tên</button>
+          <button type="button" className="mini-btn danger" disabled={!!reviewBusy}
+            onClick={()=>rejectSuspect(st)}>Từ chối & xóa</button>
+        </div>
       </div>)}
     </section>}
 
@@ -1319,24 +1365,26 @@ function Records({ profile, refresh, reload, ping }) {
   }
   function printReport(r){
     const student=students.rows.find(s=>s.id===r.student_id);
-    const name=String(student?.full_name||"Học sinh");
-    const school=String(profile.school_name||"Trường học");
-    const escape=s=>String(s||"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
-    const violations=records.rows.filter(x=>x.student_id===r.student_id&&x.record_type==="violation")
-      .sort((a,b)=>String(a.record_date).localeCompare(String(b.record_date)));
-    const w=window.open("","_blank","width=850,height=700");
-    if(!w){ping("Trình duyệt đã chặn cửa sổ in. Hãy cho phép popup.");return;}
-    const html='<!doctype html><html lang="vi"><head><meta charset="UTF-8"><title>Biên bản vi phạm</title>'+
-      '<style>body{font:15px Arial,sans-serif;margin:40px 56px;color:#222}h1,h2,p{text-align:center}h2{margin-top:44px;font-size:20px}table{width:100%;border-collapse:collapse;margin:18px 0}td,th{border:1px solid #888;padding:9px;text-align:left}.sign{display:flex;justify-content:space-between;margin-top:54px;text-align:center}.sign div{width:42%}@media print{body{margin:20mm}}</style></head><body>'+
-      '<h3 style="text-align:center">'+escape(school)+'</h3><h2>BIÊN BẢN GHI NHẬN VI PHẠM</h2>'+
-      '<p>Ngày lập: '+escape(new Date().toLocaleDateString("vi-VN"))+'</p>'+
-      '<p><b>Học sinh:</b> '+escape(name)+' &nbsp; <b>Lớp:</b> '+escape(student?.class_name||"")+'</p>'+
-      '<p>Đã ghi nhận '+r.violation_count+' lần vi phạm (mốc '+r.milestone+').</p>'+
-      '<table><thead><tr><th>Ngày</th><th>Ghi nhận</th><th>Ghi chú</th></tr></thead><tbody>'+
-      violations.map(x=>'<tr><td>'+escape(x.record_date)+'</td><td>'+escape(x.title)+'</td><td>'+escape(x.note)+'</td></tr>').join("")+
-      '</tbody></table><div><b>Ý kiến giáo viên:</b> '+escape(r.notes||"Chờ xác nhận")+'</div>'+
-      '<div class="sign"><div>HỌC SINH<br/><br/><i>(Ký, ghi họ tên)</i></div><div>GIÁO VIÊN<br/><br/><i>(Ký, ghi họ tên)</i></div></div></body></html>';
-    w.document.write(html);w.document.close();w.focus();w.print();
+    if(!student){ping('Không tìm thấy học sinh để lập biên bản.');return;}
+    const count=Number(r.violation_count)||0;
+    const violations=records.rows.filter(x=>x.student_id===r.student_id&&x.record_type==='violation')
+      .sort((a,b)=>String(a.record_date).localeCompare(String(b.record_date))||
+        String(a.created_at).localeCompare(String(b.created_at)))
+      .slice(0,count||undefined);
+    const html=buildIncidentReportHtml({
+      student,schoolName:student.school_name||profile.school_name||'',
+      teacherName:profile.full_name||profile.name||'',
+      report:{...r,notes:reportNote[r.id]??r.notes},
+      violations,
+      date:today()
+    });
+    const w=window.open('','_blank','width=920,height=780');
+    if(!w){ping('Trình duyệt đã chặn cửa sổ in. Hãy cho phép popup.');return;}
+    w.document.open();w.document.write(html);w.document.close();
+    w.focus();
+    const run=()=>{try{w.print();}catch(err){ping('Không mở được hộp thoại in: '+err.message);}};
+    if(w.document.readyState==='complete')run();
+    else w.addEventListener('load',run,{once:true});
   }
   return <>
     <SectionHead title="Điểm, lỗi & thưởng" desc="Ghi nhận theo lớp, tổng số lần vi phạm và biên bản xác nhận của giáo viên"/>
@@ -1404,7 +1452,7 @@ function Records({ profile, refresh, reload, ping }) {
     </div>
     <section className="panel incident-reports-panel">
       <h3>Biên bản vi phạm</h3>
-      <p className="muted">Đủ {threshold} lần vi phạm sẽ tạo biên bản nháp. Giáo viên kiểm tra rồi xác nhận; không tự áp dụng hình thức kỷ luật.</p>
+      <p className="muted">Đủ {threshold} lần vi phạm sẽ tạo biên bản nháp. Bản in kết hợp mẫu học sinh tường trình, bảng lỗi đã ghi nhận và phần ký xác nhận; học sinh tự điền phần giải trình. Giáo viên kiểm tra rồi xác nhận, không tự áp dụng hình thức kỷ luật.</p>
       {reports.filter(r=>{
         const st=students.rows.find(s=>s.id===r.student_id);
         return st&&(!selectedClass||st.class_name===selectedClass)&&(!selectedStudent||st.id===selectedStudent);
@@ -1419,7 +1467,7 @@ function Records({ profile, refresh, reload, ping }) {
           value={reportNote[r.id]||""} onChange={e=>setReportNote(v=>({...v,[r.id]:e.target.value}))}/>}
         <div className="incident-report-actions">
           {r.status==="draft"&&<button className="btn primary" disabled={busy} onClick={()=>confirmReport(r)}>Xác nhận biên bản</button>}
-          <button className="btn outline" onClick={()=>printReport(r)}>In biên bản</button>
+          <button className="btn outline" onClick={()=>printReport(r)}>In / Lưu PDF biên bản</button>
         </div>
       </article>)}
       {!reports.length&&<p className="muted">Chưa có học sinh đạt ngưỡng lập biên bản.</p>}
