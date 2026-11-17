@@ -11,6 +11,7 @@ export function AuthCallback(){
  const [status,setStatus]=useState('Đang kiểm tra liên kết…');
  const [ok,setOk]=useState(null);
  const [isRecovery,setRecovery]=useState(false);
+ const [isGoogle,setGoogleFlow]=useState(false);
  const [password,setPassword]=useState(''),[confirm,setConfirm]=useState(''),[busy,setBusy]=useState(false);
  const [done,setDone]=useState(false);
  useEffect(()=>{
@@ -20,6 +21,7 @@ export function AuthCallback(){
   // A recovery redirect is intentionally handled by this already allow-listed callback URL.
   const recovery=query.get('recovery')==='1'||query.get('type')==='recovery'||hash.get('type')==='recovery';
   const google=query.get('provider')==='google';
+  if(google)setGoogleFlow(true);
   const linking=google&&query.get('linked')==='1';
   if(recovery)setRecovery(true);
   (async()=>{
@@ -76,7 +78,7 @@ export function AuthCallback(){
      <button className="btn primary full" disabled={busy||password.length<8||password!==confirm}>{busy?'Đang cập nhật…':'Lưu mật khẩu mới'}</button>
    </form>}
    <a className="btn outline full" href="/">{ok&&!isRecovery?'Vào IC3 GS6':'Về trang đăng nhập'}</a>
-   {!ok&&<p className="muted">{new URLSearchParams(window.location.search).get('provider')==='google'?
+   {!ok&&<p className="muted">{isGoogle?
      'Nếu bạn không thể đăng nhập Google, hãy sử dụng email/mật khẩu hiện tại. Admin cần bật Google Provider trong Supabase và cấu hình đúng redirect.':
      <>Nếu liên kết đã hết hạn, quay lại trang đăng nhập và chọn <b>Quên mật khẩu</b> để lấy liên kết mới. Không cần đăng ký lại tài khoản.</>}</p>}
  </div></div>;
