@@ -1,18 +1,16 @@
 import React,{useEffect,useMemo,useState} from 'react';
 import {supabase} from './lib/supabase';
 import {compareStudentName} from './lib/students';
+import {teachingLessonLabel} from './lib/rollCallSelection';
 const date=s=>s?s.split('-').reverse().join('/'):'';
 const labels={present:'Có mặt',absent:'Vắng',late:'Đi trễ',excused:'Có phép'};
-export function RollCall({profile,sessions,refresh,onSaved,ping}){
- const [className,setClassName]=useState('');
- const [sessionId,setSessionId]=useState('');
+export function RollCall({profile,sessions,refresh,onSaved,ping,selectedSessionId=''}){
+ const sessionId=selectedSessionId;
+ const lesson=sessions.find(s=>s.id===sessionId);
  const [rows,setRows]=useState([]);
  const [busy,setBusy]=useState(false);
  const [error,setError]=useState('');
  const [loading,setLoading]=useState(false);
- const classes=useMemo(()=>[...new Set(sessions.map(s=>s.class_name).filter(Boolean))].sort(),[sessions]);
- const matches=sessions.filter(s=>!className||s.class_name===className).sort((a,b)=>b.session_date.localeCompare(a.session_date)||b.start_time.localeCompare(a.start_time));
- useEffect(()=>{if(sessionId&&!matches.some(s=>s.id===sessionId))setSessionId('');},[className,sessions]);
  useEffect(()=>{
   let live=true;setRows([]);setError('');
   if(!sessionId)return;
@@ -47,17 +45,20 @@ export function RollCall({profile,sessions,refresh,onSaved,ping}){
   const {error:err}=await supabase.rpc('save_roll_call',{target_session:sessionId,entries:rows.map(({student_id,status,note})=>({student_id,status,note}))});
   setBusy(false);if(err)setError(err.message);else{ping('Đã lưu điểm danh '+rows.length+' học sinh');onSaved?.();}
  }
- return <section className="panel roll-call">
-  <h2>Điểm danh học sinh</h2><p className="muted">Cùng dữ liệu với mục Danh sách học sinh. Chưa đánh dấu vắng = có mặt. Không bắt buộc phải gán máy mới được điểm danh.</p>
-  <div className="toolbar roll-toolbar">
-    <label>Lớp <select value={className} onChange={e=>{setClassName(e.target.value);setSessionId('');}}>
-      <option value="">Tất cả lớp</option>{classes.map(c=><option key={c} value={c}>{c}</option>)}
-    </select></label>
-    <label>Buổi học <select aria-label="Chọn buổi học" value={sessionId} disabled={busy} onChange={e=>setSessionId(e.target.value)}>
-      <option value="">Chọn buổi học</option>{matches.map(s=><option key={s.id} value={s.id}>{date(s.session_date)} · {s.start_time.slice(0,5)} · {s.class_name} · {s.period_count} tiết</option>)}
-    </select></label>
-    <button className="btn" disabled={!rows.length||busy} onClick={()=>setRows(rs=>rs.map(r=>({...r,status:'present'})))}>Tất cả có mặt</button>
-  </div>
+ return <section className="panel roll-call" id="rollcall-panel">
+  <h2>Điểm danh học sinh</h2>
+  <p className="muted">Bước 1: Bấm vào ô tiết học đúng ngày/lớp trên thời khóa biểu phía trên. Bước 2: Đánh dấu học sinh vắng, có phép hoặc đi trễ. Bước 3: Bấm Lưu điểm danh. Mặc định tất cả có mặt.</p>
+  {lesson?<div className="roll-lesson-selected" role="status">
+     <div><span className="roll-selected-kicker">ĐANG ĐIỂM DANH</span>
+      <strong>{teachingLessonLabel(lesson)}</strong>
+      <small>{lesson.period_count||1} tiết · Giáo viên: {lesson.teacher_name||profile.full_name}</small>
+     </div>
+     <button className="btn outline" disabled={!rows.length||busy} onClick={()=>setRows(rs=>rs.map(r=>({...r,status:'present'})))}>Đánh dấu tất cả có mặt</button>
+   </div>:<div className="roll-select-prompt" role="status">
+     <span aria-hidden="true">☝️</span>
+     <strong>Chọn tiết học trên thời khóa biểu để bắt đầu điểm danh</strong>
+     <small>Không cần chọn lớp và chọn buổi lần thứ hai.</small>
+   </div>}
   {error&&<p role="alert" className="notice-box">{error}</p>}
   {loading&&<p className="muted">Đang tải danh sách lớp…</p>}
   {!!sessionId&&!loading&&!rows.length&&!error&&<p className="notice-box">Lớp này chưa có học sinh đang học được duyệt.</p>}
