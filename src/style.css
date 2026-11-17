@@ -751,3 +751,38 @@
 .help-class-list{overscroll-behavior:contain}
 .help-class-warnings li{overflow-wrap:anywhere}
 .help-class-scores label{min-width:0}
+
+
+/* Created teaching sessions: easy week/day review and safe bulk selection */
+.created-lessons-filters{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;
+  margin:14px 0 15px;padding:15px 16px;border:1px solid #d6e8e9;border-radius:13px;
+  background:linear-gradient(105deg,#f4faf9,#f8fbfd);box-sizing:border-box}
+.created-lessons-filter-mode,.created-lessons-filter-date{display:flex;flex-direction:column;gap:6px;
+  color:#45646d;font-size:11px;font-weight:700;min-width:0;line-height:1.5}
+.created-lessons-filter-mode{flex:0 1 230px}
+.created-lessons-filter-date{flex:0 1 200px}
+.created-lessons-filters select,.created-lessons-filters input[type=date]{
+  min-width:0;width:100%;box-sizing:border-box;min-height:42px;border:1px solid #c9dfe1;
+  border-radius:9px;background:#fff;padding:9px 11px;font:inherit;font-size:12px;color:#1d4b55}
+.created-lessons-filters :is(select,input,button):focus-visible{outline:2px solid #078b7d;outline-offset:2px}
+.created-lessons-nav{display:flex;align-items:center;gap:7px;flex:0 0 auto}
+.created-lessons-nav .btn{margin:0;min-height:42px;min-width:40px;padding:8px 11px;
+  display:inline-flex;align-items:center;justify-content:center;font-size:13px;white-space:nowrap}
+.created-lessons-nav .btn:first-child,.created-lessons-nav .btn:last-child{
+  font-size:23px;line-height:1;font-weight:600;padding:6px 12px}
+.created-lessons-filter-count{display:flex;flex-direction:column;align-items:flex-end;
+  justify-content:center;gap:5px;flex:1 1 220px;min-width:150px;line-height:1.45}
+.created-lessons-filter-count strong{font-size:13px;color:#087e76;white-space:nowrap}
+.created-lessons-filter-count span{font-size:11px;color:#6b8590;text-align:right;overflow-wrap:anywhere}
+.schedule-table-header{flex-wrap:wrap;gap:12px}
+@media(max-width:780px){
+  .created-lessons-filters{gap:11px;padding:12px}
+  .created-lessons-filter-mode,.created-lessons-filter-date{flex:1 1 180px}
+  .created-lessons-filter-count{flex:1 1 100%;align-items:flex-start}
+  .created-lessons-filter-count span{text-align:left}
+}
+@media(max-width:480px){
+  .created-lessons-filter-mode,.created-lessons-filter-date{flex-basis:100%}
+  .created-lessons-nav{width:100%;justify-content:space-between}
+  .created-lessons-nav .btn:nth-child(2){flex:1}
+}

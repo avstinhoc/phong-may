@@ -14,6 +14,7 @@ import { ProfileSettings } from "./ProfileSettings";
 import { properName, searchName, comparePC, compareStudentName } from "./lib/students";
 import { normalizeComputerCode,validFullName } from "./lib/registration";
 import { TeachingCalendar } from "./TeachingCalendar";
+import {filterCreatedSessions,sessionDateWindow,shiftSessionDay,mondayOfSessionWeek} from "./lib/sessionDateFilter";
 import { RollCall } from "./RollCall";
 import * as XLSX from "xlsx";
 import {
@@ -1000,8 +1001,26 @@ function Attendance({ profile, refresh, reload, ping, focusDate, setFocusDate, o
   const [editingId, setEditingId] = useState(null);
   const [saving, setSaving] = useState(false);
   const [selectedSessionIds,setSelectedSessionIds]=useState([]);
-  const allowedSessionRows=visibleRows;
+  const [sessionFilterMode,setSessionFilterMode]=useState("all");
+  const [sessionFilterDate,setSessionFilterDate]=useState(today());
+  const filteredSessionRows=useMemo(
+    ()=>filterCreatedSessions(visibleRows,sessionFilterMode,sessionFilterDate),
+    [visibleRows,sessionFilterMode,sessionFilterDate]
+  );
+  const sessionFilterWindow=sessionDateWindow(sessionFilterMode,sessionFilterDate);
+  const allowedSessionRows=filteredSessionRows;
   const allSessionsSelected=allowedSessionRows.length>0 && allowedSessionRows.every(r=>selectedSessionIds.includes(r.id));
+  useEffect(()=>{setSelectedSessionIds([]);},[profile.school_id,targetTeacher]);
+  function changeSessionFilter(mode,anchor){
+    if(mode!==undefined)setSessionFilterMode(mode);
+    if(anchor!==undefined)setSessionFilterDate(anchor);
+    setSelectedSessionIds([]);
+  }
+  function moveSessionFilter(direction){
+    if(sessionFilterMode==="all")return;
+    const base=sessionFilterMode==="week"?mondayOfSessionWeek(sessionFilterDate):sessionFilterDate;
+    changeSessionFilter(undefined,shiftSessionDay(base,direction*(sessionFilterMode==="week"?7:1)));
+  }
   const [form, setForm] = useState({
     class_name: "", session_date: today(), start_time: "17:00",
     end_time: "19:00", teacher_name: profile.full_name || "", teacher_id:profile.id,
@@ -1026,7 +1045,9 @@ function Attendance({ profile, refresh, reload, ping, focusDate, setFocusDate, o
       await supabase.from("class_sessions").insert(payload);
     setSaving(false);
     if (error) ping(error.message);
-    else { ping("Đã lưu buổi học"); setFocusDate(form.session_date); setEditingId(null); reload(); }
+    else { ping("Đã lưu buổi học"); setFocusDate(form.session_date);
+      if(sessionFilterMode!=="all")setSessionFilterDate(form.session_date);
+      setEditingId(null); reload(); }
   }
 
   async function bulkDeleteSessions(){
@@ -1141,23 +1162,53 @@ function Attendance({ profile, refresh, reload, ping, focusDate, setFocusDate, o
       <div className="schedule-table-header">
         <h3>Buổi học đã tạo</h3>
         <div className="actions">
-          <span className="muted">Đã chọn {selectedSessionIds.filter(id=>visibleRows.some(r=>r.id===id)).length} buổi</span>
+          <span className="muted">Đã chọn {selectedSessionIds.filter(id=>filteredSessionRows.some(r=>r.id===id)).length} buổi</span>
           <button type="button" className="btn outline schedule-delete-selected" onClick={bulkDeleteSessions}
-            disabled={saving||!selectedSessionIds.some(id=>visibleRows.some(r=>r.id===id))}>
+            disabled={saving||!selectedSessionIds.some(id=>filteredSessionRows.some(r=>r.id===id))}>
             <Trash2 size={15}/> Xóa lịch đã chọn
           </button>
+        </div>
+      </div>
+      <div className="created-lessons-filters" role="group" aria-label="Lọc buổi học đã tạo">
+        <label className="created-lessons-filter-mode">Xem lịch theo
+          <select value={sessionFilterMode} onChange={e=>changeSessionFilter(e.target.value)} aria-label="Chế độ lọc lịch">
+            <option value="all">Tất cả buổi học</option>
+            <option value="week">Theo tuần</option>
+            <option value="day">Theo ngày</option>
+          </select>
+        </label>
+        {sessionFilterMode!=="all"&&<>
+          <label className="created-lessons-filter-date">{sessionFilterMode==="week"?"Chọn ngày trong tuần":"Chọn ngày"}
+            <input type="date" value={sessionFilterDate} onChange={e=>{if(e.target.value)changeSessionFilter(undefined,e.target.value)}} aria-label="Chọn ngày lọc lịch"/>
+          </label>
+          <div className="created-lessons-nav">
+            <button type="button" className="btn outline" onClick={()=>moveSessionFilter(-1)}
+              aria-label={sessionFilterMode==="week"?"Tuần trước":"Ngày trước"}>‹</button>
+            <button type="button" className="btn outline" onClick={()=>changeSessionFilter(undefined,today())}>Hôm nay</button>
+            <button type="button" className="btn outline" onClick={()=>moveSessionFilter(1)}
+              aria-label={sessionFilterMode==="week"?"Tuần sau":"Ngày sau"}>›</button>
+          </div>
+        </>}
+        <div className="created-lessons-filter-count" aria-live="polite">
+          <strong>{filteredSessionRows.length}/{visibleRows.length} buổi học</strong>
+          <span>{sessionFilterWindow?sessionFilterMode==="week"?
+            'Từ '+dateText(sessionFilterWindow.start)+' đến '+dateText(sessionFilterWindow.end):
+            'Ngày '+dateText(sessionFilterWindow.start):
+            'Toàn bộ lịch của '+viewingName}</span>
         </div>
       </div>
       <div className="table-wrap">
       <table>
         <thead><tr><th><input type="checkbox" title="Chọn tất cả lịch đang hiển thị" aria-label="Chọn tất cả lịch đang hiển thị"
-          checked={allSessionsSelected} onChange={e=>setSelectedSessionIds(e.target.checked?visibleRows.map(r=>r.id):[])} /></th><th>NGÀY</th><th>LỚP</th><th>GIÁO VIÊN</th><th>GIỜ</th><th>SỐ TIẾT</th><th></th></tr></thead>
-        <tbody>{visibleRows.map(r => (
+          checked={allSessionsSelected} onChange={e=>setSelectedSessionIds(e.target.checked?filteredSessionRows.map(r=>r.id):[])} /></th><th>NGÀY</th><th>LỚP</th><th>GIÁO VIÊN</th><th>GIỜ</th><th>SỐ TIẾT</th><th></th></tr></thead>
+        <tbody>{filteredSessionRows.map(r => (
           <tr key={r.id}><td><input type="checkbox" aria-label={'Chọn buổi '+r.class_name+' ngày '+r.session_date}
-            checked={selectedSessionIds.includes(r.id)} onChange={e=>setSelectedSessionIds(old=>e.target.checked?[...new Set([...old,r.id])]:old.filter(id=>id!==r.id))}/></td><td>{dateText(r.session_date)}</td><td>{r.class_name}</td><td>{r.teacher_name}</td><td>{r.start_time} – {r.end_time}</td><td>{r.period_count}</td><td><button className="btn outline" onClick={()=>{setEditingId(r.id);setForm({class_name:r.class_name,session_date:r.session_date,start_time:r.start_time.slice(0,5),end_time:r.end_time.slice(0,5),teacher_name:r.teacher_name||"",teacher_id:r.teacher_id||profile.id,period_count:r.period_count});}}>Sửa</button><button className="btn outline" onClick={()=>removeSession(r)}>Xóa</button></td></tr>
+            checked={selectedSessionIds.includes(r.id)} onChange={e=>setSelectedSessionIds(old=>e.target.checked?[...new Set([...old,r.id])]:old.filter(id=>id!==r.id))}/></td><td>{dateText(r.session_date)}</td><td>{r.class_name}</td><td>{r.teacher_name}</td><td>{r.start_time} – {r.end_time}</td><td>{r.period_count}</td><td><button className="btn outline" onClick={()=>{setEditorMode("manual");setEditingId(r.id);setForm({class_name:r.class_name,session_date:r.session_date,start_time:r.start_time.slice(0,5),end_time:r.end_time.slice(0,5),teacher_name:r.teacher_name||"",teacher_id:r.teacher_id||profile.id,period_count:r.period_count});}}>Sửa</button><button className="btn outline" onClick={()=>removeSession(r)}>Xóa</button></td></tr>
         ))}</tbody>
       </table></div>
-      {!visibleRows.length && <Empty text="Chưa có lịch dạy ở trường này." />}
+      {!filteredSessionRows.length && <Empty text={visibleRows.length?
+        "Không có buổi học trong khoảng thời gian đã chọn. Đổi ngày/tuần hoặc chọn Tất cả buổi học.":
+        "Chưa có lịch dạy ở trường này."} />}
     </div>
   </>;
 }
