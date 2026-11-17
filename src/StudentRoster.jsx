@@ -1,5 +1,6 @@
 import React,{useEffect,useState} from 'react';
 import {exportAttendanceReference} from './lib/exportReferenceAttendance';
+import {SheetsConnectionPanel} from './SheetsConnectionPanel';
 import {supabase} from './lib/supabase';
 import {searchName,comparePC,compareStudentName,properName} from './lib/students';
 const scoreKeys=['QT1','QT2','HK1','QT3','QT4','HK2',...Array.from({length:5},(_,i)=>`TEST ${i+1}`),...Array.from({length:5},(_,i)=>`Mô phỏng lần ${i+1}`)];
@@ -117,7 +118,9 @@ export function StudentRoster({profile,refresh,ping}){
   }catch(e){ping('Không thể xuất Excel: '+e.message);}
   finally{setExporting(false);}
  }
- return <section className="panel roster"><h2>Danh sách học sinh</h2><p className="muted">Cấu trúc theo mẫu: hồ sơ, điểm danh theo buổi, điểm kiểm tra và nhận xét. Ô trống = có mặt, bấm ô để đánh dấu vắng. Số tiết và buổi học riêng cho từng lớp.</p><div className="toolbar"><label>Lớp <select value={className} onChange={e=>setClassName(e.target.value)}><option value="">Chọn lớp</option>{classes.map(c=><option key={c}>{c}</option>)}</select></label><input aria-label="Tìm tên trong danh sách" placeholder="Tìm họ tên…" value={query} onChange={e=>setQuery(e.target.value)}/><button className="btn" disabled={!className||loading} onClick={exportFile}>{exporting?"Đang tạo file...":"Xuất Excel theo mẫu B1–B70"}</button>{className&&<button className="btn primary" onClick={()=>setLessonEdit({session_date:new Date().toLocaleDateString('en-CA'),start_time:'07:30',end_time:'08:15',period_count:1})}>+ Thêm buổi học</button>}</div>
+ return <section className="panel roster"><h2>Danh sách học sinh</h2><p className="muted">Cấu trúc theo mẫu: hồ sơ, điểm danh theo buổi, điểm kiểm tra và nhận xét. Ô trống = có mặt, bấm ô để đánh dấu vắng. Số tiết và buổi học riêng cho từng lớp.</p><div className="toolbar"><label>Lớp <select value={className} onChange={e=>setClassName(e.target.value)}><option value="">Chọn lớp</option>{classes.map(c=><option key={c}>{c}</option>)}</select></label><input aria-label="Tìm tên trong danh sách" placeholder="Tìm họ tên…" value={query} onChange={e=>setQuery(e.target.value)}/><button className="btn" disabled={!className||loading} onClick={exportFile}>{exporting?"Đang tạo file...":"Xuất Excel nhanh (theo mẫu)"}</button>{className&&<button className="btn primary" onClick={()=>setLessonEdit({session_date:new Date().toLocaleDateString('en-CA'),start_time:'07:30',end_time:'08:15',period_count:1})}>+ Thêm buổi học</button>}</div>
+ <SheetsConnectionPanel profile={profile} classes={classes} sessions={data.sessions}
+   onSynced={()=>setVersion(v=>v+1)}/>
  <div className="roster-export-options">
   <label>Logo trong file Excel
     <select aria-label="Chọn trung tâm và logo xuất Excel" value={logoSource}
