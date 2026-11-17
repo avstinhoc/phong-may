@@ -1,5 +1,7 @@
-import React,{useState} from 'react';
+import React,{useEffect,useState} from 'react';
 import {supabase} from './lib/supabase';
+import {emailCallbackUrl} from './AuthCallback';
+import {startGoogleAuth,hasGoogleIdentity,googleOAuthError} from './lib/googleAuth';
 
 function resizeAvatar(file){
  return new Promise((resolve,reject)=>{
@@ -30,6 +32,37 @@ export function ProfileSettings({profile,email,reload,ping}){
  const [busy,setBusy]=useState(false);
  const [current,setCurrent]=useState(''),[password,setPassword]=useState(''),[verify,setVerify]=useState('');
  const [changing,setChanging]=useState(false);
+ const [identityProviders,setIdentityProviders]=useState(null);
+ const [identityError,setIdentityError]=useState('');
+ const [linkingGoogle,setLinkingGoogle]=useState(false);
+ useEffect(()=>{
+  let live=true;
+  supabase.auth.getUserIdentities().then(({data,error})=>{
+   if(!live)return;
+   if(error){setIdentityError(error.message);setIdentityProviders([]);}
+   else{setIdentityProviders(data?.identities||[]);setIdentityError('');}
+  }).catch(err=>{
+   if(live){setIdentityError(err.message||String(err));setIdentityProviders([]);}
+  });
+  return()=>{live=false;};
+ },[profile.id]);
+ async function linkGoogle(){
+  if(linkingGoogle)return;
+  setLinkingGoogle(true);setIdentityError('');
+  try{
+   const {data,error}=await supabase.auth.getUser();
+   if(error)throw error;
+   if(!data?.user||data.user.id!==profile.id)
+    throw new Error('Phiên đăng nhập đã thay đổi. Đăng nhập lại bằng tài khoản hiện tại trước khi liên kết Google.');
+   if(hasGoogleIdentity(identityProviders||[])){ping('Tài khoản đã liên kết Google.');return;}
+   await startGoogleAuth(supabase.auth,emailCallbackUrl(),{linkExisting:true});
+   // Supabase will redirect to the Google consent screen.
+  }catch(err){
+   const message=googleOAuthError(err);
+   setIdentityError(message);
+   ping(message);
+  }finally{setLinkingGoogle(false);}
+ }
  async function chooseFile(e){
   const f=e.target.files?.[0];e.target.value='';
   if(!f)return;
@@ -72,6 +105,21 @@ export function ProfileSettings({profile,email,reload,ping}){
      <div className="actions"><button type="button" className="btn outline" onClick={()=>{setAvatar(null);setEditing(true);}}>Bỏ ảnh</button>
      <button className="btn primary" disabled={busy||!editing}>{busy?'Đang lưu…':'Lưu thông tin'}</button></div>
     </form>
+   </section>
+   <section className="panel personal-google-panel">
+    <div className="personal-google-heading"><span className="google-g-mark" aria-hidden="true">G</span>
+      <div><h3>Đăng nhập bằng Google</h3>
+       <p className="muted">Liên kết với tài khoản đang dùng để giữ ID, quyền Admin/Giáo viên và dữ liệu hiện có.</p></div>
+    </div>
+    {identityProviders===null?<p className="muted">Đang kiểm tra liên kết Google…</p>:
+      hasGoogleIdentity(identityProviders)?<div className="personal-google-linked">Google đã được liên kết với tài khoản này.</div>:
+      <button type="button" className="btn outline" disabled={linkingGoogle||!!identityError}
+        onClick={linkGoogle}>{linkingGoogle?'Đang chuyển tới Google…':'Liên kết tài khoản Google'}</button>}
+    {identityError&&<div role="alert" className="notice-box personal-google-error">
+      {identityError}
+      <button type="button" className="mini-btn" onClick={()=>setIdentityError('')}>Thử lại</button>
+    </div>}
+    <p className="muted personal-google-tip">Dùng đúng tài khoản Google mà bạn sở hữu. Không tạo tài khoản Admin mới hay thay đổi quyền truy cập khi liên kết. Nếu nút báo lỗi, Admin cần bật Google Provider và Manual Identity Linking trong Supabase.</p>
    </section>
    <section className="panel">
     <h3>Đổi mật khẩu</h3>
