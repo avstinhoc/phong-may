@@ -14,6 +14,8 @@ import { HelpAssistant } from "./HelpAssistant";
 import { ProfileSettings } from "./ProfileSettings";
 import { properName, searchName, comparePC, compareStudentName } from "./lib/students";
 import { normalizeComputerCode,validFullName } from "./lib/registration";
+import {pendingRegistrationsForClass,nextFriendRegistration,canConfirmFlaggedName} from "./lib/studentRegistrationUI";
+import {buildIncidentReportHtml} from "./lib/incidentReportHtml";
 import { TeachingCalendar } from "./TeachingCalendar";
 import { Time24Input } from "./Time24Input";
 import { isVietnamTimeRange } from "./lib/vietnamTime";
@@ -403,6 +405,7 @@ function PublicStudentRegister({ ping }) {
   const [doneStatus,setDoneStatus]=useState("");
   const [notice,setNotice]=useState("");
   const [busy,setBusy]=useState(false);
+  const [friendFormKey,setFriendFormKey]=useState(0);
   useEffect(()=>{
     if(!initialCode)return;
     let live=true;
@@ -442,7 +445,10 @@ function PublicStudentRegister({ ping }) {
     finally{setBusy(false);}
   }
   function addFriend(){
-    setName("");setGender("");setComputer("");setNote("");
+    const next=nextFriendRegistration({code});
+    setCode(next.code);setName(next.name);setGender(next.gender);
+    setComputer(next.computer);setNote(next.note);
+    setFriendFormKey(n=>n+1);
     setNotice("");setDone(false);setDoneMessage("");setDoneStatus("");
   }
   return <div className="auth-wrap student-register-wrap">
@@ -455,12 +461,12 @@ function PublicStudentRegister({ ping }) {
           <a className="btn outline full" href={'/student?code='+encodeURIComponent(code)}>Về trang chủ lớp của mình</a>
           <button type="button" className="btn primary full" onClick={addFriend}>Thêm bạn tiếp theo</button>
         </div>
-        <small className="muted">Thêm bạn sẽ làm mới thông tin học sinh nhưng giữ đúng mã lớp này.</small>
+        <small className="muted">Thêm bạn sẽ giữ mã lớp, nhưng làm mới tên, giới tính, ghi chú và <b>số máy mong muốn</b>. Bạn có thể chọn máy khác cho từng bạn.</small>
       </> : <>
         <h1>Đăng ký học sinh IC3 GS6</h1>
         <p className="muted">Nhập <strong>họ và tên thật có dấu</strong>, không dùng biệt danh hoặc tên đùa.</p>
         {notice&&<div className="notice-box registration-warning" role="alert">{notice}</div>}
-        <form className="form-stack" onSubmit={submit}>
+        <form key={friendFormKey} className="form-stack" onSubmit={submit}>
           <label>Mã lớp đăng ký
             <input required value={code} readOnly={lockedCode}
               aria-readonly={lockedCode}
@@ -480,11 +486,16 @@ function PublicStudentRegister({ ping }) {
               <option value="Khác">Khác</option>
             </select>
           </label>
-          <label>Số máy mong muốn
-            <input value={computer} inputMode="text" maxLength={10}
-              onChange={e=>setComputer(e.target.value)}
-              onBlur={()=>{const v=normalizeComputerCode(computer);if(v!==null)setComputer(v);}}
-              placeholder="Ví dụ: 21, PC21, pc 21 hoặc PC021"/>
+          <label>Số máy mong muốn (có thể đổi cho từng bạn)
+            <div className="registration-pc-edit">
+              <input key={'pc-'+friendFormKey} value={computer} inputMode="text" maxLength={10} autoComplete="off"
+                aria-label="Số máy mong muốn cho học sinh đang đăng ký"
+                onChange={e=>setComputer(e.target.value)}
+                onBlur={()=>{const v=normalizeComputerCode(computer);if(v!==null)setComputer(v);}}
+                placeholder="Ví dụ: PC12"/>
+              {computer&&<button type="button" className="mini-btn" onClick={()=>setComputer("")}
+                aria-label="Xóa số máy để chọn số khác">Đổi máy</button>}
+            </div>
           </label>
           <small className="muted">Các cách nhập như 21, pc 21 hoặc PC021 đều nhận là PC21. Có thể bỏ trống nếu chưa chọn máy.</small>
           <label>Ghi chú (không bắt buộc)
@@ -622,6 +633,8 @@ function Students({ profile, refresh, reload, ping, navigate }) {
   const registrations = useRows("student_registrations", profile, refresh);
   const schoolClasses = useRows("classes", profile, refresh);
   const [approvalBusy,setApprovalBusy]=useState(null);
+  const [pendingClassFilter,setPendingClassFilter]=useState("");
+  const [reviewBusy,setReviewBusy]=useState(null);
   const [show, setShow] = useState(false);
   const [search, setSearch] = useState("");
   const [nameEditing,setNameEditing]=useState(null);
@@ -638,8 +651,8 @@ function Students({ profile, refresh, reload, ping, navigate }) {
     String(a.class_name||"").localeCompare(String(b.class_name||""),'vi',{numeric:true}));
   const ownedClasses=schoolClasses.rows.filter(c=>c.created_by===profile.id&&!c.archived_at)
     .sort((a,b)=>a.class_name.localeCompare(b.class_name,'vi',{numeric:true}));
-  const ownedClassCodes=new Set(ownedClasses.map(c=>c.registration_code));
-  const waiting = registrations.rows.filter(r=>r.status==="pending" && ownedClassCodes.has(r.registration_code))
+  const waitingAll=pendingRegistrationsForClass(registrations.rows,ownedClasses);
+  const waiting=pendingRegistrationsForClass(registrations.rows,ownedClasses,pendingClassFilter)
     .sort((a,b)=>compareStudentName(a,b));
   const suspectStudents=rows.filter(s=>s.status==="active" && s.name_review_status && s.name_review_status!=="allow" &&
     (profile.role==="admin" || ownedClasses.some(c=>c.id===s.class_id)));
@@ -703,6 +716,18 @@ function Students({ profile, refresh, reload, ping, navigate }) {
     else{ping('Đã ẩn '+data.archived+' hồ sơ trùng trong '+data.groups+' nhóm, giữ nguyên lịch sử.');reload();}
   }
 
+  async function confirmSuspect(s){
+    if(reviewBusy||!canConfirmFlaggedName(s))return;
+    if(!window.confirm('Bạn đã kiểm tra danh sách lớp/giấy tờ và xác nhận đây là họ tên thật của '+s.full_name+'?\nChỉ bỏ cảnh báo tên, không tạo hồ sơ mới hoặc thay đổi điểm.'))return;
+    setReviewBusy(s.id);
+    try{
+      const {error}=await supabase.rpc('ic3_confirm_student_name_review',{p_student_id:s.id});
+      if(error)throw error;
+      ping('Đã xác minh tên học sinh '+s.full_name+'. Dữ liệu lớp, điểm và máy được giữ nguyên.');
+      reload();
+    }catch(err){ping('Không thể xác minh tên: '+err.message);}
+    finally{setReviewBusy(null);}
+  }
   async function rejectSuspect(s){
     if(!window.confirm('Xóa VĨNH VIỄN toàn bộ hồ sơ '+s.full_name+'?\nĐiểm, điểm danh, biên bản và xếp máy liên quan đều bị xóa. Không có cách khôi phục.'))return;
     if(window.prompt('Nhập XÓA để xóa vĩnh viễn hồ sơ học sinh:')!=='XÓA')return;
@@ -758,7 +783,19 @@ function Students({ profile, refresh, reload, ping, navigate }) {
     <div className="panel" style={{ marginBottom: 16 }}>
       <div className="panel-head">
         <div><h3>Đăng ký trực tuyến chờ duyệt</h3><p>Học sinh điền form công khai tại đường dẫn /register</p></div>
-        <span className="status pending">{waiting.length} chờ duyệt</span>
+        <span className="status pending">{waitingAll.length} chờ duyệt</span>
+      </div>
+      <div className="pending-class-filter">
+        <label>Lọc danh sách đăng ký theo lớp
+          <select aria-label="Lọc hồ sơ chờ duyệt theo lớp" value={pendingClassFilter}
+            onChange={e=>setPendingClassFilter(e.target.value)}>
+            <option value="">Tất cả lớp ({waitingAll.length})</option>
+            {ownedClasses.map(c=><option key={c.id} value={c.id}>
+              Lớp {c.class_name} ({waitingAll.filter(r=>r.registration_code===c.registration_code).length})
+            </option>)}
+          </select>
+        </label>
+        <span className="muted">Đang xem {waiting.length}/{waitingAll.length} hồ sơ chờ duyệt</span>
       </div>
       {waiting.map(r => (
         <div className="task-row" key={r.id}>
@@ -772,7 +809,9 @@ function Students({ profile, refresh, reload, ping, navigate }) {
           <button className="mini-btn danger" onClick={() => rejectRegistration(r)}>Từ chối & xóa</button>
         </div>
       ))}
-      {!waiting.length && <p className="muted">Chưa có hồ sơ đăng ký trực tuyến chờ duyệt.</p>}
+      {!waiting.length && <p className="muted">{waitingAll.length?
+        "Không có hồ sơ chờ duyệt trong lớp đã chọn. Hãy đổi bộ lọc để xem lớp khác.":
+        "Chưa có hồ sơ đăng ký trực tuyến chờ duyệt."}</p>}
     </div>
 
     {suspectStudents.length>0&&<section className="panel student-name-review-panel">
@@ -785,8 +824,15 @@ function Students({ profile, refresh, reload, ping, navigate }) {
         <div className="student-review-details"><b>{st.full_name}</b>
           <small>Lớp {st.class_name} · {st.name_review_reason||"Tên cần kiểm tra"}</small>
         </div>
-        <button className="mini-btn" onClick={()=>setNameEditing({id:st.id,full_name:st.full_name})}>Sửa tên</button>
-        <button className="mini-btn danger" onClick={()=>rejectSuspect(st)}>Từ chối & xóa</button>
+        <div className="student-review-actions">
+          <button type="button" className="mini-btn success" disabled={!!reviewBusy||!canConfirmFlaggedName(st)}
+            title={!canConfirmFlaggedName(st)?"Tên chưa hợp lệ, hãy sửa tên trước":"Xác nhận đã kiểm tra tên thật"}
+            onClick={()=>confirmSuspect(st)}>{reviewBusy===st.id?"Đang duyệt…":"Duyệt"}</button>
+          <button type="button" className="mini-btn" disabled={!!reviewBusy}
+            onClick={()=>setNameEditing({id:st.id,full_name:st.full_name})}>Sửa tên</button>
+          <button type="button" className="mini-btn danger" disabled={!!reviewBusy}
+            onClick={()=>rejectSuspect(st)}>Từ chối & xóa</button>
+        </div>
       </div>)}
     </section>}
 
