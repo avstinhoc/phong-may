@@ -8,13 +8,17 @@ const validModel=name=>typeof name==='string'&&/^gemini-[a-z0-9.-]+$/.test(name)
 export async function requestTimetableGemini({
   apiKey,model='gemini-3.8-flash',
   fallbackModel='gemini-3.8-flash',secondaryModel='gemini-3.5-flash-lite',
-  parts,fetcher=fetch,delay=ms=>new Promise(resolve=>setTimeout(resolve,ms))
+  parts,systemText='',maxOutputTokens=undefined,fetcher=fetch,delay=ms=>new Promise(resolve=>setTimeout(resolve,ms))
 }){
   if(!apiKey)throw new GeminiTimetableError('Máy chủ chưa có GEMINI_API_KEY. Vui lòng kiểm tra Vercel Environment Variables.',503);
   if(!validModel(model))throw new GeminiTimetableError('Tên model Gemini được cấu hình không hợp lệ.',503);
   const models=[...new Set([model,fallbackModel,secondaryModel].filter(validModel))];
   const payload=JSON.stringify({
-    contents:[{parts}],generationConfig:{temperature:0.1,responseMimeType:'application/json'}
+    ...(systemText?{systemInstruction:{parts:[{text:systemText}]}}:{}),
+    contents:[{parts}],
+    generationConfig:{temperature:0.1,responseMimeType:'application/json',
+      ...(Number.isInteger(maxOutputTokens)&&maxOutputTokens>0&&maxOutputTokens<=16384
+        ?{maxOutputTokens}:{})}
   });
   let lastStatus=503;
   const errors=[];
