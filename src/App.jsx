@@ -6,6 +6,7 @@ import { WorkplaceManager } from "./WorkplaceManager";
 import { StudentRoster } from "./StudentRoster";
 import { StudentPortal } from "./StudentPortal";
 import { AuthCallback, emailCallbackUrl } from "./AuthCallback";
+import { startGoogleAuth, googleOAuthError } from "./lib/googleAuth";
 import { TeacherPayroll } from "./TeacherPayroll";
 import { ClassSettings } from "./ClassSettings";
 import { ReportsCenter } from "./ReportsCenter";
@@ -282,6 +283,7 @@ function AuthScreen({ mode, setMode, ping }) {
   const [name, setName] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [googleBusy,setGoogleBusy]=useState(false);
   const [emailLimited, setEmailLimited] = useState(false);
   const [cooldownUntil, setCooldownUntil] = useState(0);
   const [clock, setClock] = useState(Date.now());
@@ -323,6 +325,17 @@ function AuthScreen({ mode, setMode, ping }) {
       }
     } catch(e) {handleEmailError(e);} finally {setBusy(false);}
   }
+  async function googleSignIn(){
+    if(busy||googleBusy)return;
+    setGoogleBusy(true);setMessage("");
+    try{
+      await startGoogleAuth(supabase.auth,emailCallbackUrl());
+      // The browser redirects to Google; app roles are read from profiles on return.
+    }catch(e){
+      setMessage(googleOAuthError(e));
+      setGoogleBusy(false);
+    }
+  }
   async function resend() {
     if(!email.trim()) {setMessage("Nhập email trước khi gửi lại."); return;}
     if(cooldownSeconds > 0) return;
@@ -353,6 +366,15 @@ function AuthScreen({ mode, setMode, ping }) {
           {mode!=="forgot"&&<label>Mật khẩu<input type="password" required minLength="6" value={password} onChange={e => setPassword(e.target.value)} placeholder="Tối thiểu 6 ký tự" /></label>}
           <button className="btn primary full" disabled={busy || ((mode === "register"||mode==="forgot") && cooldownSeconds > 0)}>{busy ? "Đang xử lý..." : mode === "login" ? "Đăng nhập" : cooldownSeconds > 0 ? `Tạm dừng gửi (${cooldownSeconds}s)` : mode==="forgot"?"Gửi liên kết đặt lại mật khẩu":"Gửi đăng ký giáo viên"}</button>
         </form>
+        {mode!=="forgot"&&<>
+          <div className="auth-oauth-divider" role="separator"><span>hoặc</span></div>
+          <button type="button" className="auth-google-btn" onClick={googleSignIn}
+            disabled={busy||googleBusy} aria-label="Tiếp tục đăng nhập bằng Google">
+            <span className="google-g-mark" aria-hidden="true">G</span>
+            {googleBusy?"Đang chuyển đến Google…":"Tiếp tục với Google"}
+          </button>
+          <p className="auth-google-note">Tài khoản mới chờ Admin duyệt. Giáo viên đã có tài khoản nên dùng cùng email Google hoặc liên kết trong mục Cá nhân để giữ quyền và dữ liệu.</p>
+        </>}
         <div className="auth-switch">
           {mode==="forgot"?"Đã nhớ mật khẩu?":mode === "login" ? "Chưa có tài khoản giáo viên?" : "Đã có tài khoản?"}
           {" "}<button type="button" onClick={() => {setMessage("");setMode(mode==="login"?"register":"login");}}>{mode === "login" ? "Đăng ký" : "Đăng nhập"}</button>
