@@ -311,7 +311,7 @@ async function syncClass(db:any,link:Dict,map:Dict,token:string,actorId:string,m
 Deno.serve(async(req:Request)=>{
  const origin=req.headers.get("origin")||ORIGIN;
  const safe=permitted(origin);
- if(req.method==="OPTIONS")return new Response("",{status:safe?204:403,headers:cors(safe?origin:ORIGIN)});
+ if(req.method==="OPTIONS")return new Response(safe?null:JSON.stringify({error:"Origin không hợp lệ."}),{status:safe?204:403,headers:cors(safe?origin:ORIGIN)});
  if(!safe)return respond(403,{error:"Origin không hợp lệ."},ORIGIN);
  if(req.method!=="POST")return respond(405,{error:"Chỉ hỗ trợ POST."},origin);
  try{
