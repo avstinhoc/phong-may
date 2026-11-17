@@ -327,7 +327,7 @@ async function syncClass(db:any,link:Dict,map:Dict,token:string,actorId:string,m
 }
 
 
-const classroomName=(v:string)=>/^\\d{1,2}\\.\\d{1,2}$/.test(v)&&v.length<=12;
+const classroomName=(v:string)=>/^\d{1,2}\.\d{1,2}$/.test(v)&&v.length<=12;
 const classCompare=(a:string,b:string)=>a.localeCompare(b,"vi",{numeric:true,sensitivity:"base"});
 const serialDate=(iso:string)=>Math.round((Date.parse(iso+"T00:00:00Z")-Date.UTC(1899,11,30))/86400000);
 async function sheetBatch(id:string,requests:Dict[],token:string){
@@ -441,7 +441,12 @@ async function syncSchool(db:any,link:Dict,token:string,ownerId:string,offset=0)
  await sheetBatch(link.spreadsheet_id,ordered.map((t,i)=>({updateSheetProperties:{
   properties:{sheetId:t.id,index:i},fields:"index"
  }})),token);
- await db.from("school_sheet_links").update({last_synced_at:new Date().toISOString()}).eq("id",link.id);
+ // Do not claim a successful full sync when a class failed.
+ if(classNames.length && errors.length===0){
+  const {error:updateError}=await db.from("school_sheet_links")
+   .update({last_synced_at:new Date().toISOString(),last_error:null}).eq("id",link.id);
+  if(updateError)errors.push("Không thể cập nhật mốc đồng bộ: "+updateError.message);
+ }
  return {createdTabs:created,linkedTabs:linked,classesChecked:classNames.length,totalClasses:allClasses.length,nextOffset:offset+3<allClasses.length?offset+3:null,report,errors:errors.slice(0,35)};
 }
 
