@@ -14,7 +14,7 @@ test('document combines Vietnamese national header, statement and school logs',(
  const html=buildIncidentReportHtml(fixture);
  for(const text of ['CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM','BIÊN BẢN GHI NHẬN LỖI HỌC SINH',
  'Kính gửi','Hiệu trưởng','Giáo viên chủ nhiệm','Em tên là','Tường trình của học sinh',
- 'Giáo viên giảng dạy','Trần Minh An','THCS Vũng Tàu','Quên đồ dùng','17/11/2026'])
+ 'GIÁO VIÊN GIẢNG DẠY','Trần Minh An','THCS Vũng Tàu','Quên đồ dùng','17/11/2026'])
    assert.ok(html.includes(text),text);
  assert.ok(html.includes('học sinh tự viết'));
  assert.ok(!html.includes('BẢN NHÁP'));
