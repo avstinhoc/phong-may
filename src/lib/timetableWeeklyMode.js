@@ -11,7 +11,7 @@ export function inferWeeklyTimetable({question='',attachment=null,explicitWeekly
  const raw=normalizeIntent(attachment.text||'');
  const hits=['thu hai','thu ba','thu tu','thu nam','thu sau','thu bay'].filter(v=>raw.includes(v)).length;
  if(hits>=3)return true;
- return /(nhap|them|tao|doc|lap|xep).{0,30}lich/.test(q)&&
+ return /(nhap|them|tao|doc|lap|xep|chinh|sua).{0,30}lich/.test(q)&&
   (/(lich|tkb|schedule)/.test(name)||Boolean(attachment.mimeType?.startsWith('image/')));
 }
 
