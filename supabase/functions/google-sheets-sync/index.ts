@@ -71,10 +71,13 @@ async function assertExclusiveWorkbook(url:string,link:Dict){
  const secret=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
  if(!secret)throw fail("Máy chủ chưa bật kiểm tra an toàn Google Sheets. Báo quản trị viên.",503);
  const admin=createClient(url,secret,{auth:{persistSession:false,autoRefreshToken:false}});
- const {data,error}=await admin.from("school_sheet_links").select("id")
-    .eq("spreadsheet_id",link.spreadsheet_id).eq("status","verified").neq("id",link.id).limit(1);
+ const {data,error}=await admin.from("school_sheet_links").select("id,created_at")
+    .eq("spreadsheet_id",link.spreadsheet_id).eq("status","verified")
+    .order("created_at",{ascending:true}).order("id",{ascending:true}).limit(1);
  if(error)throw fail("Không kiểm tra được quyền sở hữu file Google Sheets.",503);
- if(data?.length)throw fail(
+ // Allow only the earliest verified link to continue. Later duplicate links
+ // must make their own copy; another teacher's mistake cannot lock the owner out.
+ if(data?.length&&data[0].id!==link.id)throw fail(
    "File Google Sheets này đang được liên kết với hồ sơ trường khác. "+
    "Để không trộn học sinh và điểm danh, mỗi giáo viên/trường phải dùng file riêng. "+
    "Mở file mẫu → Tệp → Tạo bản sao, rồi dán link bản sao vào trường này.",409);
@@ -430,7 +433,7 @@ async function syncSchool(db:any,link:Dict,token:string,ownerId:string,offset=0)
    }catch(e){
   const reason=String((e as Error).message||e).slice(0,250);
   // Log only class and failure reason; never log student rows or secret credentials.
-  console.warn("auto_sync_school",name,reason);
+  console.warn("auto_sync_school class failed",name,(e as any)?.status||"error");
   errors.push(name+": "+reason);
  }
  }
