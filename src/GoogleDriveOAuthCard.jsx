@@ -54,7 +54,7 @@ export function GoogleDriveOAuthCard({onConnected}){
  async function connect(){
   setError('');setMessage('');setLoading(true);handledRef.current=false;
   // Open synchronously on the click so the OAuth popup is not blocked.
-  const popup=window.open('about:blank','qlpm-google-drive','width=570,height=720,noopener=false');
+  const popup=window.open('about:blank','qlpm-google-drive','width=570,height=720');
   popupRef.current=popup;
   if(popup)popup.document.body.innerHTML='<p style="font:16px Arial;padding:24px">Đang mở trang xác thực Google...</p>';
   try{
