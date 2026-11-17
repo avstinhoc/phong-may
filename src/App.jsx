@@ -15,6 +15,8 @@ import { ProfileSettings } from "./ProfileSettings";
 import { properName, searchName, comparePC, compareStudentName } from "./lib/students";
 import { normalizeComputerCode,validFullName } from "./lib/registration";
 import { TeachingCalendar } from "./TeachingCalendar";
+import { Time24Input } from "./Time24Input";
+import { isVietnamTimeRange } from "./lib/vietnamTime";
 import {filterCreatedSessions,sessionDateWindow,shiftSessionDay,mondayOfSessionWeek} from "./lib/sessionDateFilter";
 import { RollCall } from "./RollCall";
 import * as XLSX from "xlsx";
@@ -224,7 +226,7 @@ function App() {
         {notice && <div className="toast"><CheckCircle2 size={17} />{notice}</div>}
 
         <div className="content" key={["workplaces","schools","settings","finance","reports","accounts","personal"].includes(page)?page:schoolId}>
-          {(page === "schools" || (!schools.length && page!=="workplaces")) && <SchoolManager
+          {page === "schools" && <SchoolManager
             schools={schools} workplaces={workplaces} workplaceSchools={workplaceSchools} role={profile.role}
             onCreated={id => {setSchoolId(id); reload();}}
             onChanged={deletedId => {if(deletedId === schoolId) setSchoolId(""); reload();}} ping={ping} />}
@@ -1052,6 +1054,10 @@ function Attendance({ profile, refresh, reload, ping, focusDate, setFocusDate, o
   async function save(e) {
     e.preventDefault();
     if(saving) return;
+    if(!isVietnamTimeRange(form.start_time,form.end_time)){
+      ping("Giờ kết thúc phải sau giờ bắt đầu. Chọn giờ Việt Nam dạng 24 giờ (00:00–23:59).");
+      return;
+    }
     setSaving(true);
     const payload = {
       ...form,
@@ -1150,10 +1156,17 @@ function Attendance({ profile, refresh, reload, ping, focusDate, setFocusDate, o
             <datalist id="class-options">{classes.rows.map(c => <option key={c.id} value={c.class_name} />)}</datalist>
           </label>
           <label>Ngày học<input type="date" value={form.session_date} onChange={e => setForm({ ...form, session_date: e.target.value })} /></label>
-          <div className="form-row">
-            <label>Giờ bắt đầu<input type="time" value={form.start_time} onChange={e => setForm({ ...form, start_time: e.target.value })} /></label>
-            <label>Giờ kết thúc<input type="time" value={form.end_time} onChange={e => setForm({ ...form, end_time: e.target.value })} /></label>
+          <div className="form-row schedule-time-row">
+            <label>Giờ bắt đầu (24h)
+              <Time24Input label="Giờ bắt đầu" value={form.start_time} disabled={saving}
+                onChange={time => setForm(old=>({ ...old, start_time:time }))}/>
+            </label>
+            <label>Giờ kết thúc (24h)
+              <Time24Input label="Giờ kết thúc" value={form.end_time} disabled={saving}
+                onChange={time => setForm(old=>({ ...old, end_time:time }))}/>
+            </label>
           </div>
+          <p className="schedule-time-hint">Giờ Việt Nam (UTC+7) · Hiển thị 24 giờ. Ví dụ: 17:00 – 19:00.</p>
           <label>Giáo viên phụ trách
             {adminView&&targetTeacher==="unassigned"?
               <select value={form.teacher_id} onChange={e=>{
