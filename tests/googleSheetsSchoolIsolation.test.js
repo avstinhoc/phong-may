@@ -11,12 +11,12 @@ test('cross-school workbook collision checked server-side before any Google Shee
  assert.ok(server.includes('.eq("status","verified")'));
  assert.ok(server.includes('data[0].id!==link.id'));
  assert.ok(server.includes('order("created_at"'));
- assert.ok(server.indexOf('await assertExclusiveWorkbook(url,link)')<server.indexOf('const token=await googleToken();',server.indexOf('await assertExclusiveWorkbook(url,link)')));
+ assert.ok(server.indexOf('await assertExclusiveWorkbook(url,link)')<server.indexOf('const token=await googleToken(ownerId);',server.indexOf('await assertExclusiveWorkbook(url,link)')));
  assert.ok(server.includes('mỗi giáo viên/trường phải dùng file riêng'));
 });
 
 test('new schools do not silently reuse private reference workbook',()=>{
  assert.ok(!ui.includes('setUrl(profile.school_name?.toLocaleLowerCase'));
  assert.ok(ui.includes("setUrl('')"));
- assert.ok(ui.includes('Không dùng chung một link cho hai trường.'));
+ assert.ok(ui.includes('Mỗi giáo viên/trường có file Google Sheets riêng.'));
 });

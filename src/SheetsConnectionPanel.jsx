@@ -3,6 +3,7 @@ import {supabase} from './lib/supabase';
 import {parseSheetUrl,validateSheetTabName,mapLessonsInOrder,validateLessonMapping} from './lib/googleSheetTemplate';
 import {replaceExistingTopLeftLogo} from './lib/replaceExcelLogo';
 import {fixedDateScript} from './lib/sheetDateScript';
+import {GoogleDriveOAuthCard} from './GoogleDriveOAuthCard';
 
 const labelDate=v=>String(v||'').split('-').reverse().join('/');
 const getMessage=async error=>{
@@ -223,7 +224,10 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
   </button>
   {open&&<div className="sheets-link-content">
    {!profile.school_id?<p className="notice-box">Hãy chọn trường công tác ở menu trái trước khi liên kết.</p>:<>
-    <p className="muted">Mỗi giáo viên/trường cần một file Google Sheets riêng, kể cả khi tên trường giống nhau. Khi đã cấp quyền, hệ thống tự bổ sung lớp và dữ liệu còn thiếu; các ô khác nhau chỉ báo xung đột, không tự ghi đè.</p>
+    <p className="muted">Mỗi giáo viên/trường có file Google Sheets riêng. Kết nối OAuth bằng tài khoản Google của bạn để tạo file trực tiếp trong My Drive, không cần Shared Drive.</p>
+    <GoogleDriveOAuthCard onConnected={()=>{
+      setError('');setMessage('Google Drive đã kết nối. Nhấn Tạo Sheets cho trường này để chuẩn bị bản sao riêng.');
+    }}/>
     <div className="sheets-link-grid">
      <label>Đường dẫn Google Sheets của {profile.school_name}
       <input type="url" value={url} disabled={!!busy} onChange={e=>setUrl(e.target.value)}
@@ -238,7 +242,7 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
     </div>
     {!link&&<div className="sheets-link-help">
       <strong>Chưa có Google Sheets cho trường này?</strong>
-      <small>Bạn có thể thử tạo bản sao tự động từ mẫu của trường đã liên kết. Tài khoản dịch vụ cần quyền ghi vào Shared Drive. Với Google Drive cá nhân miễn phí, hãy mở mẫu của chính bạn → Tệp → Tạo bản sao, đổi tên theo trường và dán link bản sao vào ô trên. Không dùng chung một link cho hai trường.</small>
+      <small>Kết nối Google OAuth phía trên rồi nhấn Tạo Sheets cho trường này. QLPM sẽ tự sao chép file mẫu của chính bạn, xóa dữ liệu học sinh lớp mẫu trong bản sao và lưu file mới vào My Drive của giáo viên.</small>
       <button className="btn outline" disabled={!!busy} onClick={()=>run('provision',provisionHere)}>Tạo Sheets cho trường này</button>
     </div>}
     {link&&<div className="sheets-link-meta">

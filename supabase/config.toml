@@ -1,0 +1,5 @@
+[functions.google-drive-oauth]
+verify_jwt = false  # Google callback is public; POSTs verify Supabase JWT in handler.
+
+[functions.google-sheets-sync]
+verify_jwt = true
