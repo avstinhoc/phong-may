@@ -91,7 +91,7 @@ export function TeacherPayroll({profile,refresh,ping,schools=[],workplaces=[],wo
        ping('Đơn vị này chưa có trường liên kết mà bạn được phân quyền.');return;
      }
      setBusy(true);
-     await exportMonthlyExcel({...privatePay?params:submissionParams,privatePay});
+     await exportMonthlyExcel({...(privatePay?params:submissionParams),privatePay});
    }
    catch(e){ping('Không xuất được Excel: '+e.message);}
    finally{setBusy(false);}
@@ -101,7 +101,7 @@ export function TeacherPayroll({profile,refresh,ping,schools=[],workplaces=[],wo
     if(!privatePay&&recipientWorkplace&&!recipientSchools.length){
       ping('Đơn vị này chưa có trường liên kết mà bạn được phân quyền.');return;
     }
-    printMonthlyPdf({...privatePay?params:submissionParams,privatePay});
+    printMonthlyPdf({...(privatePay?params:submissionParams),privatePay});
    }catch(e){ping(e.message);}
  }
  return <section className="payroll-page">
