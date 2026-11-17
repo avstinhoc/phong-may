@@ -364,7 +364,7 @@ async function writeScheduleFromWeb(db:any,link:Dict,map:Dict,token:string){
  if(error)throw fail("Không lưu được ánh xạ tiết vừa tạo.",500);
  return {...map,lesson_columns:mapping};
 }
-async function syncSchool(db:any,link:Dict,token:string,ownerId:string){
+async function syncSchool(db:any,link:Dict,token:string,ownerId:string,offset=0){
  const {data:school,error:schoolError}=await db.from("schools").select("id,name").eq("id",link.school_id).maybeSingle();
  if(schoolError||!school)throw fail("Không có quyền đọc trường.",403);
  const {data:classes,error:classErr}=await db.from("classes").select("class_name")
@@ -376,7 +376,8 @@ async function syncSchool(db:any,link:Dict,token:string,ownerId:string){
   if(error)throw fail("Không đọc được lớp từ "+table,500);
   for(const row of rows||[])if(classroomName(clean(row.class_name)))seen.add(clean(row.class_name));
  }
- const classNames=[...seen].sort(classCompare).slice(0,35);
+ const allClasses=[...seen].sort(classCompare).slice(0,60);
+ const classNames=allClasses.slice(offset,offset+3);
  const meta=await metadata(link.spreadsheet_id,token);
  const tabs=(meta.sheets||[]).map((x:Dict)=>({id:x.properties.sheetId,title:x.properties.title}));
  const created:string[]=[],linked:string[]=[],errors:string[]=[],report:Dict[]=[];
@@ -418,7 +419,7 @@ async function syncSchool(db:any,link:Dict,token:string,ownerId:string){
   properties:{sheetId:t.id,index:i},fields:"index"
  }})),token);
  await db.from("school_sheet_links").update({last_synced_at:new Date().toISOString()}).eq("id",link.id);
- return {createdTabs:created,linkedTabs:linked,classesChecked:classNames.length,report,errors:errors.slice(0,35)};
+ return {createdTabs:created,linkedTabs:linked,classesChecked:classNames.length,totalClasses:allClasses.length,nextOffset:offset+3<allClasses.length?offset+3:null,report,errors:errors.slice(0,35)};
 }
 
 Deno.serve(async(req:Request)=>{
@@ -489,7 +490,8 @@ Deno.serve(async(req:Request)=>{
   if(!idSafe(link.spreadsheet_id))throw fail("Mã Google Sheets không hợp lệ.");
   const token=await googleToken();
   if(action==="auto_sync_school"){
-   const result=await syncSchool(db,link,token,ownerId);
+   const offset=Math.max(0,Math.min(60,Number(payload.offset)||0));
+   const result=await syncSchool(db,link,token,ownerId,offset);
    return respond(200,{success:true,...result},origin);
   }
   if(action==="inspect"){
