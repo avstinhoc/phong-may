@@ -37,7 +37,7 @@ Logo trung tâm được chọn trong ô **Logo trong file Excel** ở tính nă
 - Điểm trong web và Google có giá trị khác nhau: báo xung đột, không chọn ngầm một bên.
 - Không tự động ghi đè ô công thức CU:CY hoặc tiêu đề; không xóa checkbox/hình khi kết nối.
 - Quá 63 học sinh / một tab hoặc 70 buổi / một tab: báo hết chỗ, không cắt dữ liệu hoặc chèn cột làm méo mẫu.
-- Giao diện ghi rõ mọi thao tác đồng bộ phải xác nhận; việc mở trang không tự chạy đồng bộ liên tục. Nếu cần tự đồng bộ 24/7 phải thêm lịch bảo mật/quy trình riêng.
+- Lần đầu **xem trước và xác nhận** thủ công. Sau một lần đồng bộ thành công, giáo viên có thể bật **Tự đồng bộ khi mở Danh sách học sinh**. Khi bật, website chạy pull rồi push tối đa 10 tab đã gắn mỗi lần mở trang; thao tác không ghi đè ô đang có dữ liệu khác và không sửa công thức CU:CY. Không chạy ngầm 24/7; để cập nhật khi app đóng vẫn cần job được bảo vệ riêng.
 
 ## Về chi phí
 Google Sheets API hiện có mức sử dụng tiêu chuẩn không tính phí bổ sung trong hạn mức; quota và chính sách có thể thay đổi, cần kiểm tra trang chính thức. Supabase/Vercel vẫn sử dụng gói hiện tại; không phải nâng gói.
