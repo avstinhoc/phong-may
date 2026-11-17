@@ -5,6 +5,7 @@ import {replaceExistingTopLeftLogo} from './lib/replaceExcelLogo';
 import {fixedDateScript} from './lib/sheetDateScript';
 
 const labelDate=v=>String(v||'').split('-').reverse().join('/');
+const SHEETS_EDITOR_EMAIL='ic3-sheets-sync@qlpm-ic3.iam.gserviceaccount.com';
 const getMessage=async error=>{
  if(error?.context?.json){
   try{const d=await error.context.json();if(d?.error)return d.error;}catch{}
@@ -21,6 +22,11 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
  const autoSyncedForRef=useRef('');
  const autoInspectedForRef=useRef('');
  const currentTab=bindings.find(x=>x.class_name===selectedClass);
+ const sourceCopyId=useMemo(()=>{
+  if(!url.trim())return link?.spreadsheet_id||null;
+  try{return parseSheetUrl(url);}catch{return null;}
+ },[url,link?.spreadsheet_id]);
+ const sourceCopyUrl=sourceCopyId?'https://docs.google.com/spreadsheets/d/'+sourceCopyId+'/copy':'';
  const classSessions=useMemo(()=>sessions.filter(x=>x.class_name===selectedClass)
   .sort((a,b)=>String(a.session_date).localeCompare(String(b.session_date))||
    String(a.start_time).localeCompare(String(b.start_time))),[sessions,selectedClass]);
@@ -223,7 +229,7 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
   </button>
   {open&&<div className="sheets-link-content">
    {!profile.school_id?<p className="notice-box">Hãy chọn trường công tác ở menu trái trước khi liên kết.</p>:<>
-    <p className="muted">Mỗi giáo viên/trường dùng một file Google Sheets riêng. Chia sẻ quyền Chỉnh sửa cho email Service Account, sau đó dán liên kết file bên dưới.</p>
+    <p className="muted">Mỗi giáo viên/trường có file Google Sheets riêng. Dùng tài khoản Google của giáo viên để tạo bản sao, rồi cấp quyền Chỉnh sửa cho Service Account.</p>
     <div className="sheets-link-grid">
      <label>Đường dẫn Google Sheets của {profile.school_name}
       <input type="url" value={url} disabled={!!busy} onChange={e=>setUrl(e.target.value)}
@@ -236,10 +242,23 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
        {busy==='inspect'?'Đang kiểm tra…':'Kiểm tra quyền & đọc tabs'}
       </button>}
     </div>
-    {!link&&<div className="sheets-link-help">
-      <strong>Chưa có Google Sheets cho trường này?</strong>
-      <small>Mở Google Sheets mẫu → Tệp → Tạo bản sao bằng tài khoản Google của bạn. Đổi tên theo trường, chia sẻ bản sao với email Service Account (quyền Editor), rồi dán link ở ô trên và bấm Lưu liên kết.</small>
-    </div>}
+    <div className="sheets-copy-guide">
+      <strong>Tạo bảng tính mới từ file Google Sheets mẫu</strong>
+      <ol>
+        <li>Dán liên kết <b>file mẫu</b> vào ô trên, rồi chọn <b>Tạo bản sao Google Sheets</b>. Google sẽ hỏi bạn xác nhận tạo bản sao trong Drive cá nhân.</li>
+        <li>Trong <b>bản sao mới</b>, bấm <b>Chia sẻ</b> → thêm email dưới đây → chọn <b>Người chỉnh sửa (Editor)</b> → <b>Gửi</b>.</li>
+        <li>Quay lại QLPM, thay link mẫu bằng <b>link của bản sao mới</b>, chọn <b>Lưu liên kết</b> và <b>Kiểm tra quyền &amp; đọc tabs</b>.</li>
+      </ol>
+      <div className="sheets-link-actions">
+        {sourceCopyUrl?<a className="btn primary" href={sourceCopyUrl} target="_blank" rel="noopener noreferrer">Tạo bản sao Google Sheets</a>
+         :<button type="button" className="btn primary" disabled title="Dán link Google Sheets mẫu vào ô phía trên trước">Tạo bản sao Google Sheets</button>}
+        <button type="button" className="btn outline" onClick={()=>navigator.clipboard?.writeText(SHEETS_EDITOR_EMAIL)
+          .then(()=>setMessage('Đã sao chép email để chia sẻ file bản sao.'))
+          .catch(()=>setError('Không sao chép được email. Hãy chọn email bên dưới và sao chép thủ công.'))}>Sao chép email cấp quyền</button>
+      </div>
+      <code className="sheets-service-email">{SHEETS_EDITOR_EMAIL}</code>
+      <small>Không bật “Bất kỳ ai có đường liên kết”. Nếu file mẫu đã chứa dữ liệu học sinh của trường khác, hãy dùng <b>mẫu trống</b> hoặc xóa thông tin cũ khỏi bản sao trước khi sử dụng.</small>
+    </div>
     {link&&<div className="sheets-link-meta">
      <a href={'https://docs.google.com/spreadsheets/d/'+link.spreadsheet_id+'/edit'}
        target="_blank" rel="noreferrer">Mở file Google Sheets gốc</a>
@@ -269,10 +288,7 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
        Tự đồng bộ lớp, học sinh, điểm và điểm danh khi mở Danh sách học sinh</label>
       <small>Mặc định bật, không cần đồng bộ thủ công trước. Tự tạo tab còn thiếu và bổ sung ô trống; dữ liệu khác nhau được báo xung đột, không ghi đè. Không chạy ngầm 24/7.</small>
     </div>}
-    {link&&<div className="sheets-link-help">
-      <strong>Quyền Google:</strong> Để đồng bộ file riêng tư, Admin cấu hình Google Service Account trong Supabase Edge Secrets, rồi chia sẻ file Sheets cho email dịch vụ ở quyền Editor. Không chuyển Sheets sang công khai và không dán khóa JSON vào website.
-      <a href="https://console.cloud.google.com/iam-admin/serviceaccounts" target="_blank" rel="noreferrer">Mở Google Cloud Service Accounts</a>
-    </div>}
+
     {tabs.length>0&&<div className="sheets-link-section">
      <h3>1. Gắn tab hoặc nhân bản lớp</h3>
      <p className="muted">Các tab trong file: {tabs.map(t=>t.title).join(', ')}. Mỗi tab tương ứng một lớp.</p>
