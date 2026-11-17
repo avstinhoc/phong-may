@@ -1058,3 +1058,17 @@
 .sheets-oauth-body .sheets-oauth-error{color:#ad321e;background:#fff4ee;border:1px solid #fbd3c4;border-radius:8px;padding:10px}
 .sheets-oauth-body .sheets-oauth-success{color:#157459;background:#e8f8ef;border:1px solid #bde8d2;border-radius:8px;padding:10px}
 @media(max-width:640px){.sheets-oauth-heading{flex-wrap:wrap}.sheets-oauth-status{margin-left:50px}.sheets-oauth-actions .btn{width:100%}}
+
+/* Roster filters are immediately below the attendance / scores tab row. */
+.roster-toolbar{flex-wrap:wrap;align-items:end;border-top:1px solid #e8eff1;padding-top:13px;margin:14px 0 16px}
+.roster-toolbar label{display:flex;flex-direction:column;gap:6px;font-size:12px;color:#355965;font-weight:650;flex:0 1 210px}
+.roster-toolbar input[aria-label="Tìm tên trong danh sách"]{padding:11px 12px;min-height:40px;flex:1 1 210px;max-width:320px;border:1px solid #dce6e8;border-radius:9px;background:#fff}
+.roster-toolbar .btn{min-height:40px}
+.sheets-copy-guide{display:flex;flex-direction:column;gap:10px;padding:16px;background:#f1faf7;border:1px solid #c8e6dc;border-radius:12px;color:#345d62;font-size:12px;line-height:1.65}
+.sheets-copy-guide>strong{font-size:13px;color:#125c52}
+.sheets-copy-guide ol{margin:0;padding-left:21px;display:grid;gap:8px}
+.sheets-copy-guide .sheets-service-email{display:block;align-self:flex-start;max-width:100%;padding:9px 12px;border-radius:8px;background:#fff;border:1px solid #bddcd3;font-size:12px;color:#145b54;overflow-wrap:anywhere;user-select:all}
+.sheets-copy-guide>small{color:#557a73;line-height:1.6;font-size:11px}
+.class-code-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.class-code-actions .mini-btn{white-space:nowrap}
+@media(max-width:700px){.roster-toolbar label,.roster-toolbar input[aria-label="Tìm tên trong danh sách"]{flex:1 1 100%;max-width:none}}
