@@ -63,9 +63,7 @@ Khi trang **Danh sách học sinh** được mở với liên kết đã xác mi
 - Tắt tự động bằng checkbox nếu không muốn dữ liệu tự được bổ sung khi mở trang. Khi xác minh link mới, mặc định `auto_sync=true`; **không đòi một lần đồng bộ thủ công trước**.
 
 ### Tạo Sheets riêng khi thêm trường
-Trang **Trường công tác** và **Công ty/Trung tâm → Tạo trường** tự thử gọi `provision_school`. Nếu tài khoản dịch vụ có quyền ghi vào thư mục Shared Drive (`GOOGLE_SHEETS_PARENT_FOLDER_ID` trong Edge Secrets), Drive sẽ copy một file mẫu đã xác minh thuộc cùng giáo viên, làm sạch toàn bộ thông tin học sinh và giữ định dạng, rồi liên kết file mới với trường. Không dùng file/link của giáo viên khác.
-
-**Google Drive cá nhân miễn phí không cấp quota tạo file cho Service Account**. Không thể tự copy workbook vào My Drive cá nhân chỉ với JSON service account. Trong trường hợp này, trường vẫn được tạo thành công; ứng dụng báo rõ lý do và hướng dẫn chủ file chọn **Tệp → Tạo bản sao** bằng Google Drive của họ, rồi dán URL vào mục Liên kết Google Sheets. Không ép người dùng mua Google Workspace.
+Mỗi trường dùng một Google Sheets riêng. Giáo viên mở file mẫu bằng tài khoản Google của mình → **Tệp → Tạo bản sao** → chia sẻ bản sao với email Google Service Account (quyền Editor) → dán URL vào **Liên kết Google Sheets**. Edge Function dùng duy nhất `GOOGLE_SHEETS_SERVICE_ACCOUNT_JSON` trong Supabase Secrets để đọc và đồng bộ; không yêu cầu OAuth Drive cá nhân.
 
 ### Ngày học cố định (Google Apps Script miễn phí)
 Vì `TODAY()` thay đổi theo ngày, file hiện tại không thể giữ ngày dạy cũ chỉ bằng công thức. Trong mục **Liên kết Google Sheets → Ghi ngày học cố định**, bấm **Sao chép mã cố định ngày**, mở Google Sheets → **Tiện ích mở rộng → Apps Script**, dán và **Lưu**. Hàm `onEdit(e)` chạy tự động khi giáo viên nhập số tiết mới vào J6:CA6, ghi một `Date` tĩnh tại ô ngay dưới ở hàng 7. Khi điều chỉnh số tiết đã tồn tại, ngày cũ không bị đổi.
