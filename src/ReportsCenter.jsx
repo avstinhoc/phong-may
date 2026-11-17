@@ -1,6 +1,7 @@
 import React,{useEffect,useMemo,useState} from 'react';
 import {supabase} from './lib/supabase';
 import {compareStudentName} from './lib/students';
+import {exportAttendanceReference} from './lib/exportReferenceAttendance';
 import {teacherRows,teacherTotals,exportMonthlyExcel,printMonthlyPdf,exportGeneralXlsx,printGeneralPdf,amount,vnDate,schoolYear} from './lib/teacherReports';
 const firstMonth=()=>new Date().toLocaleDateString('en-CA').slice(0,7);
 const scoreNames=['QT1','QT2','HK1','QT3','QT4','HK2','TEST 1','TEST 2','TEST 3','TEST 4','TEST 5','Mô phỏng lần 1','Mô phỏng lần 2','Mô phỏng lần 3','Mô phỏng lần 4','Mô phỏng lần 5'];
@@ -85,6 +86,12 @@ export function ReportsCenter({profile,refresh,ping,schools=[]}){
  async function excel(){
   try{setBusy(true);
    if(kind==='center'||kind==='teacher')await exportMonthlyExcel({rows:monthly,sessions:hydrated,teacher:selectedTeacher.name,school:reportSchoolName,logo:reportSchoolLogo,from,rate,ratesBySchool,privatePay:kind==='teacher'});
+   else if(kind==='attendance'){
+    if(!className||!selectedSchool){ping('Để xuất bảng điểm danh theo mẫu, hãy chọn đúng trường và lớp trước.');return;}
+    await exportAttendanceReference({school:reportSchoolName,className,teacher:profile.full_name||'',
+     students:chosen,sessions:selectedSessions.filter(l=>l.school_id===selectedSchool.id),
+     marks:data.attendance||[],results:data.student_results||[],logo:reportSchoolLogo});
+   }
    else await exportGeneralXlsx(args);
   }catch(e){ping('Lỗi xuất Excel: '+e.message);}finally{setBusy(false);}
  }
