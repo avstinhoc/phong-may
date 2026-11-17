@@ -123,7 +123,7 @@ export function ProfileSettings({profile,email,reload,ping}){
           target="_blank" rel="noreferrer">Mở cấu hình Supabase</a>
       </div>
       <small>Trong Authentication → Sign In / Providers → Supabase Auth, tìm và bật “Allow manual linking”/“Enable Manual Linking”. Google Provider phải được bật. Chỉ thao tác trên tài khoản Google bạn sở hữu.</small>
-    </div>
+    </div>}
     <p className="muted personal-google-tip">Dùng đúng tài khoản Google mà bạn sở hữu. Không tạo tài khoản Admin mới hay thay đổi quyền truy cập khi liên kết. Nếu nút báo lỗi, Admin cần bật Google Provider và Manual Identity Linking trong Supabase.</p>
    </section>
    <section className="panel">
