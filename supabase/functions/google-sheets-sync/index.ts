@@ -1,6 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2.119.0";
 import { importPKCS8, SignJWT } from "npm:jose@5.10.0";
-import {googleUserAccessToken} from "./google-user-token.ts";
 
 type Dict = Record<string, any>;
 const ORIGIN="https://phong-may.vercel.app";
@@ -43,11 +42,7 @@ const api=async(url:string,token:string,options:RequestInit={})=>{
  }
  return response;
 };
-async function googleToken(ownerId?:string){
- if(ownerId){
-  const individual=await googleUserAccessToken(ownerId);
-  if(individual)return individual;
- }
+async function googleToken(){
  if(cache.token && Date.now()+120000<cache.expires)return cache.token;
  const raw=Deno.env.get("GOOGLE_SHEETS_SERVICE_ACCOUNT_JSON");
  if(!raw)throw fail("Chưa cấu hình kết nối Google Sheets bảo mật. Admin cần tạo Service Account và thêm GOOGLE_SHEETS_SERVICE_ACCOUNT_JSON vào Supabase Edge Secrets.",503);
@@ -488,92 +483,9 @@ Deno.serve(async(req:Request)=>{
    const {data:existing}=await db.from("school_sheet_links").select("id,spreadsheet_id")
     .eq("school_id",schoolId).eq("owner_id",ownerId).maybeSingle();
    if(existing)return respond(200,{success:true,alreadyLinked:true,spreadsheetId:existing.spreadsheet_id},origin);
-   // A teacher's own OAuth account can create a workbook in their personal My Drive.
-   // Service accounts cannot own files in personal My Drive and must not be used here.
-   const token=await googleUserAccessToken(ownerId);
-   if(!token)throw fail("Hãy kết nối tài khoản Google của giáo viên ở Danh sách học sinh trước khi tạo file Sheets cho trường.",409);
-   const {data:sourceLinks,error:sourceError}=await db.from("school_sheet_links")
-    .select("spreadsheet_id,status,school_id").eq("owner_id",ownerId)
-    .eq("status","verified").order("created_at",{ascending:true}).limit(15);
-   if(sourceError)throw fail("Không tìm được mẫu Sheets của giáo viên.",500);
-   const sourceLink=(sourceLinks||[]).find(x=>idSafe(x.spreadsheet_id));
-   if(!sourceLink)throw fail("Cần liên kết ít nhất một file Google Sheets mẫu của giáo viên trước khi sao chép sang trường mới.",409);
-   const source=sourceLink.spreadsheet_id;
-   const newTitle="DS ĐIỂM DANH "+school.name.toLocaleUpperCase("vi");
-   const sourceMeta=await metadata(source,token);
-   const sourceTabs=(sourceMeta.sheets||[]).map((t:Dict)=>({
-    id:t.properties.sheetId,title:t.properties.title
-   }));
-   if(!sourceTabs.length)throw fail("File mẫu không có tab.",409);
-   let sheetId="",copyMode="drive-full-copy",copyError="";
-   try{
-    const file=await (await api("https://www.googleapis.com/drive/v3/files/"+source+
-     "/copy?fields=id,name,webViewLink",token,{method:"POST",
-       body:JSON.stringify({name:newTitle})})).json();
-    sheetId=clean(file.id);
-    if(!idSafe(sheetId))throw fail("Google Drive không trả ID bản sao.",502);
-   }catch(e){
-    // Existing files are sometimes not authorized under drive.file without
-    // Google Picker. The Sheets API has an independent spreadsheet scope.
-    copyError=String((e as Error).message||"").slice(0,180);
-    const blank=await (await api("https://sheets.googleapis.com/v4/spreadsheets?fields=spreadsheetId,sheets(properties(sheetId,title))",
-     token,{method:"POST",body:JSON.stringify({
-      properties:{title:newTitle},sheets:[{properties:{title:"QLPM_TEMP"}}]
-     })})).json();
-    sheetId=clean(blank.spreadsheetId);
-    if(!idSafe(sheetId))throw fail("Google Sheets chưa tạo được bảng tính mới.",502);
-    copyMode="sheets-copyto";
-   }
-   try{
-    let tabs:Dict[];
-    let temporarySheetId:number|null=null;
-    if(copyMode==="sheets-copyto"){
-     const sheetMeta=await metadata(sheetId,token);
-     temporarySheetId=sheetMeta.sheets?.[0]?.properties?.sheetId??null;
-     tabs=[];
-     for(const sourceTab of sourceTabs){
-      const copied=await (await api("https://sheets.googleapis.com/v4/spreadsheets/"+source+
-       "/sheets/"+sourceTab.id+":copyTo",token,{method:"POST",
-       body:JSON.stringify({destinationSpreadsheetId:sheetId})})).json();
-      if(!Number.isInteger(copied.sheetId))throw fail("Không sao chép được tab "+sourceTab.title,502);
-      tabs.push({id:copied.sheetId,title:sourceTab.title});
-     }
-    }else{
-     const m=await metadata(sheetId,token);
-     tabs=(m.sheets||[]).map((t:Dict)=>({id:t.properties.sheetId,title:t.properties.title}));
-    }
-    if(!tabs.length)throw fail("Bản sao Google Sheets không có tab.",502);
-    // Apply all safety cleanup changes in one Google Sheets batch.
-    const requests:Dict[]=tabs.flatMap(tab=>freshTabRequests(tab.id,tab.title,school.name));
-    const {data:originalSchool}=await db.from("schools").select("name")
-     .eq("id",sourceLink.school_id).maybeSingle();
-    if(originalSchool?.name&&originalSchool.name!==school.name){
-     requests.push({findReplace:{
-      find:originalSchool.name,replacement:school.name,
-      matchCase:false,matchEntireCell:false,includeFormulas:false,allSheets:true
-     }});
-    }
-    requests.push(...tabs.sort((a,b)=>classCompare(a.title,b.title)).map((tab,i)=>({
-     updateSheetProperties:{
-      properties:{sheetId:tab.id,index:i,...(copyMode==="sheets-copyto"?{title:tab.title}:{})},
-      fields:copyMode==="sheets-copyto"?"index,title":"index"
-     }
-    })));
-    if(temporarySheetId!==null)requests.push({deleteSheet:{sheetId:temporarySheetId}});
-    await sheetBatch(sheetId,requests,token);
-   }catch(e){
-    try{await fetch("https://www.googleapis.com/drive/v3/files/"+sheetId,{
-     method:"DELETE",headers:{Authorization:"Bearer "+token}
-    });}catch{}
-    throw fail("Không làm sạch được bản sao Sheets; hệ thống chưa liên kết file mới. "+
-     String((e as Error).message||""),502);
-   }
-   const {data:linked,error:linkError}=await db.from("school_sheet_links").insert({
-    owner_id:ownerId,school_id:schoolId,spreadsheet_id:sheetId,
-    spreadsheet_title:newTitle,template_tab:"6.1",status:"verified",auto_sync:true
-   }).select("id").single();
-   if(linkError)throw fail("Đã tạo file nhưng không gắn được vào trường: "+linkError.message,500);
-   return respond(200,{success:true,link_id:linked.id,spreadsheetId:sheetId,created:true,copyMode},origin);
+   // Service Accounts cannot create a file in a personal My Drive.
+   // Manual copies keep ownership with the teacher and prevent accidental writes.
+   throw fail("Hãy mở file Sheets mẫu bằng Google của bạn → Tệp → Tạo bản sao, chia sẻ bản sao cho email Service Account (Editor), rồi dán link bản sao vào mục Liên kết Google Sheets.",409);
   }
   const linkId=clean(payload.link_id);
   if(!/^[a-f0-9-]{36}$/i.test(linkId))throw fail("Thiếu ID liên kết trường.");
@@ -582,7 +494,7 @@ Deno.serve(async(req:Request)=>{
   if(linkErr||!link)throw fail("Không có quyền quản lý liên kết này.",403);
   if(!idSafe(link.spreadsheet_id))throw fail("Mã Google Sheets không hợp lệ.");
   await assertExclusiveWorkbook(url,link);
-  const token=await googleToken(ownerId);
+  const token=await googleToken();
   if(action==="auto_sync_school"){
    const offset=Math.max(0,Math.min(60,Number(payload.offset)||0));
    const result=await syncSchool(db,link,token,ownerId,offset);
