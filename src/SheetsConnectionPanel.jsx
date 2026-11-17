@@ -2,6 +2,7 @@ import React,{useEffect,useMemo,useRef,useState} from 'react';
 import {supabase} from './lib/supabase';
 import {parseSheetUrl,validateSheetTabName,mapLessonsInOrder,validateLessonMapping} from './lib/googleSheetTemplate';
 import {replaceExistingTopLeftLogo} from './lib/replaceExcelLogo';
+import {fixedDateScript} from './lib/sheetDateScript';
 
 const suggestedSheet='https://docs.google.com/spreadsheets/d/1O2A_f-SV5C3vkKDidDdgIxwIW96xOycs1qWSPYs1xkc/edit';
 const labelDate=v=>String(v||'').split('-').reverse().join('/');
@@ -11,14 +12,15 @@ const getMessage=async error=>{
  }
  return error?.message||'Không thể kết nối Google Sheets.';
 };
-export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=null,logoLabel='',onSynced}){
+export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=null,logoLabel='',rosterVersion=0,onSynced}){
  const [open,setOpen]=useState(false),[link,setLink]=useState(null),
   [url,setUrl]=useState(''),[tabs,setTabs]=useState([]),[bindings,setBindings]=useState([]),
   [busy,setBusy]=useState(''),[error,setError]=useState(''),[message,setMessage]=useState(''),
   [selectedClass,setSelectedClass]=useState(''),[tabName,setTabName]=useState(''),
   [newClass,setNewClass]=useState(''),[templateTab,setTemplateTab]=useState('6.1'),
   [preview,setPreview]=useState(null),[mapping,setMapping]=useState({});
- const autoStartedRef=useRef(false);
+ const autoSyncedForRef=useRef('');
+ const autoInspectedForRef=useRef('');
  const currentTab=bindings.find(x=>x.class_name===selectedClass);
  const classSessions=useMemo(()=>sessions.filter(x=>x.class_name===selectedClass)
   .sort((a,b)=>String(a.session_date).localeCompare(String(b.session_date))||
@@ -44,40 +46,82 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
   return()=>{live=false;};
  },[profile.id,profile.school_id]);
  useEffect(()=>{setMapping(currentTab?.lesson_columns||{});setPreview(null);},[currentTab?.id,selectedClass]);
+
+ useEffect(()=>{autoSyncedForRef.current='';autoInspectedForRef.current='';},[profile.school_id]);
  useEffect(()=>{
-  if(!link?.auto_sync||link.status!=='verified'||!link.last_synced_at||!bindings.length||autoStartedRef.current)return;
-  autoStartedRef.current=true;
+   if(!link?.id||link.status!=='unverified'||autoInspectedForRef.current===link.id)return;
+   autoInspectedForRef.current=link.id;
+   let cancelled=false;
+   (async()=>{
+     setBusy('inspect');setError('');setMessage('Đang kiểm tra quyền Google Sheets...');
+     try{
+       const {data,error:failed}=await supabase.functions.invoke('google-sheets-sync',{
+         body:{action:'inspect',link_id:link.id}
+       });
+       if(failed)throw new Error(await getMessage(failed));
+       if(data?.error)throw Error(data.error);
+       if(cancelled)return;
+       setTabs(data.tabs||[]);
+       await load();
+       setMessage('Đã xác minh Google Sheets. Hệ thống sẽ tự bổ sung lớp còn thiếu.');
+     }catch(e){if(!cancelled)setError(e.message||String(e));}
+     finally{if(!cancelled)setBusy('');}
+   })();
+   return()=>{cancelled=true;};
+ },[link?.id,link?.status,profile.school_id]);
+ useEffect(()=>{
+  if(!link?.id||!link.auto_sync||link.status!=='verified')return;
+  const key=link.id+':'+rosterVersion;
+  if(autoSyncedForRef.current===key)return;
+  autoSyncedForRef.current=key;
   let cancelled=false;
   (async()=>{
-   setBusy('auto');setError('');setMessage('Đang đồng bộ các lớp đã gắn. Không tự ghi đè dữ liệu khác nhau.');
+   setBusy('auto');setError('');setMessage('Đang tự đối chiếu lớp và dữ liệu học sinh với Google Sheets...');
    try{
-    let created=0,changed=0,conflicts=0;
-    for(const tab of bindings.slice(0,10)){
-     if(cancelled)break;
-     const a=await api({action:'pull',class_name:tab.class_name,confirm:true});
-     const b=await api({action:'push',class_name:tab.class_name,confirm:true});
-     created+=a.createdStudents||0;
-     changed+=b.counts?.cellsWritten||0;
-     conflicts+=(a.conflicts?.length||0)+(b.conflicts?.length||0);
+    let offset=0,checked=0,added=0,written=0,created=0,issues=0,allErrors=[];
+    // Small server batches keep the free-tier Edge Function within time limits.
+    for(let batch=0;batch<24&&!cancelled;batch++){
+      const data=await api({action:'auto_sync_school',offset});
+      checked+=data.classesChecked||0;
+      created+=(data.createdTabs||[]).length;
+      added+=(data.report||[]).reduce((n,r)=>n+(r.addedStudents||0),0);
+      written+=(data.report||[]).reduce((n,r)=>n+(r.cellsWritten||0),0);
+      issues+=(data.errors||[]).length+(data.report||[]).reduce((n,r)=>n+(r.conflicts?.length||0),0);
+      allErrors.push(...(data.errors||[]));
+      setMessage('Đang đồng bộ '+checked+'/'+(data.totalClasses||checked)+' lớp · '+created+' tab mới...');
+      if(data.nextOffset===null||data.nextOffset===undefined)break;
+      if(data.nextOffset<=offset)throw Error('Tiến trình đồng bộ bị lặp, đã dừng để bảo vệ dữ liệu.');
+      offset=data.nextOffset;
     }
-    if(!cancelled){
-     setMessage('Đã đồng bộ khi mở trang: '+created+' học sinh mới, '+changed+' ô Sheets mới; '+conflicts+' mục cần đối chiếu.');
-     onSynced?.();
+    if(cancelled)return;
+    setMessage('Đã đối chiếu '+checked+' lớp · '+created+' tab mới · '+added+' học sinh mới · '+written+' ô cập nhật'+(issues?' · '+issues+' mục cần rà soát':'')+'.');
+    if(issues)setError(allErrors.slice(0,4).join(' | ')||'Có '+issues+' khác biệt dữ liệu cần kiểm tra trước khi ghi đè.');
+    await load();
+    if(added||created){
+      autoSyncedForRef.current=link.id+':'+(rosterVersion+1);
+      onSynced?.();
     }
    }catch(e){if(!cancelled)setError('Tự đồng bộ: '+(e.message||String(e)));}
    finally{if(!cancelled)setBusy('');}
   })();
   return()=>{cancelled=true;};
- },[link?.id,link?.auto_sync,link?.status,link?.last_synced_at,bindings.map(b=>b.id).join('|')]);
+ },[link?.id,link?.status,link?.auto_sync,profile.school_id,rosterVersion]);
  async function changeAuto(enabled){
   if(!link)return;
-  if(enabled&&!link.last_synced_at)throw Error('Hãy chạy đồng bộ thủ công lần đầu và kiểm tra dữ liệu trước khi bật tự động.');
-  if(enabled&&!window.confirm('Bật đồng bộ an toàn khi mở trang Danh sách học sinh? Hệ thống sẽ nhập học sinh/điểm trống và đánh dấu vắng cho các buổi đã ghép, sau đó đẩy dữ liệu web sang các ô trống. Không ghi đè dữ liệu xung đột.'))return;
   const {error}=await supabase.from('school_sheet_links').update({auto_sync:enabled}).eq('id',link.id);
   if(error)throw error;
-  autoStartedRef.current=false;
+  autoSyncedForRef.current='';
   await load();
-  setMessage(enabled?'Đã bật đồng bộ khi mở Danh sách học sinh, không phải đồng bộ 24/7.':'Đã tắt tự đồng bộ.');
+  setMessage(enabled?'Đã bật đồng bộ tự động khi vào Danh sách học sinh.':'Đã tắt đồng bộ tự động.');
+ }
+ async function provisionHere(){
+  const {data,error:serverError}=await supabase.functions.invoke('google-sheets-sync',{
+   body:{action:'provision_school',school_id:profile.school_id}
+  });
+  if(serverError)throw Error(await getMessage(serverError));
+  if(data?.error)throw Error(data.error);
+  await load();
+  setMessage(data.alreadyLinked?'Trường này đã có file Sheets riêng.':'Đã tạo file Sheets riêng từ mẫu cho trường '+profile.school_name+'.');
  }
  const api=async(body)=>{
   if(!link?.id)throw Error('Chưa lưu link Google Sheets của trường.');
@@ -98,7 +142,7 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
    throw Error('Muốn đổi file Google Sheets, hãy ngắt liên kết cũ trước để tránh nhầm dữ liệu lớp. Thao tác này không xóa học sinh hoặc file Google.');
   const {error}=await supabase.from('school_sheet_links').upsert({
    school_id:profile.school_id,owner_id:profile.id,spreadsheet_id:id,
-   template_tab:'6.1',status:'unverified'
+   template_tab:'6.1',status:'unverified',auto_sync:true
   },{onConflict:'owner_id,school_id'});
   if(error)throw error;
   await load();
@@ -193,6 +237,11 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
        {busy==='inspect'?'Đang kiểm tra…':'Kiểm tra quyền & đọc tabs'}
       </button>}
     </div>
+    {!link&&<div className="sheets-link-help">
+      <strong>Chưa có Google Sheets cho trường này?</strong>
+      <small>Bạn có thể thử tạo bản sao tự động từ mẫu của trường đã liên kết. Tài khoản dịch vụ cần quyền ghi vào Shared Drive; nếu đang dùng Google Drive cá nhân miễn phí, hãy tự chọn Tệp → Tạo bản sao trong file mẫu rồi dán link ở trên.</small>
+      <button className="btn outline" disabled={!!busy} onClick={()=>run('provision',provisionHere)}>Tạo Sheets cho trường này</button>
+    </div>}
     {link&&<div className="sheets-link-meta">
      <a href={'https://docs.google.com/spreadsheets/d/'+link.spreadsheet_id+'/edit'}
        target="_blank" rel="noreferrer">Mở file Google Sheets gốc</a>
@@ -201,11 +250,26 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
     </div>}
     {error&&<div className="sheets-link-error" role="alert"><strong>Chưa thực hiện được:</strong> {error}</div>}
     {message&&<div className="sheets-link-message" role="status">{message}</div>}
+    {link&&<details className="sheets-fixed-date-guide">
+      <summary>Ghi ngày học cố định trong Google Sheets (B1–B70)</summary>
+      <p>File mẫu đang dùng <code>TODAY()</code> nên ngày cũ thay đổi mỗi ngày.
+      Cài đoạn Apps Script miễn phí một lần cho file: <b>Tiện ích mở rộng → Apps Script</b> → dán mã → <b>Lưu</b>.
+      Khi nhập số tiết màu cam vào một ô mới, ngày học sẽ được ghi cố định vào ô bên dưới.</p>
+      <div className="sheets-link-actions">
+       <button type="button" className="btn outline" onClick={()=>navigator.clipboard?.writeText(fixedDateScript)
+         .then(()=>setMessage('Đã sao chép Apps Script. Mở Google Sheets → Tiện ích mở rộng → Apps Script → dán và Lưu.'))
+         .catch(()=>setError('Không tự sao chép được; hãy chọn đoạn mã phía dưới và copy thủ công.'))}>Sao chép mã cố định ngày</button>
+       <a className="btn outline" target="_blank" rel="noreferrer" href={'https://docs.google.com/spreadsheets/d/'+link.spreadsheet_id+'/edit'}>Mở Google Sheets</a>
+      </div>
+      <textarea readOnly className="sheets-script-code" value={fixedDateScript} aria-label="Mã Apps Script ghi ngày cố định" rows={9}/>
+      <p><b>Ngày học cũ:</b> chọn hàm <code>kiemTraNgayCu</code> và chạy một lần để đánh dấu những ô đang dùng TODAY().
+       Những ngày đã bị thay đổi cần đối chiếu lịch dạy để nhập lại ngày thật. Không tự chốt ngày hôm nay cho buổi đã dạy.</p>
+    </details>}
     {link?.status==='verified'&&<div className="sheets-link-auto">
       <label><input type="checkbox" checked={!!link.auto_sync} disabled={!!busy}
          onChange={e=>run('auto-toggle',()=>changeAuto(e.target.checked))}/>
-       Tự đồng bộ các lớp đã gắn khi mở Danh sách học sinh</label>
-      <small>Chỉ bật sau lần đồng bộ đầu tiên. Không chạy ngầm 24/7. Ô có dữ liệu khác nhau vẫn báo xung đột, không ghi đè.</small>
+       Tự đồng bộ lớp, học sinh, điểm và điểm danh khi mở Danh sách học sinh</label>
+      <small>Mặc định bật, không cần đồng bộ thủ công trước. Tự tạo tab còn thiếu và bổ sung ô trống; dữ liệu khác nhau được báo xung đột, không ghi đè. Không chạy ngầm 24/7.</small>
     </div>}
     {link&&<div className="sheets-link-help">
       <strong>Quyền Google:</strong> Để đồng bộ file riêng tư, Admin cấu hình Google Service Account trong Supabase Edge Secrets, rồi chia sẻ file Sheets cho email dịch vụ ở quyền Editor. Không chuyển Sheets sang công khai và không dán khóa JSON vào website.

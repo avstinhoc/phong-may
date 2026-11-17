@@ -1030,3 +1030,13 @@
  font-size:12px;font-weight:750;line-height:1.5;cursor:pointer}
 .sheets-link-auto input[type=checkbox]{width:18px;height:18px;flex:none;accent-color:#078b7b}
 .sheets-link-auto small{color:#628077;line-height:1.6;font-size:11px}
+
+.sheets-fixed-date-guide{border:1px solid #e6d3b6;border-radius:12px;padding:13px 15px;background:#fffaf2}
+.sheets-fixed-date-guide summary{font-weight:800;font-size:13px;color:#925b1f;cursor:pointer}
+.sheets-fixed-date-guide p{font-size:11px;line-height:1.65;color:#72583c}
+.sheets-fixed-date-guide .sheets-link-actions{display:flex;flex-wrap:wrap;gap:8px}
+.sheets-fixed-date-guide .sheets-link-actions .btn{font-size:11px;min-height:39px}
+.sheets-script-code{font-family:Consolas,"Courier New",monospace;font-size:11px;line-height:1.5;white-space:pre;
+ width:100%;max-width:100%;box-sizing:border-box;resize:vertical;background:#fafbfc;
+ border:1px solid #e1e5e9;border-radius:10px;color:#203842;padding:10px}
+.sheets-script-code:focus-visible,.sheets-fixed-date-guide summary:focus-visible{outline:2px solid #0c897c}

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "./lib/supabase";
+import {provisionSchoolWorkbook} from "./lib/sheetProvision";
 
 export function SchoolManager({ schools, workplaces=[],workplaceSchools=[], onCreated, onChanged, ping, role }) {
   const [name, setName] = useState("");
@@ -11,8 +12,13 @@ export function SchoolManager({ schools, workplaces=[],workplaceSchools=[], onCr
     e.preventDefault();
     setBusy(true);
     const {data,error}=await supabase.rpc("create_my_school",{school_name:name.trim()});
+    if(error){setBusy(false);ping(error.message);return;}
+    setName("");onCreated(data);
+    const linked=await provisionSchoolWorkbook(supabase,data);
     setBusy(false);
-    if(error) ping(error.message); else {setName("");onCreated(data);}
+    if(linked.ok)ping("Đã tạo trường và chuẩn bị file Sheets riêng.");
+    else ping("Đã tạo trường. Sheets chưa tự sao chép: "+linked.message+
+      " Bạn vẫn có thể dán link bản sao trong Danh sách học sinh.");
   }
   async function rename(e) {
     e.preventDefault();

@@ -51,3 +51,28 @@ Google Sheets API hiện có mức sử dụng tiêu chuẩn không tính phí b
 - Mapper + tests: `src/lib/googleSheetTemplate.js`, `tests/googleSheetTemplate.test.js`
 - Thiếu cấu hình Service Account → API trả 503 hướng dẫn, **không báo giả đồng bộ thành công**.
 - Trước khi kết luận E2E thành công, cần kiểm tra thực tế trên tài khoản giáo viên đã share file; Edge Function ACTIVE/build thành công chưa chứng minh quyền Google đã cấp.
+
+
+## Cập nhật 18/11/2026 – tự động thay thao tác thủ công
+
+### Tự tạo lớp và đồng bộ
+Khi trang **Danh sách học sinh** được mở với liên kết đã xác minh và bật tự động:
+- Edge Function `auto_sync_school` liệt kê các lớp thuộc trường hiện tại từ `classes`, `students` và `class_sessions`.
+- Các tab có tên lớp như `6.1`, `6.2`, `8.2` được gắn tự động. Nếu thiếu, hệ thống tạo bản sao tab mẫu trong **cùng file của trường**, làm sạch học sinh/điểm/checkbox của bản sao **cùng một batch nguyên tử**, cập nhật tên trường/lớp, điền tiết và ngày tĩnh từ lịch web, rồi đồng bộ.
+- Dữ liệu Google/website khác nhau vẫn báo xung đột, không ghi đè. Mỗi yêu cầu xử lý 3 lớp để hạn chế quá thời gian chạy miễn phí; web tiếp tục phân trang đến khi hết lớp.
+- Tắt tự động bằng checkbox nếu không muốn dữ liệu tự được bổ sung khi mở trang. Khi xác minh link mới, mặc định `auto_sync=true`; **không đòi một lần đồng bộ thủ công trước**.
+
+### Tạo Sheets riêng khi thêm trường
+Trang **Trường công tác** và **Công ty/Trung tâm → Tạo trường** tự thử gọi `provision_school`. Nếu tài khoản dịch vụ có quyền ghi vào thư mục Shared Drive (`GOOGLE_SHEETS_PARENT_FOLDER_ID` trong Edge Secrets), Drive sẽ copy một file mẫu đã xác minh thuộc cùng giáo viên, làm sạch toàn bộ thông tin học sinh và giữ định dạng, rồi liên kết file mới với trường. Không dùng file/link của giáo viên khác.
+
+**Google Drive cá nhân miễn phí không cấp quota tạo file cho Service Account**. Không thể tự copy workbook vào My Drive cá nhân chỉ với JSON service account. Trong trường hợp này, trường vẫn được tạo thành công; ứng dụng báo rõ lý do và hướng dẫn chủ file chọn **Tệp → Tạo bản sao** bằng Google Drive của họ, rồi dán URL vào mục Liên kết Google Sheets. Không ép người dùng mua Google Workspace.
+
+### Ngày học cố định (Google Apps Script miễn phí)
+Vì `TODAY()` thay đổi theo ngày, file hiện tại không thể giữ ngày dạy cũ chỉ bằng công thức. Trong mục **Liên kết Google Sheets → Ghi ngày học cố định**, bấm **Sao chép mã cố định ngày**, mở Google Sheets → **Tiện ích mở rộng → Apps Script**, dán và **Lưu**. Hàm `onEdit(e)` chạy tự động khi giáo viên nhập số tiết mới vào J6:CA6, ghi một `Date` tĩnh tại ô ngay dưới ở hàng 7. Khi điều chỉnh số tiết đã tồn tại, ngày cũ không bị đổi.
+
+Mã lưu tại `docs/sheets-fixed-date-onedit.gs`. Chạy thủ công `kiemTraNgayCu` (tùy chọn) để bỏ công thức ngày động ở buổi trống và đánh dấu các buổi đã có tiết nhưng ngày cũ chưa được xác minh. Không chuyển giá trị TODAY hôm nay thành ngày lịch sử sai.
+
+Google Apps Script simple trigger **không chạy khi ô được sửa qua API**. Vì vậy Edge Function tự ghi ngày tĩnh từ `class_sessions.session_date` vào tab mới do website tạo; với tab hiện có, cần Apps Script cho các lượt nhập thủ công trong Sheets.
+
+### Bố cục
+Cột H (LỚP) căn giữa từ H8:H1018 trên 7 tab có sẵn. Tab được xếp tăng tự nhiên (6.1...6.7,7.1,...8.7), không thay đổi dữ liệu hồ sơ/điểm danh trong ô.
