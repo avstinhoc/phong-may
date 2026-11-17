@@ -2,6 +2,8 @@ import {mondayOf,addDays,vnToday,planIntent,expandWeekly,weekday,normalizeIntent
 import {createClient} from '@supabase/supabase-js';
 import {officeText} from './officeExtract.js';
 import {isValidSchoolId} from '../src/lib/schoolIds.js';
+import {inferWeeklyTimetable,weekdayFromValue,compactWarnings} from '../src/lib/timetableWeeklyMode.js';
+import {requestTimetableGemini,GeminiTimetableError} from '../src/lib/geminiTimetableRequest.js';
 
 const error=(res,status,message)=>res.status(status).json({error:message});
 const clean=s=>typeof s==='string'?s.trim():'';
@@ -192,6 +194,9 @@ export default async function handler(req,res){
   if(schoolError||!school)return error(res,403,'Bạn chưa được cấp quyền trường này.');
   const teacherId=profile.id; // one self-owned calendar; Admin other-calendar view was removed.
   const intent=planIntent(question);
+  const weeklyFromFile=inferWeeklyTimetable({
+    question,attachment:b.attachment,explicitWeekly:intent.weekly
+  });
   const q=normalizeIntent(question);
   const thisMonday=mondayOf(vnToday());
   const thisWeek=/((tu|tinh tu|bat dau|ke tu).{0,30}thu (2|hai).{0,20}tuan nay|tuan nay)/.test(q);
@@ -221,11 +226,15 @@ export default async function handler(req,res){
    'NHIỆM VỤ ƯU TIÊN: làm theo ý giáo viên để TẠO BẢN NHÁP, không chỉ trả hướng dẫn vào menu. Máy chủ sẽ kiểm tra và giáo viên xác nhận rồi mới lưu.',
    'Ngữ cảnh: Giáo viên '+profile.full_name+'; trường đang chọn '+school.name+'. Múi giờ Việt Nam. HÔM NAY '+vnToday()+'. Thứ Hai tuần hiện tại '+thisMonday+'.',
    'Phạm vi ngày dùng cho bản nháp: '+startDate+' đến '+endDate+'. Giáo viên có thể chỉnh phạm vi trước khi xác nhận.',
-   'Chế độ lịch hàng tuần: '+(intent.weekly?'CÓ, trả mỗi tiết chỉ 1 lần theo weekday 1=Thứ Hai đến 7=Chủ Nhật':'KHÔNG, trả ngày thực tế session_date YYYY-MM-DD')+'.',
+   'Chế độ lịch hàng tuần: '+(weeklyFromFile?'CÓ: đây là bảng có cột thứ và hàng khung giờ, mỗi ô có lớp trả đúng weekday 1=Thứ Hai tới 7=Chủ Nhật và session_date rỗng; KHÔNG suy đoán ngày của từng ô':'KHÔNG: trả ngày thực tế session_date YYYY-MM-DD')+'.',
    'Giáo viên yêu cầu THAY THẾ lịch cũ: '+(intent.replace?'CÓ':'KHÔNG')+'. Tuyệt đối không xóa lịch qua API; chỉ tạo bản nháp.',
    'Ảnh có bảng theo cột THỨ, theo hàng KHUNG GIỜ; hãy dò từng ô từ trái sang phải và từ trên xuống dưới. Tiêu đề Buổi Sáng/Chiều KHÔNG phải tiết học. Ô trống thì bỏ qua, không tự thêm tiết.',
    'Đối chiếu CHÍNH XÁC ô giao giữa thứ và giờ, không dồn các lớp lên đầu buổi khi giữa các tiết có ô trống. Mỗi ô có lớp khác nhau thì tạo một mục riêng.',
    'Đọc các mã lớp dạng 6.3, 6.6, 7.1 v.v. tuyệt đối không sửa thành 6A hay đổi mã lớp; đọc đủ chữ số. Đếm các ô được đánh dấu để không bỏ sót.',
+   'Nếu bảng tuần có 14 ô mang mã lớp, trả 14 proposals, không phải 4. Đừng loại các ô chỉ vì chúng có thứ trong tuần mà không có ngày YYYY-MM-DD.',
+   'Trước khi trả JSON, đối chiếu từng ô giao giữa thứ và hàng giờ; observed_cells bằng số ô không trống. Mỗi ô có lớp và giờ rõ ràng phải có một proposal riêng. Không điền ngày giả.',
+   'Nếu bảng tuần có nhiều tiết trùng mã lớp nhưng nằm các hàng thời gian khác nhau, vẫn xuất từng ô, không gộp.',
+   'Thêm recurring_weekly:boolean nếu đúng là bảng thời khóa biểu theo thứ.',
    'Khung giờ theo ảnh có thể khác giờ trường khác; nếu không đọc được GIỜ BẮT ĐẦU hoặc KẾT THÚC thì KHÔNG tự lấy 45 phút hay lịch mẫu. Bỏ mục chưa chắc chắn và đưa warning ghi rõ ô cần xác minh.',
    'Ảnh lịch giáo viên khác vẫn có thể dùng tham khảo khi người đang hỏi muốn dạy thay. Luôn tạo lịch cho người yêu cầu, không tự đổi chủ tài khoản.',
    'Những buổi đang có: '+JSON.stringify(known)+'. Danh sách lớp sẵn có: '+JSON.stringify((classes||[]).map(x=>x.class_name))+'.',
@@ -239,21 +248,19 @@ export default async function handler(req,res){
    'Mẫu lịch một lần: {"answer":"Đã đọc yêu cầu","warnings":[],"proposals":[{"operation":"create","target_id":null,"weekday":null,"class_name":"6.1","session_date":"2026-11-16","start_time":"14:00","end_time":"14:45","period_count":1}]}',
    'Chỉ đưa các đề xuất thực sự đọc được; nếu dữ liệu không chắc hoặc ảnh mờ, hỏi lại ngay, không nói chung chung kiểu hướng dẫn vào menu.'
   ].join('\n');
-  const upstream=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+model+':generateContent',{
-    method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':process.env.GEMINI_API_KEY},
-    body:JSON.stringify({systemInstruction:{parts:[{text:system}]},contents:[{role:'user',parts}],
-      generationConfig:{temperature:0,responseMimeType:'application/json',maxOutputTokens:6500}}),
-    signal:AbortSignal.timeout(47000)
+  const {data:response}=await requestTimetableGemini({
+    apiKey:process.env.GEMINI_API_KEY,
+    model,fallbackModel:process.env.GEMINI_FALLBACK_MODEL||'gemini-3.8-flash',
+    secondaryModel:'gemini-3.5-flash-lite',systemText:system,
+    maxOutputTokens:10500,parts
   });
-  if(!upstream.ok){
-    console.error('ic3 timetable Gemini HTTP',upstream.status);
-    return error(res,upstream.status===429?429:502,upstream.status===429?'Gemini đang hết hạn mức. Bạn thử lại sau hoặc nhập thủ công.':'Gemini không đọc được thời khóa biểu (HTTP '+upstream.status+').');
-  }
-  const response=await upstream.json();
   let result;try{result=JSON.parse(response.candidates?.[0]?.content?.parts?.map(p=>p.text||'').join('')||'{}');}
   catch{return error(res,502,'AI chưa trả bảng lịch hợp lệ. Hãy chụp ảnh rõ hơn và thử lại.');}
   if(!Array.isArray(result.proposals)||result.proposals.length>55)
     return error(res,502,'AI tạo quá nhiều ô thời khóa biểu. Hãy chia ảnh thành các phần.');
+  const effectiveWeekly=weeklyFromFile||
+    (Boolean(b.attachment)&&result.recurring_weekly===true&&
+      !/(chi|duy nhat|mot buoi|buoi le|mot ngay|ngay \d{1,2})/.test(q));
   const byId=new Map((lessons||[]).map(v=>[v.id,v]));
   const base=[],warnings=Array.isArray(result.warnings)?result.warnings.slice(0,35).map(v=>String(v).slice(0,270)):[];
   for(const item of result.proposals){
@@ -264,10 +271,10 @@ export default async function handler(req,res){
     const row={operation:op,target_id:targetId,
       class_name:clean(item.class_name).slice(0,120),
       session_date:clean(item.session_date),
-      weekday:Number(item.weekday),
+      weekday:weekdayFromValue(item.weekday),
       start_time:clean(item.start_time).slice(0,5),
       end_time:clean(item.end_time).slice(0,5),
-      period_count:Number(item.period_count),
+      period_count:Number(item.period_count??1),
       school_id:schoolId,school_name:school.name,
       original:old?{session_date:old.session_date,class_name:old.class_name,
        start_time:String(old.start_time).slice(0,5),end_time:String(old.end_time).slice(0,5)}:null
@@ -277,10 +284,10 @@ export default async function handler(req,res){
        row.period_count<1||row.period_count>20){
       warnings.push('Một ô thiếu lớp hoặc giờ chính xác nên KHÔNG thêm vào bản nháp.');continue;
     }
-    if(intent.weekly && row.operation==='create'){
+    if(effectiveWeekly && row.operation==='create'){
       if(Number.isInteger(row.weekday)&&row.weekday>=1&&row.weekday<=7&&
          isDate(row.session_date)&&weekday(row.session_date)!==row.weekday){
-        warnings.push('Một ô có thứ và ngày mâu thuẫn nhau. Không tạo lịch cho ô này.');continue;
+        warnings.push('Một ô có ngày ghi khác cột thứ. Bản nháp đã lấy thứ trong cột thời khóa biểu, không dùng ngày AI suy đoán.');
       }
       if(!Number.isInteger(row.weekday)||row.weekday<1||row.weekday>7){
         if(isDate(row.session_date))row.weekday=weekday(row.session_date);
@@ -296,7 +303,7 @@ export default async function handler(req,res){
     warnings.push('Ảnh có thể có '+countFromImage+' ô lớp nhưng AI chỉ trích được '+base.length+' ô. Không nên thay toàn bộ lịch cho đến khi rà soát.');
   }
   let proposals=[];
-  if(intent.weekly){
+  if(effectiveWeekly){
     try{
       const recur=base.filter(v=>v.operation==='create');
       const oneOff=base.filter(v=>v.operation==='edit');
@@ -318,16 +325,17 @@ export default async function handler(req,res){
     list.push(row);perDay.set(row.session_date,list);
   }
   if(conflicts.length)warnings.push(...conflicts.slice(0,12));
-  const replaceScope=intent.replace&&intent.weekly&&proposals.length>0&&!warnings.length?
+  const replaceScope=intent.replace&&effectiveWeekly&&proposals.length>0&&!warnings.length?
     {start:startDate,end:endDate}:null;
   if(intent.replace&&warnings.length)warnings.push('Chưa cho phép thay lịch cũ vì còn ô chưa rõ hoặc trùng giờ. Cần sửa/đọc lại trước khi thay.');
   const answer=clean(result.answer).slice(0,1200)||
     (proposals.length?'Đã tạo bản nháp '+proposals.length+' tiết. Kiểm tra từng giờ, lớp và xác nhận trước khi lưu.':
     'Chưa nhận diện đủ tiết học. Hãy gửi ảnh rõ hàng giờ và cột thứ.');
-  return res.status(200).json({answer,proposals,warnings,teacher_id:teacherId,
+  return res.status(200).json({answer,proposals,warnings:compactWarnings(warnings),teacher_id:teacherId,
     teacher_name:profile.full_name,replace_scope:replaceScope,range_start:startDate,range_end:endDate,
-    weekly:intent.weekly});
+    weekly:effectiveWeekly,observed_cells:Number(result.observed_cells)||0});
  }catch(e){
+  if(e instanceof GeminiTimetableError)return error(res,e.status,e.message);
   if(e.name==='AbortError'||e.name==='TimeoutError')return error(res,504,'AI xử lý lâu quá. Hãy thử tệp nhỏ hơn.');
   console.error('IC3 assistant action exception',e?.message||e?.name);
   return error(res,500,'Không xử lý được yêu cầu này. Bạn thử lại nhé.');
