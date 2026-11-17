@@ -499,44 +499,81 @@ Deno.serve(async(req:Request)=>{
    const sourceLink=(sourceLinks||[]).find(x=>idSafe(x.spreadsheet_id));
    if(!sourceLink)throw fail("Cần liên kết ít nhất một file Google Sheets mẫu của giáo viên trước khi sao chép sang trường mới.",409);
    const source=sourceLink.spreadsheet_id;
-   const resource={name:"DS ĐIỂM DANH "+school.name.toLocaleUpperCase("vi")};
-   const file=await (await api("https://www.googleapis.com/drive/v3/files/"+source+
-    "/copy?fields=id,name,webViewLink",token,{method:"POST",body:JSON.stringify(resource)})).json();
-   const sheetId=file.id;
-   if(!idSafe(sheetId))throw fail("Google Drive chưa trả về ID file sao chép.",502);
-   let cleaned=false;
+   const newTitle="DS ĐIỂM DANH "+school.name.toLocaleUpperCase("vi");
+   const sourceMeta=await metadata(source,token);
+   const sourceTabs=(sourceMeta.sheets||[]).map((t:Dict)=>({
+    id:t.properties.sheetId,title:t.properties.title
+   }));
+   if(!sourceTabs.length)throw fail("File mẫu không có tab.",409);
+   let sheetId="",copyMode="drive-full-copy",copyError="";
    try{
-    const m=await metadata(sheetId,token);
-    const tabs=(m.sheets||[]).map((t:Dict)=>({id:t.properties.sheetId,title:t.properties.title}));
-    if(!tabs.length)throw fail("File sao chép không chứa tab mẫu.",502);
-    // Clean all tabs in one atomic Google Sheets batch before recording a new link.
+    const file=await (await api("https://www.googleapis.com/drive/v3/files/"+source+
+     "/copy?fields=id,name,webViewLink",token,{method:"POST",
+       body:JSON.stringify({name:newTitle})})).json();
+    sheetId=clean(file.id);
+    if(!idSafe(sheetId))throw fail("Google Drive không trả ID bản sao.",502);
+   }catch(e){
+    // Existing files are sometimes not authorized under drive.file without
+    // Google Picker. The Sheets API has an independent spreadsheet scope.
+    copyError=String((e as Error).message||"").slice(0,180);
+    const blank=await (await api("https://sheets.googleapis.com/v4/spreadsheets?fields=spreadsheetId,sheets(properties(sheetId,title))",
+     token,{method:"POST",body:JSON.stringify({
+      properties:{title:newTitle},sheets:[{properties:{title:"QLPM_TEMP"}}]
+     })})).json();
+    sheetId=clean(blank.spreadsheetId);
+    if(!idSafe(sheetId))throw fail("Google Sheets chưa tạo được bảng tính mới.",502);
+    copyMode="sheets-copyto";
+   }
+   try{
+    let tabs:Dict[];
+    let temporarySheetId:number|null=null;
+    if(copyMode==="sheets-copyto"){
+     const sheetMeta=await metadata(sheetId,token);
+     temporarySheetId=sheetMeta.sheets?.[0]?.properties?.sheetId??null;
+     tabs=[];
+     for(const sourceTab of sourceTabs){
+      const copied=await (await api("https://sheets.googleapis.com/v4/spreadsheets/"+source+
+       "/sheets/"+sourceTab.id+":copyTo",token,{method:"POST",
+       body:JSON.stringify({destinationSpreadsheetId:sheetId})})).json();
+      if(!Number.isInteger(copied.sheetId))throw fail("Không sao chép được tab "+sourceTab.title,502);
+      tabs.push({id:copied.sheetId,title:sourceTab.title});
+     }
+    }else{
+     const m=await metadata(sheetId,token);
+     tabs=(m.sheets||[]).map((t:Dict)=>({id:t.properties.sheetId,title:t.properties.title}));
+    }
+    if(!tabs.length)throw fail("Bản sao Google Sheets không có tab.",502);
+    // Apply all safety cleanup changes in one Google Sheets batch.
     const requests:Dict[]=tabs.flatMap(tab=>freshTabRequests(tab.id,tab.title,school.name));
-    const {data:originalSchool}=await db.from("schools").select("name").eq("id",sourceLink.school_id).maybeSingle();
+    const {data:originalSchool}=await db.from("schools").select("name")
+     .eq("id",sourceLink.school_id).maybeSingle();
     if(originalSchool?.name&&originalSchool.name!==school.name){
-      requests.push({findReplace:{
-       find:originalSchool.name,replacement:school.name,
-       matchCase:false,matchEntireCell:false,includeFormulas:false,allSheets:true
-      }});
+     requests.push({findReplace:{
+      find:originalSchool.name,replacement:school.name,
+      matchCase:false,matchEntireCell:false,includeFormulas:false,allSheets:true
+     }});
     }
     requests.push(...tabs.sort((a,b)=>classCompare(a.title,b.title)).map((tab,i)=>({
-     updateSheetProperties:{properties:{sheetId:tab.id,index:i},fields:"index"}
+     updateSheetProperties:{
+      properties:{sheetId:tab.id,index:i,...(copyMode==="sheets-copyto"?{title:tab.title}:{})},
+      fields:copyMode==="sheets-copyto"?"index,title":"index"
+     }
     })));
+    if(temporarySheetId!==null)requests.push({deleteSheet:{sheetId:temporarySheetId}});
     await sheetBatch(sheetId,requests,token);
-    cleaned=true;
    }catch(e){
-    // The copy was created by this action; discard it if sanitizing failed.
     try{await fetch("https://www.googleapis.com/drive/v3/files/"+sheetId,{
-      method:"DELETE",headers:{Authorization:"Bearer "+token}
+     method:"DELETE",headers:{Authorization:"Bearer "+token}
     });}catch{}
-    throw fail("Đã tạo bản sao nhưng chưa làm sạch được dữ liệu mẫu; không liên kết file để bảo vệ học sinh. "+String((e as Error).message||""),502);
+    throw fail("Không làm sạch được bản sao Sheets; hệ thống chưa liên kết file mới. "+
+     String((e as Error).message||""),502);
    }
-   if(!cleaned)throw fail("Chưa xác nhận làm sạch file Sheets.",502);
    const {data:linked,error:linkError}=await db.from("school_sheet_links").insert({
     owner_id:ownerId,school_id:schoolId,spreadsheet_id:sheetId,
-    spreadsheet_title:file.name,template_tab:"6.1",status:"verified",auto_sync:true
+    spreadsheet_title:newTitle,template_tab:"6.1",status:"verified",auto_sync:true
    }).select("id").single();
    if(linkError)throw fail("Đã tạo file nhưng không gắn được vào trường: "+linkError.message,500);
-   return respond(200,{success:true,link_id:linked.id,spreadsheetId:sheetId,created:true},origin);
+   return respond(200,{success:true,link_id:linked.id,spreadsheetId:sheetId,created:true,copyMode},origin);
   }
   const linkId=clean(payload.link_id);
   if(!/^[a-f0-9-]{36}$/i.test(linkId))throw fail("Thiếu ID liên kết trường.");
