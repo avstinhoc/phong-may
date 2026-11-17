@@ -1365,24 +1365,26 @@ function Records({ profile, refresh, reload, ping }) {
   }
   function printReport(r){
     const student=students.rows.find(s=>s.id===r.student_id);
-    const name=String(student?.full_name||"Học sinh");
-    const school=String(profile.school_name||"Trường học");
-    const escape=s=>String(s||"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
-    const violations=records.rows.filter(x=>x.student_id===r.student_id&&x.record_type==="violation")
-      .sort((a,b)=>String(a.record_date).localeCompare(String(b.record_date)));
-    const w=window.open("","_blank","width=850,height=700");
-    if(!w){ping("Trình duyệt đã chặn cửa sổ in. Hãy cho phép popup.");return;}
-    const html='<!doctype html><html lang="vi"><head><meta charset="UTF-8"><title>Biên bản vi phạm</title>'+
-      '<style>body{font:15px Arial,sans-serif;margin:40px 56px;color:#222}h1,h2,p{text-align:center}h2{margin-top:44px;font-size:20px}table{width:100%;border-collapse:collapse;margin:18px 0}td,th{border:1px solid #888;padding:9px;text-align:left}.sign{display:flex;justify-content:space-between;margin-top:54px;text-align:center}.sign div{width:42%}@media print{body{margin:20mm}}</style></head><body>'+
-      '<h3 style="text-align:center">'+escape(school)+'</h3><h2>BIÊN BẢN GHI NHẬN VI PHẠM</h2>'+
-      '<p>Ngày lập: '+escape(new Date().toLocaleDateString("vi-VN"))+'</p>'+
-      '<p><b>Học sinh:</b> '+escape(name)+' &nbsp; <b>Lớp:</b> '+escape(student?.class_name||"")+'</p>'+
-      '<p>Đã ghi nhận '+r.violation_count+' lần vi phạm (mốc '+r.milestone+').</p>'+
-      '<table><thead><tr><th>Ngày</th><th>Ghi nhận</th><th>Ghi chú</th></tr></thead><tbody>'+
-      violations.map(x=>'<tr><td>'+escape(x.record_date)+'</td><td>'+escape(x.title)+'</td><td>'+escape(x.note)+'</td></tr>').join("")+
-      '</tbody></table><div><b>Ý kiến giáo viên:</b> '+escape(r.notes||"Chờ xác nhận")+'</div>'+
-      '<div class="sign"><div>HỌC SINH<br/><br/><i>(Ký, ghi họ tên)</i></div><div>GIÁO VIÊN<br/><br/><i>(Ký, ghi họ tên)</i></div></div></body></html>';
-    w.document.write(html);w.document.close();w.focus();w.print();
+    if(!student){ping('Không tìm thấy học sinh để lập biên bản.');return;}
+    const count=Number(r.violation_count)||0;
+    const violations=records.rows.filter(x=>x.student_id===r.student_id&&x.record_type==='violation')
+      .sort((a,b)=>String(a.record_date).localeCompare(String(b.record_date))||
+        String(a.created_at).localeCompare(String(b.created_at)))
+      .slice(0,count||undefined);
+    const html=buildIncidentReportHtml({
+      student,schoolName:student.school_name||profile.school_name||'',
+      teacherName:profile.full_name||profile.name||'',
+      report:{...r,notes:reportNote[r.id]??r.notes},
+      violations,
+      date:today()
+    });
+    const w=window.open('','_blank','width=920,height=780');
+    if(!w){ping('Trình duyệt đã chặn cửa sổ in. Hãy cho phép popup.');return;}
+    w.document.open();w.document.write(html);w.document.close();
+    w.focus();
+    const run=()=>{try{w.print();}catch(err){ping('Không mở được hộp thoại in: '+err.message);}};
+    if(w.document.readyState==='complete')run();
+    else w.addEventListener('load',run,{once:true});
   }
   return <>
     <SectionHead title="Điểm, lỗi & thưởng" desc="Ghi nhận theo lớp, tổng số lần vi phạm và biên bản xác nhận của giáo viên"/>
@@ -1450,7 +1452,7 @@ function Records({ profile, refresh, reload, ping }) {
     </div>
     <section className="panel incident-reports-panel">
       <h3>Biên bản vi phạm</h3>
-      <p className="muted">Đủ {threshold} lần vi phạm sẽ tạo biên bản nháp. Giáo viên kiểm tra rồi xác nhận; không tự áp dụng hình thức kỷ luật.</p>
+      <p className="muted">Đủ {threshold} lần vi phạm sẽ tạo biên bản nháp. Bản in kết hợp mẫu học sinh tường trình, bảng lỗi đã ghi nhận và phần ký xác nhận; học sinh tự điền phần giải trình. Giáo viên kiểm tra rồi xác nhận, không tự áp dụng hình thức kỷ luật.</p>
       {reports.filter(r=>{
         const st=students.rows.find(s=>s.id===r.student_id);
         return st&&(!selectedClass||st.class_name===selectedClass)&&(!selectedStudent||st.id===selectedStudent);
@@ -1465,7 +1467,7 @@ function Records({ profile, refresh, reload, ping }) {
           value={reportNote[r.id]||""} onChange={e=>setReportNote(v=>({...v,[r.id]:e.target.value}))}/>}
         <div className="incident-report-actions">
           {r.status==="draft"&&<button className="btn primary" disabled={busy} onClick={()=>confirmReport(r)}>Xác nhận biên bản</button>}
-          <button className="btn outline" onClick={()=>printReport(r)}>In biên bản</button>
+          <button className="btn outline" onClick={()=>printReport(r)}>In / Lưu PDF biên bản</button>
         </div>
       </article>)}
       {!reports.length&&<p className="muted">Chưa có học sinh đạt ngưỡng lập biên bản.</p>}
