@@ -32,6 +32,8 @@ export function weekdayFromValue(value){
  if(n===0)return 7;
  const text=normalizeIntent(value);
  const words={hai:1,ba:2,tu:3,nam:4,sau:5,bay:6,'chu nhat':7};
+ const digit=text.match(/^thu\s*([2-7])$/);
+ if(digit)return Number(digit[1])-1;
  const match=text.match(/^(?:thu\s*)?(hai|ba|tu|nam|sau|bay|chu nhat)$/);
  return match?words[match[1]]:null;
 }
