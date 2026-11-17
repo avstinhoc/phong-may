@@ -120,6 +120,7 @@ export function StudentRoster({profile,refresh,ping}){
  }
  return <section className="panel roster"><h2>Danh sách học sinh</h2><p className="muted">Cấu trúc theo mẫu: hồ sơ, điểm danh theo buổi, điểm kiểm tra và nhận xét. Ô trống = có mặt, bấm ô để đánh dấu vắng. Số tiết và buổi học riêng cho từng lớp.</p><div className="toolbar"><label>Lớp <select value={className} onChange={e=>setClassName(e.target.value)}><option value="">Chọn lớp</option>{classes.map(c=><option key={c}>{c}</option>)}</select></label><input aria-label="Tìm tên trong danh sách" placeholder="Tìm họ tên…" value={query} onChange={e=>setQuery(e.target.value)}/><button className="btn" disabled={!className||loading} onClick={exportFile}>{exporting?"Đang tạo file...":"Xuất Excel nhanh (theo mẫu)"}</button>{className&&<button className="btn primary" onClick={()=>setLessonEdit({session_date:new Date().toLocaleDateString('en-CA'),start_time:'07:30',end_time:'08:15',period_count:1})}>+ Thêm buổi học</button>}</div>
  <SheetsConnectionPanel profile={profile} classes={classes} sessions={data.sessions}
+   logoData={reportLogo} logoLabel={center?.name||profile.school_name||'IC3'}
    onSynced={()=>setVersion(v=>v+1)}/>
  <div className="roster-export-options">
   <label>Logo trong file Excel
