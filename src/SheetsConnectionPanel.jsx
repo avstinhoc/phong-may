@@ -2,6 +2,7 @@ import React,{useEffect,useMemo,useRef,useState} from 'react';
 import {supabase} from './lib/supabase';
 import {parseSheetUrl,validateSheetTabName,mapLessonsInOrder,validateLessonMapping} from './lib/googleSheetTemplate';
 import {replaceExistingTopLeftLogo} from './lib/replaceExcelLogo';
+import {fixedDateScript} from './lib/sheetDateScript';
 
 const suggestedSheet='https://docs.google.com/spreadsheets/d/1O2A_f-SV5C3vkKDidDdgIxwIW96xOycs1qWSPYs1xkc/edit';
 const labelDate=v=>String(v||'').split('-').reverse().join('/');
@@ -216,6 +217,21 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
     </div>}
     {error&&<div className="sheets-link-error" role="alert"><strong>Chưa thực hiện được:</strong> {error}</div>}
     {message&&<div className="sheets-link-message" role="status">{message}</div>}
+    {link&&<details className="sheets-fixed-date-guide">
+      <summary>Ghi ngày học cố định trong Google Sheets (B1–B70)</summary>
+      <p>File mẫu đang dùng <code>TODAY()</code> nên ngày cũ thay đổi mỗi ngày.
+      Cài đoạn Apps Script miễn phí một lần cho file: <b>Tiện ích mở rộng → Apps Script</b> → dán mã → <b>Lưu</b>.
+      Khi nhập số tiết màu cam vào một ô mới, ngày học sẽ được ghi cố định vào ô bên dưới.</p>
+      <div className="sheets-link-actions">
+       <button type="button" className="btn outline" onClick={()=>navigator.clipboard?.writeText(fixedDateScript)
+         .then(()=>setMessage('Đã sao chép Apps Script. Mở Google Sheets → Tiện ích mở rộng → Apps Script → dán và Lưu.'))
+         .catch(()=>setError('Không tự sao chép được; hãy chọn đoạn mã phía dưới và copy thủ công.'))}>Sao chép mã cố định ngày</button>
+       <a className="btn outline" target="_blank" rel="noreferrer" href={'https://docs.google.com/spreadsheets/d/'+link.spreadsheet_id+'/edit'}>Mở Google Sheets</a>
+      </div>
+      <textarea readOnly className="sheets-script-code" value={fixedDateScript} aria-label="Mã Apps Script ghi ngày cố định" rows={9}/>
+      <p><b>Ngày học cũ:</b> chọn hàm <code>kiemTraNgayCu</code> và chạy một lần để đánh dấu những ô đang dùng TODAY().
+       Những ngày đã bị thay đổi cần đối chiếu lịch dạy để nhập lại ngày thật. Không tự chốt ngày hôm nay cho buổi đã dạy.</p>
+    </details>}
     {link?.status==='verified'&&<div className="sheets-link-auto">
       <label><input type="checkbox" checked={!!link.auto_sync} disabled={!!busy}
          onChange={e=>run('auto-toggle',()=>changeAuto(e.target.checked))}/>
