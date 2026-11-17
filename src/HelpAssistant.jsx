@@ -3,6 +3,7 @@ import * as XLSX from 'xlsx';
 import {MessageCircle,Send,X,BookOpen,ChevronDown,ArrowUpRight,RotateCcw,Paperclip,FileText,CalendarDays,CheckCircle2,Plus} from 'lucide-react';
 import {supabase} from './lib/supabase';
 import {helpQuestions,visibleHelpTopics,helpPageTitles} from './lib/helpKnowledge';
+import {AIClassImportDraft} from './AIClassImportDraft';
 
 const allowedExt=/\.(png|jpe?g|webp|pdf|xlsx?|csv|tsv|txt|docx|pptx)$/i;
 const fileMime=file=>{
@@ -75,6 +76,14 @@ const detectMode=(question,attached)=>{
  const q=normalize(question);
  if(/^(cach|huong dan|lam sao|cho toi biet|hoi|tai sao|vi sao)\b/.test(q))return 'chat';
  if(/(doi|sua|chinh sua|cap nhat|dat lai|thay).{0,18}ten.{0,14}(giao vien|tai khoan)/.test(q))return 'account';
+ const importing=/(nhap|them|tao|cap nhat|doc|dua|lap|ghi|cham|xu ly)/.test(q);
+ const scoreText=/(bang diem|nhap diem|cap nhat diem|them diem|cham diem|diem so|cot diem)/.test(q);
+ const studentText=/(danh sach hoc sinh|danh sach hs|nhap hoc sinh|them hoc sinh|them ds hoc sinh|nhap danh sach|nhap ds hoc sinh)/.test(q);
+ const filename=normalize(attached?.name);
+ if(importing&&scoreText)return 'grades';
+ if(importing&&studentText)return 'students';
+ if(attached&&!q&&/(bang diem|diem so|scores)/.test(filename))return 'grades';
+ if(attached&&!q&&/(danh sach|hoc sinh|students)/.test(filename))return 'students';
  const schedule=/(lich|thoi khoa bieu|tkb|tiet day|buoi hoc)/.test(q);
  const action=/(them|tao|sua|doi|chinh|nhap|doc|lap|xep|cap nhat|thay the|thay lich|ghi de|xoa lich cu|ap dung|dua len|thay moi|thay vao|day thay|tinh tu|bat dau tu|tu thu|dan vao|sao chep)/.test(q);
  if(schedule&&action)return 'schedule';
@@ -88,7 +97,7 @@ export function HelpAssistant({profile,page,onNavigate,onSaved,scheduleTeacher=n
  const [imageUrl,setImageUrl]=useState('');
  const [messages,setMessages]=useState([]),[pending,setPending]=useState(false),[saving,setSaving]=useState(false);
  const [query,setQuery]=useState(''),[expanded,setExpanded]=useState(page||'dashboard');
- const [draft,setDraft]=useState(null),[lightbox,setLightbox]=useState(null);
+ const [draft,setDraft]=useState(null),[classDraft,setClassDraft]=useState(null),[lightbox,setLightbox]=useState(null);
  const [showAllDraft,setShowAllDraft]=useState(false),[partialAck,setPartialAck]=useState(false);
  const previousScheduleFile=useRef(null);
  const fileInput=useRef(null),chatEnd=useRef(null),inputRef=useRef(null),urls=useRef(new Set());
@@ -123,7 +132,7 @@ export function HelpAssistant({profile,page,onNavigate,onSaved,scheduleTeacher=n
  }
  function newChat(){
    for(const u of urls.current)URL.revokeObjectURL(u);
-   urls.current.clear();previousScheduleFile.current=null;setMessages([]);setDraft(null);clearFile();setText('');setMode('chat');setLightbox(null);
+   urls.current.clear();previousScheduleFile.current=null;setMessages([]);setDraft(null);setClassDraft(null);clearFile();setText('');setMode('chat');setLightbox(null);
  }
  const updateDraft=(i,key,value)=>setDraft(prev=>prev?{...prev,items:prev.items.map((r,j)=>i===j?{...r,[key]:value}:r)}:null);
  async function saveDraft(){
@@ -226,7 +235,9 @@ export function HelpAssistant({profile,page,onNavigate,onSaved,scheduleTeacher=n
    if(actualMode==='file'&&!file){
      setMessages(m=>[...m,{role:'system',text:'Hãy đính kèm tệp cần sửa trước khi gửi.'}]);return;
    }
-   if(actualMode==='schedule'&&!profile.school_id){setMessages(m=>[...m,{role:'system',text:'Hãy chọn trường ở menu bên trái trước khi AI tạo/sửa lịch.'}]);return;}
+   if(['schedule','students','grades'].includes(actualMode)&&!profile.school_id){
+     setMessages(m=>[...m,{role:'system',text:'Hãy chọn trường ở menu bên trái trước khi AI nhập dữ liệu.'}]);return;
+   }
    if(actualMode==='image'&&file&&!/^image\/(jpeg|png|webp)$/.test(fileMime(file))){
      setMessages(m=>[...m,{role:'system',text:'Để chỉnh sửa hình ảnh, vui lòng chọn ảnh JPG, PNG hoặc WebP.'}]);return;
    }
@@ -236,7 +247,11 @@ export function HelpAssistant({profile,page,onNavigate,onSaved,scheduleTeacher=n
    // Keep the last user-provided file only in this chat so a later explicit
    // reference to "ảnh/lịch này" can be analyzed without asking to re-upload.
    if(file)previousScheduleFile.current=file;
-   const userText=message||(actualMode==='schedule'?'Đọc thời khóa biểu trong ảnh hoặc tệp này và tạo bản nháp lịch dạy đúng lớp, thứ, giờ.':'Hãy đọc tệp đính kèm và hướng dẫn thao tác trong IC3 GS6.');
+   const userText=message||(actualMode==='schedule'
+     ?'Đọc thời khóa biểu trong ảnh hoặc tệp này và tạo bản nháp lịch dạy đúng lớp, thứ, giờ.'
+     :actualMode==='students'?'Đọc danh sách học sinh trong tệp, xác định lớp từ tên file và tạo bản nháp để tôi xác nhận.'
+     :actualMode==='grades'?'Đọc bảng điểm trong tệp, xác định lớp và đối chiếu học sinh trước khi lập bản nháp.'
+     :'Hãy đọc tệp đính kèm và hướng dẫn thao tác trong IC3 GS6.');
    const history=messages.filter(m=>['user','assistant'].includes(m.role)).slice(-8).map(m=>({role:m.role,text:m.text}));
    let img=null;
    if(attachedFile&&/^image\/(jpeg|png|webp)$/.test(fileMime(attachedFile))){
@@ -249,8 +264,11 @@ export function HelpAssistant({profile,page,onNavigate,onSaved,scheduleTeacher=n
      const {data:{session}}=await supabase.auth.getSession();
      if(!session?.access_token)throw new Error('Phiên đăng nhập hết hạn. Hãy đăng nhập lại.');
      const attachment=await prepareAttachment(attachedFile);
-     const endpoint=actualMode==='chat'?'/api/help':'/api/help-actions';
-     const body=actualMode==='chat'?{question:userText,page,history,attachment}:
+     const isClassImport=['students','grades'].includes(actualMode);
+     const endpoint=isClassImport?'/api/ai-import':actualMode==='chat'?'/api/help':'/api/help-actions';
+     const body=isClassImport?
+       {question:userText,kind:actualMode,schoolId:profile.school_id,attachment}:
+       actualMode==='chat'?{question:userText,page,history,attachment}:
        {question:userText,mode:actualMode,schoolId:profile.school_id,
          teacherId:profile.id,attachment};
      const response=await fetch(endpoint,{
@@ -265,6 +283,18 @@ export function HelpAssistant({profile,page,onNavigate,onSaved,scheduleTeacher=n
      setMessages(m=>[...m,{role:'assistant',text:result.answer||'Đã xử lý yêu cầu.',page_id:suggestedPage,image,
        editedFile:result.editedFile||null,originalFile:actualMode==='file'?attachedFile:null,
        accountProposal:result.accountProposal||null}].slice(-30));
+     if(isClassImport){
+       if(result.classId&&Array.isArray(result.rows)&&result.rows.length){
+         setClassDraft({
+           kind:actualMode,classId:result.classId,className:result.className,
+           schoolId:profile.school_id,schoolName:result.schoolName||profile.school_name,
+           rows:result.rows,warnings:result.warnings||[],
+           observed_count:result.observed_count||0
+         });
+       }else{
+         setClassDraft(null);
+       }
+     }
      if(actualMode==='schedule'&&result.proposals?.length){
        setDraft({items:result.proposals,schoolId:profile.school_id,
          schoolName:result.proposals[0]?.school_name||profile.school_name,
@@ -369,6 +399,18 @@ export function HelpAssistant({profile,page,onNavigate,onSaved,scheduleTeacher=n
              </button>
            </div>
          </div>}
+         {classDraft?.rows?.length>0&&<AIClassImportDraft
+           draft={classDraft} profile={profile}
+           onChange={setClassDraft} onCancel={()=>setClassDraft(null)}
+           onMessage={msg=>setMessages(m=>[...m,{role:'system',text:msg}].slice(-30))}
+           onDone={result=>{
+             setMessages(m=>[...m,{role:'assistant',
+               text:'**Đã lưu dữ liệu lớp '+classDraft.className+'**: '+(result?.created||0)+' học sinh mới, '+(result?.updated||0)+' dòng điểm đã cập nhật, '+(result?.skipped||0)+' dòng bỏ qua.'+
+                (result?.issues?.length?'\nLưu ý: '+result.issues.slice(0,8).join('; '):'')
+             }].slice(-30));
+             setClassDraft(null);onSaved?.();
+           }}
+         />}
          {pending&&<div className="help-message theirs"><span className="help-speaker">Trợ lý IC3 AI</span><p>Đang xử lý yêu cầu của bạn…</p></div>}
          <div ref={chatEnd}/>
        </div>
@@ -381,7 +423,7 @@ export function HelpAssistant({profile,page,onNavigate,onSaved,scheduleTeacher=n
          <input ref={fileInput} type="file" style={{display:'none'}} accept=".jpg,.jpeg,.png,.webp,.pdf,.xls,.xlsx,.csv,.tsv,.txt,.docx,.pptx" onChange={e=>setFile(e.target.files?.[0]||null)}/>
          <button type="button" className="help-attach-button" onClick={()=>fileInput.current?.click()} disabled={pending} aria-label="Đính kèm ảnh hoặc file" title="Thêm ảnh hoặc file"><Paperclip size={19}/></button>
          <textarea ref={inputRef} rows={2} value={text} maxLength={1300} disabled={pending} aria-label="Nhập yêu cầu cho AI"
-           placeholder="Hỏi AI hoặc nhờ thêm/sửa lịch dạy; có thể đính kèm ảnh, PDF, Excel…"
+           placeholder="Nhờ AI nhập học sinh, điểm hoặc lịch dạy từ ảnh, Excel, PDF… (chỉ lưu sau khi xác nhận)"
            onChange={e=>setText(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();ask(text);}}}/>
          <button type="submit" disabled={pending||saving||(!text.trim()&&!file)} title="Gửi câu hỏi" aria-label="Gửi câu hỏi"><Send size={18}/></button>
        </form>
