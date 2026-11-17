@@ -832,3 +832,47 @@
   .schedule-workspace .schedule-time-row{grid-template-columns:1fr}
   .schedule-workspace .time24-input{max-width:100%}
 }
+
+
+/* Review and registration improvements: accessible controls with consistent sizing */
+.pending-class-filter{display:flex;align-items:end;justify-content:space-between;flex-wrap:wrap;gap:14px;
+ margin:10px 0 14px;padding:12px 15px;background:#f3faf9;border:1px solid #d9eaeb;border-radius:12px;min-width:0}
+.pending-class-filter>label{display:flex;flex-direction:column;gap:6px;color:#375b64;font-size:12px;
+ font-weight:650;flex:1 1 265px;min-width:180px}
+.pending-class-filter select{width:100%;max-width:400px;min-height:43px;font:inherit;font-size:12px;
+ background:#fff;border:1px solid #cbdfe2;border-radius:9px;padding:9px 12px;color:#203f4b}
+.pending-class-filter .muted{font-size:11px;line-height:1.55;margin:0 0 3px}
+.student-review-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-left:auto}
+.student-review-actions .mini-btn{min-height:36px;padding:8px 12px;white-space:nowrap;font-weight:650}
+.student-review-actions .mini-btn.success{background:#ebf8f0;color:#137b5b;border-color:#a8dfc2}
+.student-review-actions .mini-btn.success:hover:not(:disabled){background:#d9f3e5}
+.student-review-actions .mini-btn:disabled{opacity:.55;cursor:not-allowed}
+.registration-pc-edit{display:flex;align-items:stretch;gap:8px;width:100%}
+.registration-pc-edit input{flex:1;min-width:0;font-size:14px!important}
+.registration-pc-edit .mini-btn{font-size:11px;white-space:nowrap;padding:0 12px;border-radius:9px}
+.student-register-card .registration-success-actions .btn{min-height:51px;font-size:13px}
+.student-register-card .registration-warning{overflow-wrap:anywhere}
+.student-portal .portal-header-hint{margin-left:auto;color:#c1e4df;font-size:11px;letter-spacing:.15px}
+.student-portal .portal-hero>div:first-child{position:relative;z-index:2;flex:1;min-width:0}
+.student-portal .portal-hero-register{display:inline-flex;align-items:center;gap:14px;
+ margin-top:20px;min-width:min(345px,100%);padding:15px 19px;border-radius:15px;
+ border:2px solid #b7f2e2;background:#f8fffd;color:#075d55!important;
+ box-shadow:0 10px 22px rgba(1,27,30,.17);text-decoration:none;line-height:1.3;
+ transition:transform .15s,box-shadow .15s,background .15s}
+.student-portal .portal-hero-register:hover{background:#e6fff6;transform:translateY(-2px);box-shadow:0 13px 26px rgba(1,27,30,.23)}
+.student-portal .portal-hero-register:focus-visible{outline:3px solid #fddc6c;outline-offset:3px}
+.student-portal .portal-register-icon{font-size:27px;flex:none}
+.student-portal .portal-hero-register>span:nth-child(2){display:flex;flex-direction:column;gap:3px}
+.student-portal .portal-hero-register strong{font-size:17px;letter-spacing:.6px}
+.student-portal .portal-hero-register small{font-size:12px;color:#357f76}
+.student-portal .portal-register-arrow{font-size:26px;margin-left:auto;font-weight:800}
+@media(max-width:700px){
+ .student-review-actions{width:100%;margin-left:0}
+ .student-review-actions .mini-btn{flex:1 1 auto;justify-content:center}
+ .student-portal .portal-hero{align-items:stretch}
+ .student-portal .portal-hero-art{display:none}
+ .student-portal .portal-hero-register{width:100%;min-width:0;justify-content:center;margin-top:16px}
+ .student-portal .portal-header-hint{display:none}
+ .pending-class-filter>label{flex-basis:100%}
+ .pending-class-filter select{max-width:100%}
+}
