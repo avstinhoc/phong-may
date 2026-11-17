@@ -1023,3 +1023,10 @@
  .sheets-link-section{padding:11px 9px}
  .sheets-link-actions>.btn{flex:1 1 100%}
 }
+
+.sheets-link-auto{display:flex;flex-direction:column;gap:7px;padding:13px 15px;
+ border:1px solid #cce4d8;background:#f1fbf6;border-radius:11px}
+.sheets-link-auto label{display:flex;align-items:center;gap:10px;color:#176458;
+ font-size:12px;font-weight:750;line-height:1.5;cursor:pointer}
+.sheets-link-auto input[type=checkbox]{width:18px;height:18px;flex:none;accent-color:#078b7b}
+.sheets-link-auto small{color:#628077;line-height:1.6;font-size:11px}
