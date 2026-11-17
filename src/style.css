@@ -813,3 +813,22 @@
 .personal-google-error{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:12px 0;overflow-wrap:anywhere}
 .personal-google-tip{font-size:11px;line-height:1.7;margin-top:12px}
 @media(max-width:560px){.auth-google-btn{min-height:46px;font-size:13px}.personal-google-heading{align-items:flex-start}}
+
+/* Manual lesson editor: true 24-hour Vietnamese wall-clock input.
+   Avoid native <input type="time">, whose AM/PM display follows the browser OS. */
+.schedule-workspace .schedule-time-row{align-items:start}
+.schedule-workspace .schedule-time-row>label{min-width:0}
+.schedule-workspace .time24-input{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);
+  align-items:center;gap:7px;min-width:0;width:100%;border:1px solid #d7e5e8;
+  border-radius:10px;background:#fff;padding:5px 8px;min-height:45px}
+.schedule-workspace .time24-input:focus-within{border-color:#0b9a8b;box-shadow:0 0 0 3px #e2f5f1}
+.schedule-workspace .time24-input select{width:100%;min-width:0;min-height:32px;padding:5px 6px;
+  font-variant-numeric:tabular-nums;font-size:14px;font-weight:650;color:#1c4352;text-align:center;
+  border:0;outline:0;background:#fff;border-radius:6px}
+.schedule-workspace .time24-input select:focus-visible{outline:2px solid #078b7d;outline-offset:0}
+.schedule-workspace .time24-colon{font-weight:750;color:#2b5260;font-size:18px;line-height:1}
+.schedule-workspace .schedule-time-hint{margin:-3px 0 1px;font-size:11px;color:#728a93;line-height:1.6}
+@media(max-width:550px){
+  .schedule-workspace .schedule-time-row{grid-template-columns:1fr}
+  .schedule-workspace .time24-input{max-width:100%}
+}
