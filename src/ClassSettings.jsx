@@ -15,6 +15,7 @@ export function ClassSettings({profile,ping,schools=[],onChanged}){
  const [name,setName]=useState(''),[rows,setRows]=useState([]),[busy,setBusy]=useState(false);
  const [newAutoApprove,setNewAutoApprove]=useState(true);
  const [deleting,setDeleting]=useState(null),[confirm,setConfirm]=useState(''),[showArchived,setShowArchived]=useState(false);
+ const [editingCode,setEditingCode]=useState(null),[updatedCode,setUpdatedCode]=useState('');
  const [loading,setLoading]=useState(false);
  const preview=shortCodePreview(activeSchoolName,name);
 
@@ -60,18 +61,34 @@ export function ClassSettings({profile,ping,schools=[],onChanged}){
      ping(next?'Lớp '+row.class_name+' đã bật duyệt tự động':'Lớp '+row.class_name+' đã chuyển sang duyệt thủ công');
    }
  }
+ async function saveCode(e){
+  e.preventDefault();
+  if(!editingCode||busy||!updatedCode.trim())return;
+  setBusy(true);
+  const {data,error}=await supabase.rpc('ic3_manage_class_registration',{
+   p_class_id:editingCode.id,p_action:'edit',p_new_code:updatedCode.trim()
+  });
+  setBusy(false);
+  if(error)ping(error.message);
+  else{
+   setEditingCode(null);setUpdatedCode('');
+   await load();onChanged?.();
+   ping('Đã sửa mã lớp '+data.class_name+' thành '+data.registration_code+'. Link đăng ký cũ ngừng hoạt động.');
+  }
+ }
  async function remove(e){
    e.preventDefault();
    if(!deleting||deleting.class_name!==confirm)return;
    setBusy(true);
-   const {data,error}=await supabase.rpc('archive_class_registration',{
-     p_class_id:deleting.id,p_confirmation:confirm,p_restore:!!deleting.archived_at
+   const {data,error}=await supabase.rpc('ic3_manage_class_registration',{
+     p_class_id:deleting.id,p_confirmation:confirm,
+     p_action:deleting.archived_at?'restore':'archive'
    });
    setBusy(false);
    if(error)ping(error.message);
    else{
      setDeleting(null);setConfirm('');
-     ping(data.archived?'Đã tắt mã đăng ký, giữ nguyên hồ sơ và lịch học':'Đã kích hoạt lại mã lớp');
+     ping(data.archived_at?'Đã ngừng mã đăng ký; hồ sơ học sinh và lịch học vẫn giữ nguyên.':'Đã kích hoạt lại mã lớp');
      await load();onChanged?.();
    }
  }
@@ -104,8 +121,12 @@ export function ClassSettings({profile,ping,schools=[],onChanged}){
     </label></td>
     <td>{row.archived_at?'Đã vô hiệu hóa':<><a className="mini-btn" href={'/student?code='+encodeURIComponent(row.registration_code)} target="_blank" rel="noreferrer">Mở trang lớp</a> <button className="mini-btn" onClick={()=>copy(window.location.origin+'/student?code='+encodeURIComponent(row.registration_code))}>Copy link</button></>}</td>
     <td>{row.archived_at?'Đã đóng':<a className="mini-btn" href={'/register?code='+encodeURIComponent(row.registration_code)} target="_blank" rel="noreferrer">Mở đăng ký</a>}</td>
-    <td>{profile.role==='admin'&&<button className="mini-btn danger" onClick={()=>{setDeleting(row);setConfirm('');}}>
-      {row.archived_at?'Khôi phục mã':'Xóa mã lớp'}</button>}</td>
+    <td><div className="class-code-actions">
+      <button type="button" className="mini-btn" disabled={busy||!!row.archived_at}
+        onClick={()=>{setEditingCode(row);setUpdatedCode(row.registration_code);}}>Sửa mã</button>
+      <button type="button" className="mini-btn danger" disabled={busy}
+        onClick={()=>{setDeleting(row);setConfirm('');}}>{row.archived_at?'Khôi phục mã':'Xóa mã'}</button>
+     </div></td>
    </tr>)}</tbody>
   </table>{!rows.length&&!loading&&<p className="muted" style={{padding:16}}>Bạn chưa tạo lớp ở trường này. Lớp do người khác tạo sẽ không hiển thị tại đây.</p>}
   {loading&&<p className="muted" style={{padding:16}}>Đang tải lớp...</p>}</div></div>
@@ -123,8 +144,20 @@ export function ClassSettings({profile,ping,schools=[],onChanged}){
       {busy?'Đang tạo…':'Tạo lớp'}</button>
    </form>
   </div>
+  {editingCode&&<div className="modal-backdrop"><div className="modal">
+    <div className="modal-head"><h3>Sửa mã đăng ký · Lớp {editingCode.class_name}</h3>
+      <button type="button" className="btn outline" disabled={busy} onClick={()=>setEditingCode(null)}>Đóng</button></div>
+    <form className="form-stack" onSubmit={saveCode}>
+      <label>Mã đăng ký mới<input autoFocus required maxLength={64} autoComplete="off"
+        value={updatedCode} onChange={e=>setUpdatedCode(e.target.value.toUpperCase().trim())}
+        aria-label="Mã đăng ký mới"/></label>
+      <small className="muted">Ví dụ: IC3-DUYTAN-6.1. Mã không được trùng lớp khác. Sau khi lưu, link đăng ký cũ sẽ ngừng hoạt động; học sinh, điểm và lịch học vẫn giữ nguyên.</small>
+      <button className="btn primary" disabled={busy||!updatedCode.trim()||updatedCode===editingCode.registration_code}>
+        {busy?'Đang lưu…':'Lưu mã mới'}</button>
+    </form>
+  </div></div>}
   {deleting&&<div className="modal-backdrop"><div className="modal">
-    <div className="modal-head"><h3>{deleting.archived_at?'Khôi phục mã lớp':'Xác minh xóa mã đăng ký'}</h3>
+    <div className="modal-head"><h3>{deleting.archived_at?'Khôi phục mã lớp':'Xác nhận xóa mã đăng ký'}</h3>
       <button type="button" className="btn outline" onClick={()=>setDeleting(null)}>Đóng</button></div>
     <p className="muted">Mã lớp sẽ ngừng hoạt động nhưng học sinh, điểm, lịch và hồ sơ đăng ký cũ được giữ nguyên. Nhập tên lớp để xác nhận:</p>
     <form className="form-stack" onSubmit={remove}>
