@@ -24,3 +24,14 @@ export function compactWarnings(warnings){
  }
  return [...counts].map(([word,n])=>n>1?word+' (lặp '+n+' ô)':word);
 }
+
+export function weekdayFromValue(value){
+ if(value===null||value===undefined||value==='')return null;
+ const n=Number(value);
+ if(Number.isInteger(n)&&n>=1&&n<=7)return n;
+ if(n===0)return 7;
+ const text=normalizeIntent(value);
+ const words={hai:1,ba:2,tu:3,nam:4,sau:5,bay:6,'chu nhat':7};
+ const match=text.match(/^(?:thu\s*)?(hai|ba|tu|nam|sau|bay|chu nhat)$/);
+ return match?words[match[1]]:null;
+}
