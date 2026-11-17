@@ -34,7 +34,7 @@ export function detectTopLeftLogoTarget(drawingXML,relsXML){
   for(const rel of candidates){
    const id=rel.match(/\bId="([^"]+)"/)?.[1];
    if(id!==imageId)continue;
-   const name=rel.match(/\bTarget="[^"]*\/([A-Za-z0-9_.-]+\.(?:png|jpg|jpeg))"/i)?.[1];
+   const name=rel.match(/\bTarget="\.\.\/media\/([A-Za-z0-9_.-]+\.png)"/i)?.[1];
    if(name)return 'xl/media/'+name;
   }
  }
