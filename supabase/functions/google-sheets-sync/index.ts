@@ -328,7 +328,9 @@ Deno.serve(async(req:Request)=>{
    if(bytes.byteLength>8_000_000)throw fail("File quá lớn để tải qua chức năng này (8 MB).",413);
    return new Response(bytes,{status:200,headers:{
      "Access-Control-Allow-Origin":origin,"Vary":"Origin","Cache-Control":"no-store",
-     "Content-Type":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+     // FunctionsClient automatically treats octet-stream as a Blob; sending an
+     // XLSX MIME directly may be consumed as text by older functions clients.
+     "Content-Type":"application/octet-stream",
      "Content-Disposition":"attachment; filename=IC3_Google_Sheets_goc.xlsx"
    }});
   }
