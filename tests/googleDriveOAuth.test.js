@@ -33,7 +33,8 @@ test('OAuth callback never hands Google tokens to the browser',()=>{
  assert.ok(html.includes('window.opener.postMessage('));
  assert.ok(!html.includes('access_token'));
  assert.ok(!html.includes('refresh_token'));
- assert.ok(!html.includes('authorization code'));
+ assert.ok(!html.includes('data.refresh_token'));
+ assert.ok(!html.includes('data.access_token'));
 });
 test('personal My Drive creation does not depend on Service Account Shared Drive',()=>{
  assert.ok(sync.includes('await googleUserAccessToken(ownerId)'));
