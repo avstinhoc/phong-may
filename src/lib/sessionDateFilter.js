@@ -31,5 +31,5 @@ export function filterCreatedSessions(rows,mode='all',anchor=''){
  return (range?list.filter(row=>row.session_date>=range.start&&row.session_date<=range.end):list)
    .slice().sort((a,b)=>String(b.session_date||'').localeCompare(String(a.session_date||''))||
      String(a.start_time||'').localeCompare(String(b.start_time||''))||
-     String(a.class_name||'').localeCompare(String(b.class_name||''));
+     String(a.class_name||'').localeCompare(String(b.class_name||'')));
 }
