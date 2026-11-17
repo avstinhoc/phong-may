@@ -20,6 +20,7 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
   [newClass,setNewClass]=useState(''),[templateTab,setTemplateTab]=useState('6.1'),
   [preview,setPreview]=useState(null),[mapping,setMapping]=useState({});
  const autoSyncedForRef=useRef('');
+ const autoInspectedForRef=useRef('');
  const currentTab=bindings.find(x=>x.class_name===selectedClass);
  const classSessions=useMemo(()=>sessions.filter(x=>x.class_name===selectedClass)
   .sort((a,b)=>String(a.session_date).localeCompare(String(b.session_date))||
@@ -46,7 +47,28 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
  },[profile.id,profile.school_id]);
  useEffect(()=>{setMapping(currentTab?.lesson_columns||{});setPreview(null);},[currentTab?.id,selectedClass]);
 
- useEffect(()=>{autoSyncedForRef.current='';},[profile.school_id]);
+ useEffect(()=>{autoSyncedForRef.current='';autoInspectedForRef.current='';},[profile.school_id]);
+ useEffect(()=>{
+   if(!link?.id||link.status!=='unverified'||autoInspectedForRef.current===link.id)return;
+   autoInspectedForRef.current=link.id;
+   let cancelled=false;
+   (async()=>{
+     setBusy('inspect');setError('');setMessage('Đang kiểm tra quyền Google Sheets...');
+     try{
+       const {data,error:failed}=await supabase.functions.invoke('google-sheets-sync',{
+         body:{action:'inspect',link_id:link.id}
+       });
+       if(failed)throw new Error(await getMessage(failed));
+       if(data?.error)throw Error(data.error);
+       if(cancelled)return;
+       setTabs(data.tabs||[]);
+       await load();
+       setMessage('Đã xác minh Google Sheets. Hệ thống sẽ tự bổ sung lớp còn thiếu.');
+     }catch(e){if(!cancelled)setError(e.message||String(e));}
+     finally{if(!cancelled)setBusy('');}
+   })();
+   return()=>{cancelled=true;};
+ },[link?.id,link?.status,profile.school_id]);
  useEffect(()=>{
   if(!link?.id||!link.auto_sync||link.status!=='verified')return;
   const key=link.id+':'+rosterVersion;
