@@ -1,11 +1,16 @@
 import React,{useEffect,useMemo,useState} from 'react';
 import {supabase} from './lib/supabase';
 import {teacherRows,teacherTotals,exportMonthlyExcel,printMonthlyPdf,amount,vnDate} from './lib/teacherReports';
+import {sessionsForWorkplace,schoolsForWorkplace,groupSchoolNames} from './lib/workplaceReports';
 const initialMonth=()=>new Date().toLocaleDateString('en-CA').slice(0,7);
 const monthEnds=month=>{const [y,m]=month.split('-').map(Number);return {from:month+'-01',to:new Date(y,m,0).toLocaleDateString('en-CA')};};
-export function TeacherPayroll({profile,refresh,ping,schools=[]}){
+export function TeacherPayroll({profile,refresh,ping,schools=[],workplaces=[],workplaceLinks=[]}){
  const [month,setMonth]=useState(initialMonth);
  const [payrollSchool,setPayrollSchool]=useState('');
+ const [recipientWorkplaceId,setRecipientWorkplaceId]=useState('');
+ const recipientWorkplace=workplaces.find(w=>w.id===recipientWorkplaceId)||null;
+ const recipientSchools=recipientWorkplace?schoolsForWorkplace(recipientWorkplace.id,schools,workplaceLinks):[];
+ const recipientSchoolCount=groupSchoolNames(recipientSchools).length;
  const selectedSchool=schools.find(sc=>sc.id===payrollSchool)||(schools.length===1?schools[0]:null);
  const schoolLabel=selectedSchool?.name||'Tổng hợp các trường';
  const schoolLogo=selectedSchool?.logo_data||null;
@@ -53,6 +58,21 @@ export function TeacherPayroll({profile,refresh,ping,schools=[]}){
  const rows=teacherRows(filtered,dates.from,dates.to,rateFor,schoolLabel);
  const total=teacherTotals(rows);
  const params={rows,sessions:filtered,teacher:teacher.name,school:schoolLabel,logo:schoolLogo,rate,ratesBySchool,from:dates.from};
+ // The submission report is independent of the payroll school filter: choose a
+ // receiving company/center and include every linked school ID for this teacher.
+ const submitted=recipientWorkplace?sessionsForWorkplace({
+  workplaceId:recipientWorkplace.id,links:workplaceLinks,sessions:lessons,
+  teacherId:teacher.id,from:dates.from,to:dates.to,schoolById
+ }):filtered;
+ const submittedRows=recipientWorkplace?
+  teacherRows(submitted,dates.from,dates.to,rateFor,'Tổng hợp các trường'):rows;
+ const submissionParams=recipientWorkplace?{
+  ...params,
+  rows:submittedRows,sessions:submitted,school:recipientWorkplace.name,
+  logo:recipientWorkplace.logo_data||null,
+  recipient:{name:recipientWorkplace.name,kind:recipientWorkplace.kind},
+ }:params;
+ const submissionTotals=teacherTotals(submittedRows);
  async function saveRate(e){
   e.preventDefault();
   if(!payrollSchool){ping('Chọn một trường cụ thể để cập nhật đơn giá lương/giờ.');return;}
@@ -66,11 +86,24 @@ export function TeacherPayroll({profile,refresh,ping,schools=[]}){
   if(err)ping(err.message);else{setVersion(v=>v+1);ping('Đã cập nhật tiền công theo giờ cho '+teacher.name);}
  }
  async function exportFile(privatePay){
-   try{setBusy(true);await exportMonthlyExcel({...params,privatePay});}
+   try{
+     if(!privatePay&&recipientWorkplace&&!recipientSchools.length){
+       ping('Đơn vị này chưa có trường liên kết mà bạn được phân quyền.');return;
+     }
+     setBusy(true);
+     await exportMonthlyExcel({...privatePay?params:submissionParams,privatePay});
+   }
    catch(e){ping('Không xuất được Excel: '+e.message);}
    finally{setBusy(false);}
  }
- function pdf(privatePay){try{printMonthlyPdf({...params,privatePay});}catch(e){ping(e.message);}}
+ function pdf(privatePay){
+   try{
+    if(!privatePay&&recipientWorkplace&&!recipientSchools.length){
+      ping('Đơn vị này chưa có trường liên kết mà bạn được phân quyền.');return;
+    }
+    printMonthlyPdf({...privatePay?params:submissionParams,privatePay});
+   }catch(e){ping(e.message);}
+ }
  return <section className="payroll-page">
    <div className="report-banner payroll-banner">
      <div><span className="report-overline">CHẤM CÔNG GIÁO VIÊN</span><h2>Bảng kê tiết dạy & tiền công</h2>
@@ -106,7 +139,24 @@ export function TeacherPayroll({profile,refresh,ping,schools=[]}){
      <article className="report-export-card">
        <span className="report-kind">BẢN NỘP TRƯỜNG / TRUNG TÂM</span><h3>Bảng kê tiết dạy</h3>
        <p>Ngày, thứ, lớp dạy sáng/chiều, số tiết, tên trường và tổng tháng. <b>Không chứa lương hoặc học phí.</b></p>
-       <div className="report-buttons"><button disabled={busy||loading} className="btn primary" onClick={()=>exportFile(false)}>Xuất Excel trung tâm</button><button className="btn outline" disabled={loading} onClick={()=>pdf(false)}>In / Lưu PDF</button></div>
+       <label className="report-recipient-select">Đơn vị nhận bảng kê
+        <select value={recipientWorkplaceId} onChange={e=>setRecipientWorkplaceId(e.target.value)}>
+         <option value="">Báo cáo theo trường đang lọc (mặc định)</option>
+         {workplaces.map(w=><option key={w.id} value={w.id}>{w.kind==='company'?'Công ty':'Trung tâm'} · {w.name}</option>)}
+        </select>
+       </label>
+       {recipientWorkplace&&<div className="report-recipient-preview">
+         <span className="report-recipient-logo">{recipientWorkplace.logo_data?
+          <img src={recipientWorkplace.logo_data} alt={'Logo '+recipientWorkplace.name}/>:
+          <strong>{recipientWorkplace.name.slice(0,4).toUpperCase()}</strong>}</span>
+         <span><b>Nộp cho {recipientWorkplace.name}</b>
+          <small>{recipientSchoolCount} trường liên kết · {submissionTotals.lessons} lượt lớp · {submissionTotals.periods} tiết trong tháng</small>
+         </span>
+       </div>}
+       <p className="report-recipient-hint">{recipientWorkplace?
+        'Chỉ tổng hợp các trường liên kết với '+recipientWorkplace.name+'; không phụ thuộc bộ lọc Trường tính công phía trên. Logo của đơn vị sẽ thay logo IC3 trên Excel/PDF.':
+        'Chọn công ty hoặc trung tâm để tự dùng logo đơn vị và tổng hợp các trường thuộc đơn vị đó.'}</p>
+       <div className="report-buttons"><button disabled={busy||loading||(!!recipientWorkplace&&!recipientSchools.length)} className="btn primary" onClick={()=>exportFile(false)}>Xuất Excel trung tâm</button><button className="btn outline" disabled={loading||(!!recipientWorkplace&&!recipientSchools.length)} onClick={()=>pdf(false)}>In / Lưu PDF</button></div>
      </article>
      <article className="report-export-card personal">
        <span className="report-kind">BẢN RIÊNG CHO GIÁO VIÊN</span><h3>Bảng lương & giờ dạy</h3>
