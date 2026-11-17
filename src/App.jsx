@@ -648,6 +648,7 @@ function Students({ profile, refresh, reload, ping, navigate }) {
   const [reviewBusy,setReviewBusy]=useState(null);
   const [show, setShow] = useState(false);
   const [search, setSearch] = useState("");
+  const [approvedClassFilter,setApprovedClassFilter]=useState("");
   const [nameEditing,setNameEditing]=useState(null);
   const [nameBusy,setNameBusy]=useState(false);
   const [form, setForm] = useState({
@@ -655,8 +656,11 @@ function Students({ profile, refresh, reload, ping, navigate }) {
     student_code: "", phone: "", date_of_birth:"", status: "active"
   });
 
+  const approvedClasses=[...new Set(rows.filter(s=>s.status==="active").map(s=>s.class_name).filter(Boolean))]
+    .sort((a,b)=>a.localeCompare(b,'vi',{numeric:true}));
   const filtered = rows.filter(s=>
     s.status!=="inactive" &&
+    (!approvedClassFilter||s.class_name===approvedClassFilter) &&
     `${s.full_name} ${s.class_name} ${s.student_code||""}`.toLowerCase().includes(search.toLowerCase())
   ).sort((a,b)=>compareStudentName(a,b)||
     String(a.class_name||"").localeCompare(String(b.class_name||""),'vi',{numeric:true}));
@@ -847,8 +851,15 @@ function Students({ profile, refresh, reload, ping, navigate }) {
       </div>)}
     </section>}
 
-    <div className="toolbar">
+    <div className="toolbar student-approved-toolbar">
       <div className="searchbox"><Search size={17} /><input placeholder="Tìm tên, lớp, mã học sinh..." value={search} onChange={e => setSearch(e.target.value)} /></div>
+      <label className="approved-class-filter">Lọc hồ sơ đã duyệt theo lớp
+        <select aria-label="Lọc hồ sơ học sinh đã duyệt theo lớp" value={approvedClassFilter}
+          onChange={e=>setApprovedClassFilter(e.target.value)}>
+          <option value="">Tất cả lớp ({rows.filter(s=>s.status==="active").length} học sinh)</option>
+          {approvedClasses.map(c=><option key={c} value={c}>Lớp {c} ({rows.filter(s=>s.status==="active"&&s.class_name===c).length})</option>)}
+        </select>
+      </label>
       <button className="btn outline" onClick={archiveDuplicates} title="Ẩn các hồ sơ trùng sau khi xác nhận, không xóa điểm hay lịch sử">Dọn hồ sơ trùng</button>
       <button className="btn outline" onClick={() => exportRows(filtered.map((s,i)=>({STT:i+1,...s})), "Danh_sach_hoc_sinh")}><Download size={16} />Xuất Excel</button>
     </div>
