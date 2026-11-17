@@ -46,21 +46,14 @@ function createSheet(wb,params,sessions,firstIndex,chunkIndex){
    ws.addImage(imageId,{tl:{col:.25,row:.18},ext:{width:135,height:82}});
   }catch(e){brand.value=String(centerName||'IC3 GS6').toUpperCase();}
  }
- const metadata=[
-   ['B2','Trường'],['J2','Địa chỉ:'],['C2',school],['D2','Lớp: '+className],
-   ['F2','Mã lớp:'],['Q2','Số tiết:'],['S2','Môn: IC3'],
-   ['V2','Tên GV:'],['X2',teacher],['AH2','Số tiết / tuần:'],
-   ['A3','Thời gian học trong tuần:'],['I3','Ngày bắt đầu dạy:'],['N3','Ngày dự kiến kết thúc:'],
- ];
- for(const [addr,value] of metadata){if(['B2','C2','D2'].includes(addr))continue;ws.getCell(addr).value=value;}
- // A1:I3 is reserved for the center logo, so the school and class summary starts at J2.
+ // A1:I3 remains dedicated to the brand image; do not write metadata into merged cells.
  ws.getCell('J2').value='Trường: '+String(school||'');
  ws.getCell('P2').value='Lớp: '+String(className||'');
- ws.getCell('X2').value=String(teacher||'');
- ws.getCell('I3').value='Bắt đầu: '+vnDate(sessions[0]?.session_date);
+ ws.getCell('X2').value='Giáo viên: '+String(teacher||'');
+ ws.getCell('J3').value='Bắt đầu: '+vnDate(sessions[0]?.session_date);
  ws.getCell('N3').value='Kết thúc: '+vnDate(sessions.at(-1)?.session_date);
- ws.getCell('AH2').value='Số tiết / tuần: '+(sessions.reduce((v,l)=>v+Number(l.period_count||0),0)||0);
- for(const address of ['J2','P2','X2','I3','N3','AH2'])ws.getCell(address).font={name:'Times New Roman',size:11,bold:true,color:{argb:'FF'+C.ink}};
+ ws.getCell('AH2').value='Số tiết: '+sessions.reduce((v,l)=>v+Number(l.period_count||0),0);
+ for(const address of ['J2','P2','X2','J3','N3','AH2'])ws.getCell(address).font={name:'Times New Roman',size:11,bold:true,color:{argb:'FF'+C.ink}};
  ws.mergeCells(4,10,4,79);ws.getCell(4,10).value='GIỮ NGUYÊN CẤU TRÚC DANH SÁCH · Ô MÀU CAM LÀ SỐ TIẾT · Ô VẮNG/CÓ PHÉP ĐƯỢC TÔ MÀU';
  style(ws.getCell(4,10),{bg:C.gray,color:C.navy,bold:true,size:10,border:false});
  const fixed=['MÃ HS','STT','HỌ & TÊN','NGÀY SINH','SỐ ĐIỆN THOẠI','SỐ CMND',
