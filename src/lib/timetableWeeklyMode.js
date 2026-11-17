@@ -6,7 +6,7 @@ export function inferWeeklyTimetable({question='',attachment=null,explicitWeekly
  if(explicitWeekly)return true;
  if(!attachment)return false;
  const q=normalizeIntent(question),name=normalizeIntent(attachment.name||'');
- if(/(chi|duy nhat|mot buoi|buoi le|mot ngay|ngay \d{1,2}[\/.-]\d{1,2}|\d{4}-\d{2}-\d{2})/.test(q))return false;
+ if(/(\bchi\b|\bduy nhat\b|\bmot buoi\b|\bbuoi le\b|\bmot ngay\b|\bngay \d{1,2}[\/.-]\d{1,2}\b|\d{4}-\d{2}-\d{2})/.test(q))return false;
  if(/(thoi khoa bieu|tkb|lich tuan|lich hang tuan|tuan hoc|ca tuan)/.test(q+' '+name))return true;
  const raw=normalizeIntent(attachment.text||'');
  const hits=['thu hai','thu ba','thu tu','thu nam','thu sau','thu bay'].filter(v=>raw.includes(v)).length;
