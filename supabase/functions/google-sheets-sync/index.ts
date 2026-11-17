@@ -51,7 +51,7 @@ async function googleToken(){
  if(!/^[^@]+@[^@]+\.iam\.gserviceaccount\.com$/.test(credentials.client_email||"")||!credentials.private_key)
   throw fail("Google Service Account thiếu email hoặc khóa ký.",503);
  const privateKey=await importPKCS8(credentials.private_key,"RS256");
- const assertion=await new SignJWT({scope:"https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.readonly"})
+ const assertion=await new SignJWT({scope:"https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file"})
    .setProtectedHeader({alg:"RS256",typ:"JWT"})
    .setIssuer(credentials.client_email).setAudience("https://oauth2.googleapis.com/token")
    .setIssuedAt().setExpirationTime("50m").sign(privateKey);
