@@ -232,7 +232,7 @@ function App() {
           {page === "accounts" && profile.role === "admin" && <Accounts profile={profile} />}
           {page === "personal" && <ProfileSettings key={profile.id} profile={profile} email={session.user.email} reload={reload} ping={ping}/>}
           {page === "settings" && <ClassSettings profile={profile} ping={ping} schools={schools} onChanged={reload} />}
-          {page === "finance" && <TeacherPayroll profile={profile} refresh={refresh} ping={ping} schools={schools} />}
+          {page === "finance" && <TeacherPayroll profile={profile} refresh={refresh} ping={ping} schools={schools} workplaces={workplaces} workplaceLinks={workplaceSchools} />}
           {page === "reports" && <ReportsCenter profile={profile} refresh={refresh} ping={ping} schools={schools} />}
           {!schoolId && !["workplaces","schools","settings","finance","reports","accounts","personal"].includes(page) && <div className="notice-box">Thêm trường đầu tiên để bắt đầu quản lý học sinh và lịch dạy.</div>}
           {schoolId && <>

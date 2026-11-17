@@ -1,6 +1,7 @@
 import React,{useState} from 'react';
 import {Building2,School,Plus,Trash2,ImagePlus,ArrowRight,Link2Off} from 'lucide-react';
 import {supabase} from './lib/supabase';
+import {groupSchoolNames,schoolNameKey} from './lib/workplaceReports';
 
 const KIND_LABEL={company:'Công ty',center:'Trung tâm'};
 const clean=value=>String(value||'').trim().replace(/\s+/g,' ');
@@ -56,26 +57,32 @@ export function WorkplaceManager({profile,schools=[],workplaces=[],links=[],ping
    setDeleting(null);setConfirmation('');
   },'Đã xóa đơn vị công tác. Các trường, lớp, học sinh và lịch vẫn được giữ nguyên.');
  }
- async function attach(unit,schoolId){
-  if(!schoolId)return;
+ async function attach(unit,group){
+  if(!group?.ids?.length)return;
   await perform(async()=>{
    const {error}=await supabase.from('workplace_schools').upsert(
-    {workplace_id:unit.id,school_id:schoolId},
+    group.ids.map(school_id=>({workplace_id:unit.id,school_id})),
     {onConflict:'workplace_id,school_id',ignoreDuplicates:true}
    );
    if(error)throw error;
-  },'Đã thêm trường vào '+unit.name);
+  },'Đã gắn '+group.name+' vào '+unit.name+' (giữ nguyên các hồ sơ trường).');
  }
- async function detach(unit,school){
+ async function detach(unit,group){
+  if(!group?.ids?.length)return;
+  if(!window.confirm('Bỏ liên kết '+group.name+' khỏi '+unit.name+'? '+group.ids.length+' hồ sơ trường sẽ được gỡ khỏi nhóm; học sinh, lớp, lịch và điểm không bị xóa.'))return;
   await perform(async()=>{
    const {error}=await supabase.from('workplace_schools').delete()
-    .eq('workplace_id',unit.id).eq('school_id',school.id);
+    .eq('workplace_id',unit.id).in('school_id',group.ids);
    if(error)throw error;
-  },'Đã gỡ '+school.name+' khỏi '+unit.name+'; dữ liệu trường được giữ nguyên.');
+  },'Đã gỡ '+group.name+' khỏi '+unit.name+'; không xóa dữ liệu trường.');
  }
  async function createSchool(unit){
   const newName=clean(newSchoolNames[unit.id]);
   if(!newName){ping('Nhập tên trường trước khi thêm.');return;}
+  if(schools.some(s=>schoolNameKey(s.name)===schoolNameKey(newName))){
+   ping('Trường '+newName+' đã có trong danh sách. Hãy dùng Gắn trường để tránh tạo trùng hồ sơ.');
+   return;
+  }
   await perform(async()=>{
    // Reuse the current authenticated user's school creation and membership flow.
    const {data:schoolId,error:schoolError}=await supabase.rpc('create_my_school',{school_name:newName});
@@ -143,9 +150,11 @@ export function WorkplaceManager({profile,schools=[],workplaces=[],links=[],ping
   <div className="workplace-card-grid">{ordered.map(unit=>{
    const assignedIds=new Set(links.filter(l=>l.workplace_id===unit.id).map(l=>l.school_id));
    const assigned=schools.filter(s=>assignedIds.has(s.id));
-   const remaining=schools.filter(s=>!assignedIds.has(s.id));
-   const selected=remaining.some(s=>s.id===chosenSchools[unit.id])
-    ?chosenSchools[unit.id]:remaining[0]?.id||'';
+   const assignedGroups=groupSchoolNames(assigned);
+   const remainingGroups=groupSchoolNames(schools.filter(s=>!assignedIds.has(s.id)));
+   const selectedKey=remainingGroups.some(g=>g.key===chosenSchools[unit.id])
+    ?chosenSchools[unit.id]:remainingGroups[0]?.key||'';
+   const selectedGroup=remainingGroups.find(g=>g.key===selectedKey);
    return <article className="panel workplace-card" key={unit.id}>
     <div className="workplace-card-heading">
      <span className="workplace-logo">
@@ -154,7 +163,7 @@ export function WorkplaceManager({profile,schools=[],workplaces=[],links=[],ping
      <div className="workplace-card-title">
       <small>{KIND_LABEL[unit.kind]||'Đơn vị công tác'}</small>
       <h3>{unit.name}</h3>
-      <span>{assigned.length} trường công tác</span>
+      <span>{assignedGroups.length} trường công tác</span>
      </div>
      <div className="workplace-card-actions">
       <button type="button" className="mini-btn" disabled={busy} onClick={()=>setEditing({...unit})}>Sửa</button>
@@ -169,21 +178,23 @@ export function WorkplaceManager({profile,schools=[],workplaces=[],links=[],ping
     </div>
     <div className="workplace-schools-heading"><School size={17}/><strong>Trường thuộc {unit.name}</strong></div>
     <div className="workplace-schools">
-     {assigned.map(s=><div className="workplace-school-row" key={s.id}>
-      <span><School size={15}/>{s.name}</span>
-      <button className="mini-btn" title="Chỉ gỡ liên kết, không xóa trường" disabled={busy} onClick={()=>detach(unit,s)}><Link2Off size={14}/> Bỏ liên kết</button>
+     {assignedGroups.map(group=><div className="workplace-school-row" key={group.key}>
+      <span><School size={15}/><span>{group.name}
+       {group.ids.length>1&&<small className="workplace-duplicate-count" title="Các hồ sơ cùng tên vẫn giữ nguyên dữ liệu riêng">{group.ids.length} hồ sơ được tổng hợp</small>}
+      </span></span>
+      <button type="button" className="mini-btn" title="Chỉ gỡ tất cả liên kết trùng tên, không xóa trường" disabled={busy} onClick={()=>detach(unit,group)}><Link2Off size={14}/> Bỏ liên kết</button>
      </div>)}
-     {!assigned.length&&<p className="muted">Chưa liên kết trường nào.</p>}
+     {!assignedGroups.length&&<p className="muted">Chưa liên kết trường nào.</p>}
     </div>
     <div className="workplace-school-add">
      <label>Thêm trường đã có
       <div className="workplace-attach-row">
-       <select value={selected} disabled={busy||!remaining.length}
+       <select value={selectedKey} disabled={busy||!remainingGroups.length}
         onChange={e=>setChosenSchools(v=>({...v,[unit.id]:e.target.value}))}>
-        {!remaining.length&&<option value="">Đã liên kết tất cả trường</option>}
-        {remaining.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
+        {!remainingGroups.length&&<option value="">Đã liên kết tất cả trường</option>}
+        {remainingGroups.map(g=><option key={g.key} value={g.key}>{g.name}</option>)}
        </select>
-       <button type="button" className="btn outline" disabled={busy||!selected} onClick={()=>attach(unit,selected)}>Gắn trường</button>
+       <button type="button" className="btn outline" disabled={busy||!selectedGroup} onClick={()=>attach(unit,selectedGroup)}>Gắn trường</button>
       </div>
      </label>
      <label>Hoặc tạo trường mới thuộc đơn vị

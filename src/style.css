@@ -696,3 +696,19 @@
 .class-management td code{display:inline-block;max-width:100%;overflow-wrap:anywhere;border-radius:8px;background:#f0f7f8;padding:7px 9px;color:#196080;font-size:11px}
 @media(max-width:1060px){.workplace-card-grid{grid-template-columns:1fr}}
 @media(max-width:760px){.workplace-create-form{grid-template-columns:1fr}.workplace-hero{padding:17px}.workplace-hero h2{font-size:18px}.workplace-card{padding:14px}.workplace-card-heading{flex-wrap:wrap}.workplace-card-actions{width:100%;justify-content:flex-end}.workplace-attach-row{grid-template-columns:1fr}.workplace-attach-row .btn{width:100%}.workplace-school-row{align-items:flex-start;flex-wrap:wrap}.workplace-school-row button{margin-left:auto}}
+
+/* Consolidated workplace school groups and recipient-branded teacher reports */
+.workplace-school-row>span>span{min-width:0;display:flex;flex-direction:column;gap:3px;line-height:1.45}
+.workplace-duplicate-count{display:block;font-size:10px;line-height:1.4;color:#6c8991;font-weight:500}
+.report-recipient-select{display:flex;flex-direction:column;gap:7px;margin:16px 0 9px;max-width:100%;font-size:12px;font-weight:700;color:#315968}
+.report-recipient-select select{width:100%;max-width:100%;min-height:43px;padding:10px 12px;background:#fff;border:1px solid #ccdfe3;border-radius:10px;font:inherit;color:#245363;line-height:1.5}
+.report-recipient-select select:focus-visible{outline:2px solid #0b8b7d;outline-offset:2px}
+.report-recipient-preview{display:flex;gap:12px;align-items:center;margin:11px 0;padding:10px 12px;border:1px solid #cce9e1;background:#f1fbf8;border-radius:12px;min-width:0}
+.report-recipient-logo{display:grid;place-items:center;width:54px;height:50px;flex:none;overflow:hidden;background:#fff;border:1px solid #d5e9e5;border-radius:9px;color:#14776f}
+.report-recipient-logo img{width:100%;height:100%;object-fit:contain}
+.report-recipient-logo strong{font-size:15px;letter-spacing:.3px}
+.report-recipient-preview>span:last-child{min-width:0;display:flex;flex-direction:column;gap:4px;overflow-wrap:anywhere}
+.report-recipient-preview b{font-size:12px;color:#184955;line-height:1.5}
+.report-recipient-preview small{font-size:11px;color:#5f8088;line-height:1.5}
+.report-recipient-hint{margin:7px 0 14px!important;font-size:11px!important;color:#68828a;line-height:1.65!important}
+@media(max-width:680px){.workplace-school-row>span{align-items:flex-start}.report-recipient-preview{align-items:flex-start}.report-recipient-select{margin-top:12px}}
