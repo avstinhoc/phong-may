@@ -26,8 +26,8 @@ function onEdit(e) {
   if (!cell.getFormula() && cell.getValue() !== '') return;
   var tz = SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone() || 'Asia/Ho_Chi_Minh';
   var today = Utilities.formatDate(new Date(),tz,'yyyy-MM-dd');
-  var parts = today.split('-').map(Number);
-  var day = new Date(parts[0],parts[1]-1,parts[2]);
+  // Noon in Viet Nam avoids accidental date shifts if the script timezone differs.
+  var day = new Date(today + 'T12:00:00+07:00');
   cell.setValue(day);
   cell.setNumberFormat('dd/MM');
   cell.setNote('Ngày học được ghi cố định bởi Phưn QLPM khi nhập số tiết. Có thể sửa ngày tại ô này.');
