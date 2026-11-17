@@ -22,6 +22,7 @@ import { isVietnamTimeRange } from "./lib/vietnamTime";
 import {filterCreatedSessions,sessionDateWindow,shiftSessionDay,mondayOfSessionWeek} from "./lib/sessionDateFilter";
 import { RollCall } from "./RollCall";
 import {restrictManagementScope} from "./lib/ownedManagement";
+import {ownTeachingLessons} from "./lib/rollCallSelection";
 import * as XLSX from "xlsx";
 import {
   LayoutDashboard, Users, Monitor, ClipboardList, CalendarDays, Wallet,
@@ -1056,9 +1057,24 @@ function Computers({ profile, refresh, reload, ping }) {
 
 function RollCallView({profile,refresh,reload,ping,focusDate,setFocusDate}){
   const {rows,error}=useRows("class_sessions",profile,refresh);
+  const [selectedLessonId,setSelectedLessonId]=useState("");
+  const myLessons=useMemo(()=>ownTeachingLessons(rows,profile.id),[rows,profile.id]);
+  useEffect(()=>{
+    if(selectedLessonId&&!myLessons.some(s=>s.id===selectedLessonId))setSelectedLessonId("");
+  },[selectedLessonId,myLessons]);
+  function selectLesson(lesson){
+    setSelectedLessonId(lesson.id);
+    setFocusDate(lesson.session_date);
+    window.requestAnimationFrame(()=>{
+      document.getElementById('rollcall-panel')?.scrollIntoView({behavior:'smooth',block:'start'});
+    });
+  }
   return <>
-    <TeachingCalendar rows={rows} focusDate={focusDate} onDateChange={setFocusDate} school={profile.school_name} teacher={profile.full_name}/>
-    <RollCall profile={profile} sessions={rows} refresh={refresh} onSaved={reload} ping={ping}/>
+    <TeachingCalendar rows={myLessons} focusDate={focusDate} onDateChange={setFocusDate}
+      school={profile.school_name} teacher={profile.full_name}
+      selectedLessonId={selectedLessonId} onLessonSelect={selectLesson}/>
+    <RollCall profile={profile} sessions={myLessons} selectedSessionId={selectedLessonId}
+      refresh={refresh} onSaved={reload} ping={ping}/>
     {error&&<p role="alert" className="notice-box">{error}</p>}
   </>;
 }
