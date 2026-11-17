@@ -24,7 +24,11 @@ Nút đã có trên web nhưng **đọc/ghi file riêng tư chưa chạy** cho t
 10. Khi muốn xuất đúng bố cục mẫu, bấm **Xuất Excel gốc**. Bản này tải *trực tiếp* từ Google Sheets, gồm tất cả tab của file.
 
 ## Trung tâm / logo
-Logo trung tâm đang được chọn trong ô **Logo trong file Excel** ở tính năng xuất nhanh của website. Phần **Xuất Excel gốc** bảo toàn hình ảnh *đang có trong Google Sheets*; **chưa tự thay logo nổi trong Sheet** vì API Google Sheets không hỗ trợ thay trực tiếp mọi embedded image theo cách giữ 100% hình gốc. Với file Google, thay hình logo trực tiếp trên Sheets để bản tải xuống lấy đúng logo.
+Logo trung tâm được chọn trong ô **Logo trong file Excel** ở tính năng xuất nhanh của website.
+- **Xuất Excel gốc**: tải nguyên workbook từ Google Drive, giữ logo gốc trong file.
+- **Excel gốc + logo Trung tâm/Trường**: nếu workbook có ảnh top-left neo tại A1 (như mẫu đã kiểm tra), chỉ thay đúng file hình trong `xl/media` của XLSX mà không tái tạo hay sửa các XML dữ liệu, công thức, merge, kích thước hoặc định dạng. Các tab cùng dùng ảnh đó đều thay theo logo đã chọn.
+- **Google Sheets trên web**: hình logo trong file Sheets trực tuyến **không được thay** bởi nút xuất Excel; muốn thay logo hiển thị trực tiếp trên Sheets, người dùng đổi hình trong Google Sheets.
+- Nếu workbook không có ảnh logo ở A1, nút xuất sẽ trả lỗi rõ và không viết đè tệp hoặc Sheet gốc.
 
 ## Quy tắc chống mất dữ liệu
 - Không bao giờ xóa lớp/học sinh/điểm hay Google Sheet chỉ vì ngắt liên kết.
