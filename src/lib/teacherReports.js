@@ -32,15 +32,16 @@ function save(buffer,name){
  const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=name;document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),12000);
 }
 const fName=s=>String(s||'IC3').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9-]+/gi,'_').slice(0,60);
-function heading(ws,wb,logo,school,teacher,month,privatePay,cols){
+function heading(ws,wb,logo,school,teacher,month,privatePay,cols,recipient=null){
  ws.mergeCells(1,3,2,cols);ws.mergeCells(3,3,3,cols);ws.mergeCells(4,3,4,cols);
- [['C1',String(school).toUpperCase(),16],['C3','BẢNG KÊ TIẾT DẠY THÁNG '+month,14],['C4','Môn: Tin học quốc tế IC3 GS6 · Năm học '+schoolYear(month.slice(3,7)+'-'+month.slice(0,2)+'-01'),10]].forEach(([ref,v,size])=>{const cell=ws.getCell(ref);cell.value=v;cell.font={name:'Arial',bold:true,size,color:{argb:'FF'+palette.navy}};cell.alignment={horizontal:'center',vertical:'middle'};});
+ [['C1',recipient?.name?'ĐƠN VỊ NHẬN: '+String(recipient.name).toUpperCase():String(school).toUpperCase(),16],['C3','BẢNG KÊ TIẾT DẠY THÁNG '+month,14],['C4','Môn: Tin học quốc tế IC3 GS6 · Năm học '+schoolYear(month.slice(3,7)+'-'+month.slice(0,2)+'-01'),10]].forEach(([ref,v,size])=>{const cell=ws.getCell(ref);cell.value=v;cell.font={name:'Arial',bold:true,size,color:{argb:'FF'+palette.navy}};cell.alignment={horizontal:'center',vertical:'middle'};});
  ws.getRow(1).height=30;ws.getRow(3).height=29;ws.getRow(4).height=23;
  ws.getCell('A6').value='Giáo viên:';ws.getCell('B6').value=teacher;ws.getCell('E6').value='Kỳ báo cáo:';ws.getCell('F6').value=month;
  for(const key of ['A6','E6'])ws.getCell(key).font={bold:true,color:{argb:'FF'+palette.blue}};
  if(logo?.startsWith('data:image/png;base64,')){try{const id=wb.addImage({base64:logo,extension:'png'});ws.addImage(id,{tl:{col:0,row:0},ext:{width:120,height:72}});}catch(e){}}
+ else if(recipient?.name){ws.mergeCells('A1:B2');const mark=ws.getCell('A1');mark.value=String(recipient.name).slice(0,10).toUpperCase();mark.font={bold:true,size:17,color:{argb:'FF'+palette.teal}};mark.alignment={horizontal:'center',vertical:'middle'};}
  ws.pageSetup={paperSize:9,orientation:'landscape',fitToPage:true,fitToWidth:1,fitToHeight:0,margins:{left:.25,right:.25,top:.35,bottom:.4,header:.1,footer:.1}};
- ws.headerFooter.oddFooter='IC3 GS6 · Trang &P / &N';
+ ws.headerFooter.oddFooter=(recipient?.name||'IC3 GS6')+' · Trang &P / &N';
 }
 function tableHeader(ws,row,names){
  ws.getRow(row).height=39;names.forEach((v,i)=>{const c=ws.getCell(row,i+1);c.value=v;c.font={bold:true,size:10,color:{argb:'FFFFFFFF'}};c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF'+palette.blue}};c.alignment={horizontal:'center',vertical:'middle',wrapText:true};});
@@ -52,7 +53,7 @@ function buildSheet(wb,p){
  const privatePay=p.privatePay,ws=wb.addWorksheet(privatePay?'Bảng kê giáo viên':'Bảng kê trung tâm',{views:[{state:'frozen',ySplit:9}]});
  const widths=privatePay?[16,13,24,24,12,16,18,21]:[16,13,26,26,12,25,24];
  widths.forEach((v,i)=>ws.getColumn(i+1).width=v);
- heading(ws,wb,p.logo,p.school,p.teacher,p.month,privatePay,widths.length);
+ heading(ws,wb,p.logo,p.school,p.teacher,p.month,privatePay,widths.length,p.recipient);
  const headers=privatePay?['NGÀY','THỨ','LỚP SÁNG','LỚP CHIỀU','SỐ TIẾT','GIỜ THỰC DẠY','LƯƠNG/GIỜ','THÀNH TIỀN']:
  ['NGÀY','THỨ','LỚP SÁNG','LỚP CHIỀU','SỐ TIẾT','TRƯỜNG','GHI CHÚ'];
  tableHeader(ws,9,headers);
@@ -82,7 +83,7 @@ export async function exportMonthlyExcel(p){
     ws.getCell(r,7).numFmt='#,##0 "đ"';ws.getCell(r,8).numFmt='#,##0 "đ"';
   });
  }
- save(await wb.xlsx.writeBuffer(),(p.privatePay?'Luong_giao_vien_':'Bao_cao_trung_tam_')+fName(p.teacher)+'_'+p.from.slice(0,7)+'.xlsx');
+ save(await wb.xlsx.writeBuffer(),(p.privatePay?'Luong_giao_vien_':('Bao_cao_'+fName(p.recipient?.name||'trung_tam')+'_'))+fName(p.teacher)+'_'+p.from.slice(0,7)+'.xlsx');
 }
 export async function exportGeneralXlsx({title,school,logo,headers,rows,teacher}){
  const Excel=await getExcelJS(),wb=new Excel.Workbook(),ws=wb.addWorksheet('Báo cáo');
@@ -113,14 +114,14 @@ export async function exportGeneralXlsx({title,school,logo,headers,rows,teacher}
  ws.pageSetup={paperSize:9,orientation:'landscape',fitToPage:true,fitToWidth:1,fitToHeight:0};
  save(await wb.xlsx.writeBuffer(),fName(title)+'.xlsx');
 }
-function printHtml({title,subtitle,school,teacher,logo,headers,rows,total,summary,privatePay=false}){
- const logoPart=logo?.startsWith('data:image/png;base64,')?'<img src="'+logo+'"/>':'<span class="brand">IC3</span>';
+function printHtml({title,subtitle,school,teacher,logo,headers,rows,total,summary,privatePay=false,recipient=null}){
+ const logoPart=logo?.startsWith('data:image/png;base64,')?'<img src="'+logo+'"/>':'<span class="brand">'+escape(recipient?.name?String(recipient.name).slice(0,9).toUpperCase():'IC3')+'</span>';
  const html='<!doctype html><html lang="vi"><head><meta charset="utf-8"><title>'+escape(title)+'</title><style>'+
  '@page{size:A4 landscape;margin:12mm}*{box-sizing:border-box}body{font-family:"Times New Roman",serif;color:#173245;padding:12px;margin:0}header{display:grid;grid-template-columns:100px 1fr;align-items:center;padding-bottom:12px;border-bottom:2px solid #21567A}header img{max-width:86px;max-height:70px}header .brand{display:block;background:#0b877a;color:white;padding:20px 14px;font:bold 23px Arial;border-radius:9px}header h3{text-align:center;font-size:13px;margin:0 0 6px}header h1{text-align:center;font-size:20px;margin:4px 0;color:#204f70}header p{text-align:center;margin:3px;font-size:12px}.meta{display:flex;justify-content:space-between;margin:12px 0;font-size:12px}table{border-collapse:collapse;width:100%;table-layout:fixed}th{background:#21567A;color:#fff;border:1px solid #21567A;padding:9px 4px;font-size:11px}td{border:1px solid #c4d0d7;padding:6px 5px;font-size:11px;word-wrap:break-word}.alt{background:#f4f8fa}.total{background:#e8f4f5;font-weight:bold}.summary{background:#e8f4f5;border-left:4px solid #0d877d;padding:10px;margin-top:13px;font-size:12px;font-weight:bold}.sign{margin:30px 0 0 auto;width:260px;text-align:center;font-size:12px}.sign b{display:block}.sign i{display:block;margin-top:8px}.sign strong{display:block;margin-top:45px}.footer{text-align:center;font-size:9px;color:#72828d;margin-top:25px}.print{padding:8px;text-align:right}.print button{border:0;border-radius:5px;background:#0d877d;color:#fff;padding:10px 16px;cursor:pointer}@media print{body{padding:0}.print{display:none}thead{display:table-header-group}tr{page-break-inside:avoid}}'+
- '</style></head><body><div class="print"><button onclick="window.print()">In / Lưu PDF</button></div><header>'+logoPart+'<div><h3>TRƯỜNG: '+escape(school)+'</h3><h1>'+escape(title)+'</h1><p>'+escape(subtitle)+'</p></div></header><div class="meta"><span>Giáo viên: <b>'+escape(teacher)+'</b></span><span>Môn học: Tin học quốc tế IC3 GS6</span><span>'+escape(privatePay?'Bản riêng cho giáo viên':'Bản nộp trung tâm / trường')+'</span></div>'+
+ '</style></head><body><div class="print"><button onclick="window.print()">In / Lưu PDF</button></div><header>'+logoPart+'<div><h3>'+escape(recipient?.name?'ĐƠN VỊ NHẬN: '+recipient.name:'TRƯỜNG: '+school)+'</h3><h1>'+escape(title)+'</h1><p>'+escape(subtitle)+'</p></div></header><div class="meta"><span>Giáo viên: <b>'+escape(teacher)+'</b></span><span>Môn học: Tin học quốc tế IC3 GS6</span><span>'+escape(privatePay?'Bản riêng cho giáo viên':'Bản nộp trung tâm / trường')+'</span></div>'+
  '<table><thead><tr>'+headers.map(h=>'<th>'+escape(h)+'</th>').join('')+'</tr></thead><tbody>'+rows.map((a,i)=>'<tr class="'+(i%2?'alt':'')+'">'+a.map(v=>'<td>'+escape(v)+'</td>').join('')+'</tr>').join('')+
  (total?'<tr class="total">'+total.map(v=>'<td>'+escape(v)+'</td>').join('')+'</tr>':'')+
- '</tbody></table><div class="summary">'+escape(summary)+'</div><div class="sign"><div>Ngày '+new Date().toLocaleDateString('vi-VN')+'</div><b>NGƯỜI LẬP BẢNG</b><i>(Ký, ghi rõ họ tên)</i><strong>'+escape(teacher)+'</strong></div><div class="footer">IC3 GS6 · Báo cáo chính thức được xuất từ hệ thống quản lý</div></body></html>';
+ '</tbody></table><div class="summary">'+escape(summary)+'</div><div class="sign"><div>Ngày '+new Date().toLocaleDateString('vi-VN')+'</div><b>NGƯỜI LẬP BẢNG</b><i>(Ký, ghi rõ họ tên)</i><strong>'+escape(teacher)+'</strong></div><div class="footer">'+escape(recipient?.name||'IC3 GS6')+' · Báo cáo được xuất từ hệ thống quản lý IC3 GS6</div></body></html>';
  const w=window.open('','_blank');if(!w)throw new Error('Trình duyệt đang chặn cửa sổ in. Vui lòng cho phép pop-up.');
  w.document.open();w.document.write(html);w.document.close();
 }
@@ -130,7 +131,7 @@ export function printMonthlyPdf(p){
  const rows=p.rows.map(r=>p.privatePay?[vnDate(r.date),r.weekday,r.morning,r.afternoon,r.periods||'',r.lessons?r.hours.toFixed(2):'',r.lessons?(typeof r.rate==='number'?amount(r.rate):r.rate):'',r.lessons?amount(r.pay):'']:
   [vnDate(r.date),r.weekday,r.morning,r.afternoon,r.periods||'',r.lessons?r.school:'','']);
  const total=p.privatePay?['TỔNG','','','',t.periods,t.hours.toFixed(2),'',amount(t.pay)]:['TỔNG','','','',t.periods,'',''];
- printHtml({title:'BẢNG KÊ TIẾT DẠY THÁNG '+month,subtitle:'Năm học '+schoolYear(p.from),school:p.school,teacher:p.teacher,logo:p.logo,headers,rows,total,privatePay:p.privatePay,
+ printHtml({title:'BẢNG KÊ TIẾT DẠY THÁNG '+month,subtitle:'Năm học '+schoolYear(p.from),school:p.school,teacher:p.teacher,logo:p.logo,recipient:p.recipient,headers,rows,total,privatePay:p.privatePay,
  summary:'Tổng '+t.days+' ngày dạy · '+t.lessons+' lượt lớp · '+t.periods+' tiết'+(p.privatePay?' · '+t.hours.toFixed(2)+' giờ · Tiền công: '+amount(t.pay):'')});
 }
 export function printGeneralPdf(p){printHtml({...p,total:null,summary:'Tổng số dòng: '+p.rows.length,privatePay:false});}
