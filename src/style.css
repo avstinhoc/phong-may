@@ -876,3 +876,65 @@
  .pending-class-filter>label{flex-basis:100%}
  .pending-class-filter select{max-width:100%}
 }
+
+
+/* Timetable-driven roll call: entire teaching cell is a keyboard-accessible button. */
+.cal-grid-lesson-button{width:100%;min-width:0;cursor:pointer;font:inherit;text-align:center;
+ transition:transform .13s ease,box-shadow .13s ease,border-color .13s ease}
+.cal-grid-lesson-button:hover{transform:translateY(-2px);border-color:#068b7f;
+ box-shadow:0 3px 15px rgba(4,99,91,.15)}
+.cal-grid-lesson-button:focus-visible{outline:3px solid #0b9687;outline-offset:2px}
+.cal-grid-lesson-button.selected{border:2px solid #048d80;background:#e2faf0;
+ box-shadow:0 0 0 2px rgba(5,145,126,.13)}
+.cal-grid-lesson-button .cal-lesson-action{font-size:10px;font-weight:750;color:#087569}
+.cal-grid-lesson-button.selected .cal-lesson-action{color:#07584f}
+.roll-call{scroll-margin-top:102px}
+.roll-select-prompt{border:2px dashed #a8d2ce;background:#f3faf8;border-radius:14px;
+ padding:23px;display:flex;align-items:center;justify-content:center;gap:9px;flex-wrap:wrap;
+ text-align:center;color:#28666a;margin:17px 0}
+.roll-select-prompt>span{font-size:25px}
+.roll-select-prompt strong{font-size:14px}
+.roll-select-prompt small{font-size:11px;color:#728991;flex-basis:100%}
+.roll-lesson-selected{display:flex;justify-content:space-between;align-items:center;gap:18px;
+ flex-wrap:wrap;background:linear-gradient(105deg,#e6f8f3,#f3fbfa);border:1px solid #bfdfd7;
+ border-radius:14px;padding:16px 20px;margin:16px 0}
+.roll-lesson-selected>div{display:flex;flex-direction:column;gap:5px;min-width:0;flex:1}
+.roll-lesson-selected strong{font-size:17px;color:#135e58;font-weight:800;overflow-wrap:anywhere}
+.roll-lesson-selected small{font-size:11px;color:#687e86}
+.roll-selected-kicker{font-size:10px;letter-spacing:.9px;font-weight:800;color:#087f70}
+.roll-lesson-selected .btn{min-height:42px;white-space:nowrap}
+
+/* Student review and reference-style Excel export control row */
+.student-approved-toolbar{flex-wrap:wrap;align-items:flex-end}
+.student-approved-toolbar .searchbox{flex:1 1 265px;width:auto;min-width:200px}
+.approved-class-filter{display:flex;flex-direction:column;gap:5px;min-width:190px;flex:1 1 230px;
+ font-size:11px;color:#44636e;font-weight:650}
+.approved-class-filter select{min-height:41px;padding:9px 10px;background:white;border:1px solid #d3e5e7;
+ border-radius:9px;color:#204552;font-size:12px;width:100%}
+.roster-export-options{display:flex;align-items:end;gap:12px;flex-wrap:wrap;
+ padding:13px 15px;margin:12px 0;border:1px solid #d9e9e7;border-radius:12px;background:#f4faf9}
+.roster-export-options label:not(.roster-logo-upload){display:flex;flex-direction:column;gap:6px;font-size:11px;
+ color:#355e65;font-weight:700;flex:0 1 360px;min-width:190px}
+.roster-export-options select{background:white;border:1px solid #cbdfe0;border-radius:9px;
+ min-height:43px;padding:9px 12px;font-size:12px;color:#244854;width:100%}
+.roster-logo-upload{min-height:43px;font-size:12px;display:inline-flex;align-items:center;
+ background:#fff;white-space:nowrap}
+.roster-export-options>.muted{flex:1 1 200px;margin:0;font-size:10px;max-width:440px}
+.roster-export-options select:focus-visible,.approved-class-filter select:focus-visible{outline:2px solid #079286;outline-offset:2px}
+
+/* Unbroken full name on the personal banner and in the sidebar profile entry */
+.personal-hero>div:last-child{min-width:0;flex:1}
+.personal-hero h2{font-size:clamp(16px,2.2vw,27px);line-height:1.35;
+ white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.personal-entry>div:last-child{min-width:0;flex:1}
+.personal-entry b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:10px}
+.personal-entry small{white-space:nowrap}
+@media(max-width:740px){
+ .roll-lesson-selected .btn{width:100%}
+ .roster-export-options label:not(.roster-logo-upload){flex-basis:100%}
+ .student-approved-toolbar{align-items:stretch}
+ .student-approved-toolbar>*{flex:1 1 auto}
+ .personal-hero{gap:12px;padding:18px}
+ .personal-avatar-large{width:68px;height:68px}
+ .personal-hero h2{font-size:clamp(14px,3.5vw,21px)}
+}

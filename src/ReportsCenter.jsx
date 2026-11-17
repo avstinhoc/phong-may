@@ -1,6 +1,7 @@
 import React,{useEffect,useMemo,useState} from 'react';
 import {supabase} from './lib/supabase';
 import {compareStudentName} from './lib/students';
+import {exportAttendanceReference} from './lib/exportReferenceAttendance';
 import {teacherRows,teacherTotals,exportMonthlyExcel,printMonthlyPdf,exportGeneralXlsx,printGeneralPdf,amount,vnDate,schoolYear} from './lib/teacherReports';
 const firstMonth=()=>new Date().toLocaleDateString('en-CA').slice(0,7);
 const scoreNames=['QT1','QT2','HK1','QT3','QT4','HK2','TEST 1','TEST 2','TEST 3','TEST 4','TEST 5','Mô phỏng lần 1','Mô phỏng lần 2','Mô phỏng lần 3','Mô phỏng lần 4','Mô phỏng lần 5'];
@@ -24,12 +25,14 @@ export function ReportsCenter({profile,refresh,ping,schools=[]}){
  const [allData,setAllData]=useState({}),[error,setError]=useState(''),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false);
  useEffect(()=>{setTeacherId(profile.id);},[profile.id]);
  useEffect(()=>{let live=true;setLoading(true);setError('');
+  const permittedSchools=schools.map(s=>s.id);
   const names=['class_sessions','students','student_results','attendance','computers','student_records','cleaning_logs','teacher_pay_rates'];
   const fetchAll=async name=>{
+    if(!permittedSchools.length)return [];
     const results=[],sort=name==='teacher_pay_rates'?'teacher_id':'id';
     for(let from=0;from<100000;from+=500){
       const {data:part,error}=await supabase.from(name).select('*')
-        .order(sort).range(from,from+499);
+        .in('school_id',permittedSchools).order(sort).range(from,from+499);
       if(error)throw error;
       results.push(...(part||[]));if(!part||part.length<500)break;
     }
@@ -39,16 +42,14 @@ export function ReportsCenter({profile,refresh,ping,schools=[]}){
     if(!live)return;setLoading(false);
     const next={};names.forEach((name,i)=>{next[name]=results[i]||[];});setAllData(next);
   }).catch(e=>{if(live){setLoading(false);setError(e.message);}});return()=>{live=false;};
- },[refresh]);
+ },[refresh,schools]);
+ const allowedSchools=useMemo(()=>new Set(schools.map(sc=>sc.id)),[schools]);
  const data=useMemo(()=>Object.fromEntries(Object.entries(allData).map(([name,rows])=>
-   [name,reportSchool?rows.filter(row=>row.school_id===reportSchool):rows]
- )),[allData,reportSchool]);
+   [name,rows.filter(row=>allowedSchools.has(row.school_id)&&(!reportSchool||row.school_id===reportSchool))]
+ )),[allData,reportSchool,allowedSchools]);
  const lessons=data.class_sessions||[],students=data.students||[];
- const teachers=useMemo(()=>{
-  const map=new Map([[profile.id,profile.full_name||'Giáo viên']]);
-  lessons.forEach(s=>{if(s.teacher_id&&!map.has(s.teacher_id))map.set(s.teacher_id,s.teacher_name||'Giáo viên');});
-  return [...map].filter(([id])=>profile.role==='admin'||id===profile.id).map(([id,name])=>({id,name}));
- },[lessons,profile.id,profile.full_name,profile.role]);
+ // Admin teaches as a teacher; this personal report only lists the current account.
+ const teachers=useMemo(()=>[{id:profile.id,name:profile.full_name||'Giáo viên'}],[profile.id,profile.full_name]);
  const selectedTeacher=teachers.find(t=>t.id===teacherId)||teachers[0]||{id:profile.id,name:profile.full_name};
  const ratesBySchool=Object.fromEntries((data.teacher_pay_rates||[])
    .filter(x=>x.teacher_id===selectedTeacher.id).map(x=>[x.school_id,Number(x.hourly_rate||0)]));
@@ -85,6 +86,12 @@ export function ReportsCenter({profile,refresh,ping,schools=[]}){
  async function excel(){
   try{setBusy(true);
    if(kind==='center'||kind==='teacher')await exportMonthlyExcel({rows:monthly,sessions:hydrated,teacher:selectedTeacher.name,school:reportSchoolName,logo:reportSchoolLogo,from,rate,ratesBySchool,privatePay:kind==='teacher'});
+   else if(kind==='attendance'){
+    if(!className||!selectedSchool){ping('Để xuất bảng điểm danh theo mẫu, hãy chọn đúng trường và lớp trước.');return;}
+    await exportAttendanceReference({school:reportSchoolName,className,teacher:profile.full_name||'',
+     students:chosen,sessions:selectedSessions.filter(l=>l.school_id===selectedSchool.id),
+     marks:data.attendance||[],results:data.student_results||[],logo:reportSchoolLogo});
+   }
    else await exportGeneralXlsx(args);
   }catch(e){ping('Lỗi xuất Excel: '+e.message);}finally{setBusy(false);}
  }
@@ -110,7 +117,7 @@ export function ReportsCenter({profile,refresh,ping,schools=[]}){
          </select>
        </label>
        {(kind==='center'||kind==='teacher')&&<label>Tháng báo cáo<input type="month" value={month} onChange={e=>setMonth(e.target.value)} /></label>}
-       {(kind==='center'||kind==='teacher')&&<label>Giáo viên<select value={selectedTeacher.id} onChange={e=>setTeacherId(e.target.value)} disabled={profile.role!=='admin'}>{teachers.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label>}
+       {(kind==='center'||kind==='teacher')&&<label>Giáo viên<select value={selectedTeacher.id} onChange={e=>setTeacherId(e.target.value)} disabled>{teachers.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label>}
        {!['center','teacher','computers'].includes(kind)&&<label>Lớp<select value={className} onChange={e=>setClassName(e.target.value)}><option value="">Tất cả lớp</option>{names.map(c=><option key={c}>{c}</option>)}</select></label>}
        {kind==='scores'&&<label>Bài kiểm tra<select value={exam} onChange={e=>setExam(e.target.value)}>{scoreNames.map(k=><option key={k}>{k}</option>)}</select></label>}
      </div>

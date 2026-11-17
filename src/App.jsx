@@ -21,6 +21,8 @@ import { Time24Input } from "./Time24Input";
 import { isVietnamTimeRange } from "./lib/vietnamTime";
 import {filterCreatedSessions,sessionDateWindow,shiftSessionDay,mondayOfSessionWeek} from "./lib/sessionDateFilter";
 import { RollCall } from "./RollCall";
+import {restrictManagementScope} from "./lib/ownedManagement";
+import {ownTeachingLessons} from "./lib/rollCallSelection";
 import * as XLSX from "xlsx";
 import {
   LayoutDashboard, Users, Monitor, ClipboardList, CalendarDays, Wallet,
@@ -114,18 +116,28 @@ function App() {
       if (live) {
         setProfile(error ? null : data);
         setProfileError(error?.message || (!data ? "Chưa có hồ sơ. Hãy chạy migration để đồng bộ tài khoản Auth sang profiles." : ""));
-        const [result,unitsResult,linksResult]=await Promise.all([
+        const [result,unitsResult,linksResult,membershipsResult]=await Promise.all([
           supabase.from("schools").select("id,name,logo_data").order("name"),
           supabase.from("workplaces").select("id,name,kind,created_by,logo_data").order("name"),
-          supabase.from("workplace_schools").select("workplace_id,school_id")
+          supabase.from("workplace_schools").select("workplace_id,school_id"),
+          supabase.from("school_members").select("school_id").eq("user_id",session.user.id)
         ]);
         if (!live) return;
         if (result.error) setProfileError(result.error.message);
-        setSchools(result.data || []);
-        setWorkplaces(unitsResult.data || []);
-        setWorkplaceSchools(linksResult.data || []);
-        setSchoolId(current => (result.data || []).some(s => s.id === current) ? current : result.data?.[0]?.id || "");
-        if(unitsResult.error||linksResult.error)setNotice('Chưa tải được công ty/trung tâm. Hãy kiểm tra migration Supabase.');
+        const scoped=account?.role==='admin'||data?.role==='admin'
+          ? restrictManagementScope({
+              schools:result.data||[],workplaces:unitsResult.data||[],links:linksResult.data||[],
+              membershipIds:(membershipsResult.data||[]).map(x=>x.school_id),
+              accountId:session.user.id,profileSchoolId:data?.school_id
+            })
+          : {schools:result.data||[],workplaces:(unitsResult.data||[]).filter(w=>w.created_by===session.user.id),
+             links:linksResult.data||[]};
+        setSchools(scoped.schools);
+        setWorkplaces(scoped.workplaces);
+        setWorkplaceSchools(scoped.links);
+        setSchoolId(current=>scoped.schools.some(sc=>sc.id===current)?current:scoped.schools[0]?.id||"");
+        if(unitsResult.error||linksResult.error||membershipsResult.error)
+          setNotice("Không tải đủ phạm vi trường và trung tâm của tài khoản. Vui lòng làm mới và kiểm tra phân quyền.");
         setLoading(false);
       }
       } catch(e) { if(live) { setProfileError(authMessage(e)); setLoading(false); } }
@@ -637,6 +649,7 @@ function Students({ profile, refresh, reload, ping, navigate }) {
   const [reviewBusy,setReviewBusy]=useState(null);
   const [show, setShow] = useState(false);
   const [search, setSearch] = useState("");
+  const [approvedClassFilter,setApprovedClassFilter]=useState("");
   const [nameEditing,setNameEditing]=useState(null);
   const [nameBusy,setNameBusy]=useState(false);
   const [form, setForm] = useState({
@@ -644,8 +657,11 @@ function Students({ profile, refresh, reload, ping, navigate }) {
     student_code: "", phone: "", date_of_birth:"", status: "active"
   });
 
+  const approvedClasses=[...new Set(rows.filter(s=>s.status==="active").map(s=>s.class_name).filter(Boolean))]
+    .sort((a,b)=>a.localeCompare(b,'vi',{numeric:true}));
   const filtered = rows.filter(s=>
     s.status!=="inactive" &&
+    (!approvedClassFilter||s.class_name===approvedClassFilter) &&
     `${s.full_name} ${s.class_name} ${s.student_code||""}`.toLowerCase().includes(search.toLowerCase())
   ).sort((a,b)=>compareStudentName(a,b)||
     String(a.class_name||"").localeCompare(String(b.class_name||""),'vi',{numeric:true}));
@@ -836,8 +852,15 @@ function Students({ profile, refresh, reload, ping, navigate }) {
       </div>)}
     </section>}
 
-    <div className="toolbar">
+    <div className="toolbar student-approved-toolbar">
       <div className="searchbox"><Search size={17} /><input placeholder="Tìm tên, lớp, mã học sinh..." value={search} onChange={e => setSearch(e.target.value)} /></div>
+      <label className="approved-class-filter">Lọc hồ sơ đã duyệt theo lớp
+        <select aria-label="Lọc hồ sơ học sinh đã duyệt theo lớp" value={approvedClassFilter}
+          onChange={e=>setApprovedClassFilter(e.target.value)}>
+          <option value="">Tất cả lớp ({rows.filter(s=>s.status==="active").length} học sinh)</option>
+          {approvedClasses.map(c=><option key={c} value={c}>Lớp {c} ({rows.filter(s=>s.status==="active"&&s.class_name===c).length})</option>)}
+        </select>
+      </label>
       <button className="btn outline" onClick={archiveDuplicates} title="Ẩn các hồ sơ trùng sau khi xác nhận, không xóa điểm hay lịch sử">Dọn hồ sơ trùng</button>
       <button className="btn outline" onClick={() => exportRows(filtered.map((s,i)=>({STT:i+1,...s})), "Danh_sach_hoc_sinh")}><Download size={16} />Xuất Excel</button>
     </div>
@@ -1034,9 +1057,24 @@ function Computers({ profile, refresh, reload, ping }) {
 
 function RollCallView({profile,refresh,reload,ping,focusDate,setFocusDate}){
   const {rows,error}=useRows("class_sessions",profile,refresh);
+  const [selectedLessonId,setSelectedLessonId]=useState("");
+  const myLessons=useMemo(()=>ownTeachingLessons(rows,profile.id),[rows,profile.id]);
+  useEffect(()=>{
+    if(selectedLessonId&&!myLessons.some(s=>s.id===selectedLessonId))setSelectedLessonId("");
+  },[selectedLessonId,myLessons]);
+  function selectLesson(lesson){
+    setSelectedLessonId(lesson.id);
+    setFocusDate(lesson.session_date);
+    window.requestAnimationFrame(()=>{
+      document.getElementById('rollcall-panel')?.scrollIntoView({behavior:'smooth',block:'start'});
+    });
+  }
   return <>
-    <TeachingCalendar rows={rows} focusDate={focusDate} onDateChange={setFocusDate} school={profile.school_name} teacher={profile.full_name}/>
-    <RollCall profile={profile} sessions={rows} refresh={refresh} onSaved={reload} ping={ping}/>
+    <TeachingCalendar rows={myLessons} focusDate={focusDate} onDateChange={setFocusDate}
+      school={profile.school_name} teacher={profile.full_name}
+      selectedLessonId={selectedLessonId} onLessonSelect={selectLesson}/>
+    <RollCall profile={profile} sessions={myLessons} selectedSessionId={selectedLessonId}
+      refresh={refresh} onSaved={reload} ping={ping}/>
     {error&&<p role="alert" className="notice-box">{error}</p>}
   </>;
 }

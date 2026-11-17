@@ -42,7 +42,7 @@ function title(ws,school,sub,end,teacher,className,logo,book){
  ws.headerFooter.oddFooter='IC3 GS6 - &P / &N';
 }
 function styleHeader(ws,row,headers){
- ws.getRow(row).values=[null,...headers];ws.getRow(row).height=36;
+ ws.getRow(row).values=headers;ws.getRow(row).height=36;
  ws.getRow(row).eachCell(c=>{c.font={bold:true,color:{argb:'FFFFFFFF'},size:9};c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF'+C.blue}};
  c.alignment={horizontal:'center',vertical:'middle',wrapText:true};c.border={bottom:{style:'thin',color:{argb:'FF'+C.line}}};});
 }
@@ -75,7 +75,7 @@ export async function downloadPrettyRoster({school,className,teacher,students,se
  summary.getRow(8).height=37;
  styleHeader(summary,11,['STT','MÃ HS','HỌ VÀ TÊN','SỐ BUỔI','CÓ MẶT','VẮNG','TL VẮNG']);
  people.forEach((s,i)=>{const r=12+i,n=sessionsList.filter(l=>absent(findMark(s,l))).length;
- summary.getRow(r).values=[null,i+1,s.student_code||'',s.full_name,sessionsList.length,sessionsList.length-n,n,sessionsList.length?n/sessionsList.length:0];
+ summary.getRow(r).values=[i+1,s.student_code||'',s.full_name,sessionsList.length,sessionsList.length-n,n,sessionsList.length?n/sessionsList.length:0];
  summary.getCell(r,7).numFmt='0%';styleData(summary,r,7,i%2===1);});
  const n=Math.max(1,sessionsList.length),scol=6+n;
  att.getColumn(1).width=13;att.getColumn(2).width=7;att.getColumn(3).width=29;att.getColumn(4).width=13;att.getColumn(5).width=12;

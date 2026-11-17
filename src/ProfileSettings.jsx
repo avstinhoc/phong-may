@@ -59,8 +59,8 @@ export function ProfileSettings({profile,email,reload,ping}){
    // Supabase will redirect to the Google consent screen.
   }catch(err){
    const message=googleOAuthError(err);
+   // Keep errors inline. A global green success toast is misleading here.
    setIdentityError(message);
-   ping(message);
   }finally{setLinkingGoogle(false);}
  }
  async function chooseFile(e){
@@ -113,11 +113,16 @@ export function ProfileSettings({profile,email,reload,ping}){
     </div>
     {identityProviders===null?<p className="muted">Đang kiểm tra liên kết Google…</p>:
       hasGoogleIdentity(identityProviders)?<div className="personal-google-linked">Google đã được liên kết với tài khoản này.</div>:
-      <button type="button" className="btn outline" disabled={linkingGoogle||!!identityError}
+      <button type="button" className="btn outline" disabled={linkingGoogle||identityProviders===null}
         onClick={linkGoogle}>{linkingGoogle?'Đang chuyển tới Google…':'Liên kết tài khoản Google'}</button>}
     {identityError&&<div role="alert" className="notice-box personal-google-error">
-      {identityError}
-      <button type="button" className="mini-btn" onClick={()=>setIdentityError('')}>Thử lại</button>
+      <strong>Chưa liên kết được Google:</strong> {identityError}
+      <div className="personal-google-error-actions">
+        <button type="button" className="mini-btn" onClick={()=>setIdentityError('')}>Thử lại sau khi bật</button>
+        <a className="mini-btn" href="https://supabase.com/dashboard/project/hzxfgwnwmpdqxkvnqyim/auth/providers"
+          target="_blank" rel="noreferrer">Mở cấu hình Supabase</a>
+      </div>
+      <small>Trong Authentication → Sign In / Providers → Supabase Auth, tìm và bật “Allow manual linking”/“Enable Manual Linking”. Google Provider phải được bật. Chỉ thao tác trên tài khoản Google bạn sở hữu.</small>
     </div>}
     <p className="muted personal-google-tip">Dùng đúng tài khoản Google mà bạn sở hữu. Không tạo tài khoản Admin mới hay thay đổi quyền truy cập khi liên kết. Nếu nút báo lỗi, Admin cần bật Google Provider và Manual Identity Linking trong Supabase.</p>
    </section>
