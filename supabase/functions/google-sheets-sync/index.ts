@@ -142,6 +142,13 @@ async function syncClass(db:any,link:Dict,map:Dict,token:string,actorId:string,m
  const students=await studentsFromDB(db,link.school_id,map.class_name);
  const byName=new Map<string,any[]>();
  for(const s of students){const k=normalize(s.full_name);byName.set(k,[...(byName.get(k)||[]),s]);}
+ // Duplicate names on an unlinked sheet may represent different students.
+ // Do not silently attach both rows to one website ID or create twins.
+ const rowNameCount=new Map<string,number>();
+ for(let r=8;r<=70;r++){
+  const name=normalize((rows[r-5]||[])[2]);
+  if(name)rowNameCount.set(name,(rowNameCount.get(name)||0)+1);
+ }
  const pairs:Dict[]=[];const sheetNonempty=new Set<number>();
  for(let r=8;r<=70;r++){
   const a=rows[r-5]||[],name=clean(a[2]);
@@ -151,8 +158,10 @@ async function syncClass(db:any,link:Dict,map:Dict,token:string,actorId:string,m
   const mappedStudent=linked?students.find(s=>s.id===linked[0]):null;
   const names=byName.get(normalize(name))||[];
   const renamedRow=Boolean(mappedStudent&&normalize(mappedStudent.full_name)!==normalize(name));
-  const chosen=renamedRow?null:(mappedStudent||(names.length===1?names[0]:null));
-  pairs.push({rowNo:r,raw:a,name,student:chosen,ambiguous:renamedRow||(names.length>1&&!chosen),
+  const duplicatedOnSheet=(rowNameCount.get(normalize(name))||0)>1;
+  const chosen=renamedRow?null:(mappedStudent||(names.length===1&&!duplicatedOnSheet?names[0]:null));
+  pairs.push({rowNo:r,raw:a,name,student:chosen,
+    ambiguous:renamedRow||(!mappedStudent&&duplicatedOnSheet)||(names.length>1&&!chosen),
     matchedId:chosen?.id||null,proposedScores:scoreValues(a)});
  }
  const counts={sheetStudents:pairs.length,websiteStudents:students.length,
@@ -229,12 +238,32 @@ async function syncClass(db:any,link:Dict,map:Dict,token:string,actorId:string,m
    .eq("school_id",link.school_id).in("student_id",students.map(s=>s.id).length?students.map(s=>s.id):["00000000-0000-0000-0000-000000000000"]);
   if(dataScores.error)throw fail("Không đọc được điểm để đồng bộ.",500);
   const scoreMap=new Map((dataScores.data||[]).map(x=>[x.student_id,x]));
-  const abs=await db.from("attendance").select("student_id,session_id,status")
-    .eq("school_id",link.school_id).in("student_id",students.map(s=>s.id).length?students.map(s=>s.id):["00000000-0000-0000-0000-000000000000"]);
-  if(abs.error)throw fail("Không đọc được điểm danh để đồng bộ.",500);
-  const absByKey=new Map((abs.data||[]).map(x=>[x.student_id+":"+x.session_id,x.status]));
+  // Supabase PostgREST caps one response (often 1,000 records).
+  // A 63-student class × 70 meetings can hold 4,410 attendance marks.
+  // Page by primary key and never silently omit records beyond page one.
+  const ids=students.map(s=>s.id);
+  const marks:Dict[]=[];
+  if(ids.length){
+   for(let start=0;start<100000;start+=500){
+    const {data:page,error:markError}=await db.from("attendance")
+      .select("id,student_id,session_id,status")
+      .eq("school_id",link.school_id).in("student_id",ids)
+      .order("id").range(start,start+499);
+    if(markError)throw fail("Không đọc đủ dữ liệu điểm danh để đồng bộ.",500);
+    marks.push(...(page||[]));
+    if((page||[]).length<500)break;
+   }
+  }
+  const absByKey=new Map(marks.map(x=>[x.student_id+":"+x.session_id,x.status]));
   const push=(rowNo:number,column:number,value:any)=>changes.push({range:sheetName(map.sheet_title)+"!"+col(column)+rowNo,values:[[value]]});
   for(const student of students){
+   const linkedRow=Number((map.student_rows||{})[student.id]);
+   const conflictingLinkedRow=pairs.find(p=>p.rowNo===linkedRow&&p.matchedId!==student.id);
+   const unnamedConflict=pairs.some(p=>p.ambiguous&&normalize(p.name)===normalize(student.full_name));
+   if(conflictingLinkedRow||unnamedConflict){
+    conflicts.push("Tên trùng/đổi trên Sheets, cần rà soát trước khi ghi "+student.full_name);
+    continue;
+   }
    let p=pairs.find(p=>p.matchedId===student.id&&!takenStudents.has(student.id));
    if(!p){
     const free=Array.from({length:63},(_,i)=>i+8).find(r=>!used.has(r));
