@@ -1,4 +1,4 @@
-import React,{useEffect,useMemo,useState} from 'react';
+import React,{useEffect,useMemo,useRef,useState} from 'react';
 import {supabase} from './lib/supabase';
 import {parseSheetUrl,validateSheetTabName,mapLessonsInOrder,validateLessonMapping} from './lib/googleSheetTemplate';
 import {replaceExistingTopLeftLogo} from './lib/replaceExcelLogo';
@@ -18,6 +18,7 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
   [selectedClass,setSelectedClass]=useState(''),[tabName,setTabName]=useState(''),
   [newClass,setNewClass]=useState(''),[templateTab,setTemplateTab]=useState('6.1'),
   [preview,setPreview]=useState(null),[mapping,setMapping]=useState({});
+ const autoStartedRef=useRef(false);
  const currentTab=bindings.find(x=>x.class_name===selectedClass);
  const classSessions=useMemo(()=>sessions.filter(x=>x.class_name===selectedClass)
   .sort((a,b)=>String(a.session_date).localeCompare(String(b.session_date))||
@@ -43,6 +44,41 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
   return()=>{live=false;};
  },[profile.id,profile.school_id]);
  useEffect(()=>{setMapping(currentTab?.lesson_columns||{});setPreview(null);},[currentTab?.id,selectedClass]);
+ useEffect(()=>{
+  if(!link?.auto_sync||link.status!=='verified'||!link.last_synced_at||!bindings.length||autoStartedRef.current)return;
+  autoStartedRef.current=true;
+  let cancelled=false;
+  (async()=>{
+   setBusy('auto');setError('');setMessage('Đang đồng bộ các lớp đã gắn. Không tự ghi đè dữ liệu khác nhau.');
+   try{
+    let created=0,changed=0,conflicts=0;
+    for(const tab of bindings.slice(0,10)){
+     if(cancelled)break;
+     const a=await api({action:'pull',class_name:tab.class_name,confirm:true});
+     const b=await api({action:'push',class_name:tab.class_name,confirm:true});
+     created+=a.createdStudents||0;
+     changed+=b.counts?.cellsWritten||0;
+     conflicts+=(a.conflicts?.length||0)+(b.conflicts?.length||0);
+    }
+    if(!cancelled){
+     setMessage('Đã đồng bộ khi mở trang: '+created+' học sinh mới, '+changed+' ô Sheets mới; '+conflicts+' mục cần đối chiếu.');
+     onSynced?.();
+    }
+   }catch(e){if(!cancelled)setError('Tự đồng bộ: '+(e.message||String(e)));}
+   finally{if(!cancelled)setBusy('');}
+  })();
+  return()=>{cancelled=true;};
+ },[link?.id,link?.auto_sync,link?.status,link?.last_synced_at,bindings.map(b=>b.id).join('|')]);
+ async function changeAuto(enabled){
+  if(!link)return;
+  if(enabled&&!link.last_synced_at)throw Error('Hãy chạy đồng bộ thủ công lần đầu và kiểm tra dữ liệu trước khi bật tự động.');
+  if(enabled&&!window.confirm('Bật đồng bộ an toàn khi mở trang Danh sách học sinh? Hệ thống sẽ nhập học sinh/điểm trống và đánh dấu vắng cho các buổi đã ghép, sau đó đẩy dữ liệu web sang các ô trống. Không ghi đè dữ liệu xung đột.'))return;
+  const {error}=await supabase.from('school_sheet_links').update({auto_sync:enabled}).eq('id',link.id);
+  if(error)throw error;
+  autoStartedRef.current=false;
+  await load();
+  setMessage(enabled?'Đã bật đồng bộ khi mở Danh sách học sinh, không phải đồng bộ 24/7.':'Đã tắt tự đồng bộ.');
+ }
  const api=async(body)=>{
   if(!link?.id)throw Error('Chưa lưu link Google Sheets của trường.');
   const {data,error:callError}=await supabase.functions.invoke('google-sheets-sync',{body:{...body,link_id:link.id}});
@@ -165,6 +201,12 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
     </div>}
     {error&&<div className="sheets-link-error" role="alert"><strong>Chưa thực hiện được:</strong> {error}</div>}
     {message&&<div className="sheets-link-message" role="status">{message}</div>}
+    {link?.status==='verified'&&<div className="sheets-link-auto">
+      <label><input type="checkbox" checked={!!link.auto_sync} disabled={!!busy}
+         onChange={e=>run('auto-toggle',()=>changeAuto(e.target.checked))}/>
+       Tự đồng bộ các lớp đã gắn khi mở Danh sách học sinh</label>
+      <small>Chỉ bật sau lần đồng bộ đầu tiên. Không chạy ngầm 24/7. Ô có dữ liệu khác nhau vẫn báo xung đột, không ghi đè.</small>
+    </div>}
     {link&&<div className="sheets-link-help">
       <strong>Quyền Google:</strong> Để đồng bộ file riêng tư, Admin cấu hình Google Service Account trong Supabase Edge Secrets, rồi chia sẻ file Sheets cho email dịch vụ ở quyền Editor. Không chuyển Sheets sang công khai và không dán khóa JSON vào website.
       <a href="https://console.cloud.google.com/iam-admin/serviceaccounts" target="_blank" rel="noreferrer">Mở Google Cloud Service Accounts</a>
