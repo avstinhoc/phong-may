@@ -21,6 +21,11 @@ const sheetName=(s:string)=>"'"+s.replaceAll("'","''")+"'";
 const a1=(title:string,range:string)=>encodeURIComponent(sheetName(title)+"!"+range);
 const validClass=(v:string)=>/^[\p{L}\p{N}][\p{L}\p{N} ._-]{0,59}$/u.test(v)&&!/[\[\]*?/\\]/.test(v);
 const asDate=(s:unknown)=>{
+ // Google Sheets date formatted cells may return serial day numbers.
+ if(typeof s==="number"&&Number.isFinite(s)&&s>20000&&s<100000){
+  const timestamp=Date.UTC(1899,11,30)+Math.floor(s)*86400000;
+  return new Date(timestamp).toISOString().slice(0,10);
+ }
  const str=clean(s);
  if(/^\d{4}-\d{2}-\d{2}$/.test(str))return str;
  const m=/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(str);
@@ -130,7 +135,7 @@ function checkedSessionIds(row:any[],lessonMap:Dict){
 async function syncClass(db:any,link:Dict,map:Dict,token:string,actorId:string,mode:string){
  const rows=await readTab(link.spreadsheet_id,map.sheet_title,token);
  const heads=rows[0]||[];
- if(normalize(heads[2]).replace(/\*/g,"")!=="họ & tên")
+ if(normalize(heads[2]).replace(/\*/g,"").trim()!=="họ & tên")
    throw fail("Mẫu tab không đúng: ô C5 cần tiêu đề HỌ & TÊN.");
  if(clean(heads[9]).toUpperCase()!=="B1"||clean(heads[78]).toUpperCase()!=="B70")
    throw fail("Mẫu thiếu dãy checkbox B1–B70 từ J5:CA5.");
@@ -145,9 +150,9 @@ async function syncClass(db:any,link:Dict,map:Dict,token:string,actorId:string,m
   const linked=Object.entries(map.student_rows||{}).find(([,rowNo])=>Number(rowNo)===r);
   const mappedStudent=linked?students.find(s=>s.id===linked[0]):null;
   const names=byName.get(normalize(name))||[];
-  let chosen=mappedStudent&&normalize(mappedStudent.full_name)===normalize(name)?mappedStudent:
-    (names.length===1?names[0]:null);
-  pairs.push({rowNo:r,raw:a,name,student:chosen,ambiguous:names.length>1&&!chosen,
+  const renamedRow=Boolean(mappedStudent&&normalize(mappedStudent.full_name)!==normalize(name));
+  const chosen=renamedRow?null:(mappedStudent||(names.length===1?names[0]:null));
+  pairs.push({rowNo:r,raw:a,name,student:chosen,ambiguous:renamedRow||(names.length>1&&!chosen),
     matchedId:chosen?.id||null,proposedScores:scoreValues(a)});
  }
  const counts={sheetStudents:pairs.length,websiteStudents:students.length,
@@ -165,7 +170,7 @@ async function syncClass(db:any,link:Dict,map:Dict,token:string,actorId:string,m
   const klass=await db.from("classes").select("id").eq("school_id",link.school_id).eq("class_name",map.class_name).limit(1);
   const classId=klass.data?.[0]?.id||null;
   for(const p of pairs){
-   if(p.ambiguous){conflicts.push("Trùng tên: "+p.name);continue;}
+   if(p.ambiguous){conflicts.push("Tên trùng hoặc đã đổi ở dòng "+p.rowNo+": "+p.name+" (cần rà soát trước).");continue;}
    let s=p.student;
    if(!s){
     const dob=asDate(p.raw[3]);
