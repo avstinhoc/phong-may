@@ -318,9 +318,8 @@ async function sheetBatch(id:string,requests:Dict[],token:string){
   token,{method:"POST",body:JSON.stringify({requests})});
  return await response.json();
 }
-async function cleanClonedTab(id:string,newId:number,title:string,schoolName:string,token:string){
- // Do not bring previous school's student names, grades, roll calls or old TODAY dates.
- const requests:Dict[]=[
+function freshTabRequests(newId:number,title:string,schoolName:string):Dict[]{
+ return [
   {repeatCell:{range:{sheetId:newId,startRowIndex:7,endRowIndex:70,startColumnIndex:0,endColumnIndex:9},cell:{},fields:"userEnteredValue"}},
   {repeatCell:{range:{sheetId:newId,startRowIndex:7,endRowIndex:70,startColumnIndex:79,endColumnIndex:98},cell:{},fields:"userEnteredValue"}},
   {repeatCell:{range:{sheetId:newId,startRowIndex:7,endRowIndex:70,startColumnIndex:9,endColumnIndex:79},
@@ -333,15 +332,17 @@ async function cleanClonedTab(id:string,newId:number,title:string,schoolName:str
   {repeatCell:{range:{sheetId:newId,startRowIndex:7,startColumnIndex:7,endColumnIndex:8,endRowIndex:70},
     cell:{userEnteredFormat:{horizontalAlignment:"CENTER"}},fields:"userEnteredFormat.horizontalAlignment"}}
  ];
- await sheetBatch(id,requests,token);
+}
+async function cleanClonedTab(id:string,newId:number,title:string,schoolName:string,token:string){
+ await sheetBatch(id,freshTabRequests(newId,title,schoolName),token);
 }
 async function cloneClassTab(id:string,template:Dict,className:string,schoolName:string,token:string){
- const create=await sheetBatch(id,[{duplicateSheet:{
-   sourceSheetId:template.id,newSheetName:className
- }}],token);
- const newId=create?.replies?.[0]?.duplicateSheet?.properties?.sheetId;
- if(!Number.isInteger(newId))throw fail("Google không trả về ID tab mới.",502);
- await cleanClonedTab(id,newId,className,schoolName,token);
+ // Atomic duplicate + clearing: a failed cleanup must not leave a visible tab
+ // containing another classroom's pupil data.
+ const newId=Math.floor(100000000+Math.random()*1900000000);
+ await sheetBatch(id,[{duplicateSheet:{
+   sourceSheetId:template.id,newSheetId:newId,newSheetName:className
+ }},...freshTabRequests(newId,className,schoolName)],token);
  return newId;
 }
 async function writeScheduleFromWeb(db:any,link:Dict,map:Dict,token:string){
