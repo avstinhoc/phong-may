@@ -56,15 +56,26 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
   (async()=>{
    setBusy('auto');setError('');setMessage('Đang tự đối chiếu lớp và dữ liệu học sinh với Google Sheets...');
    try{
-    const data=await api({action:'auto_sync_school'});
+    let offset=0,checked=0,added=0,written=0,created=0,issues=0,allErrors=[];
+    // Small server batches keep the free-tier Edge Function within time limits.
+    for(let batch=0;batch<24&&!cancelled;batch++){
+      const data=await api({action:'auto_sync_school',offset});
+      checked+=data.classesChecked||0;
+      created+=(data.createdTabs||[]).length;
+      added+=(data.report||[]).reduce((n,r)=>n+(r.addedStudents||0),0);
+      written+=(data.report||[]).reduce((n,r)=>n+(r.cellsWritten||0),0);
+      issues+=(data.errors||[]).length+(data.report||[]).reduce((n,r)=>n+(r.conflicts?.length||0),0);
+      allErrors.push(...(data.errors||[]));
+      setMessage('Đang đồng bộ '+checked+'/'+(data.totalClasses||checked)+' lớp · '+created+' tab mới...');
+      if(data.nextOffset===null||data.nextOffset===undefined)break;
+      if(data.nextOffset<=offset)throw Error('Tiến trình đồng bộ bị lặp, đã dừng để bảo vệ dữ liệu.');
+      offset=data.nextOffset;
+    }
     if(cancelled)return;
-    const added=(data.report||[]).reduce((n,r)=>n+(r.addedStudents||0),0);
-    const written=(data.report||[]).reduce((n,r)=>n+(r.cellsWritten||0),0);
-    const issues=(data.errors||[]).length+(data.report||[]).reduce((n,r)=>n+(r.conflicts?.length||0),0);
-    setMessage('Đã đối chiếu '+(data.classesChecked||0)+' lớp · '+(data.createdTabs?.length||0)+' tab mới · '+added+' học sinh mới · '+written+' ô cập nhật'+(issues?' · '+issues+' mục cần rà soát':'')+'.');
-    if(issues)setError((data.errors||[]).slice(0,4).join(' | '));
+    setMessage('Đã đối chiếu '+checked+' lớp · '+created+' tab mới · '+added+' học sinh mới · '+written+' ô cập nhật'+(issues?' · '+issues+' mục cần rà soát':'')+'.');
+    if(issues)setError(allErrors.slice(0,4).join(' | ')||'Có '+issues+' khác biệt dữ liệu cần kiểm tra trước khi ghi đè.');
     await load();
-    if(added||data.createdTabs?.length){
+    if(added||created){
       autoSyncedForRef.current=link.id+':'+(rosterVersion+1);
       onSynced?.();
     }
