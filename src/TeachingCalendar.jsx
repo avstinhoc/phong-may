@@ -4,7 +4,7 @@ const key=d=>[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.ge
 const dtext=s=>new Date(s+'T12:00:00').toLocaleDateString('vi-VN');
 const weekday=['Thứ Hai','Thứ Ba','Thứ Tư','Thứ Năm','Thứ Sáu','Thứ Bảy','Chủ nhật'];
 const endTime=row=>String(row.end_time||'').slice(0,5);
-export function TeachingCalendar({rows=[],focusDate,onDateChange,school,teacher}){
+export function TeachingCalendar({rows=[],focusDate,onDateChange,school,teacher,onLessonSelect=null,selectedLessonId=''}){
  const focus=new Date((focusDate||key(new Date()))+'T12:00:00');
  const monday=new Date(focus);monday.setDate(focus.getDate()-(focus.getDay()+6)%7);
  const days=Array.from({length:7},(_,i)=>{const d=new Date(monday);d.setDate(monday.getDate()+i);return d;});
@@ -39,16 +39,29 @@ export function TeachingCalendar({rows=[],focusDate,onDateChange,school,teacher}
         {days.map(d=>{const date=key(d);
           const lessons=slot.time?visible.filter(r=>r.session_date===date&&timeValue(r)===slot.time):[];
           return <td key={date+slot.key} className={(date===key(new Date())?'cal-today ':'')+(!lessons.length?'cal-open-slot':'cal-filled-slot')}>
-            {lessons.length?lessons.map((r,i)=><div key={r.id||date+'-'+slot.time+'-'+i} className={'cal-grid-lesson '+period.id}>
-              <strong>{r.class_name}</strong>
-              <small>{timeValue(r)} – {endTime(r)}</small>
-              <small>{r.period_count||1} tiết{r.teacher_name&&r.teacher_name!==teacher?' · GV '+r.teacher_name:''}</small>
-            </div>):<span className="cal-slot-placeholder" aria-label="Không có lớp tại khung giờ này">—</span>}
+            {lessons.length?lessons.map((r,i)=>{
+              const detail=<>
+                <strong>{r.class_name}</strong>
+                <small>{timeValue(r)} – {endTime(r)}</small>
+                <small>{r.period_count||1} tiết{r.teacher_name&&r.teacher_name!==teacher?' · GV '+r.teacher_name:''}</small>
+              </>;
+              return onLessonSelect?
+                <button type="button" key={r.id||date+'-'+slot.time+'-'+i}
+                  className={'cal-grid-lesson cal-grid-lesson-button '+period.id+(selectedLessonId===r.id?' selected':'')}
+                  aria-pressed={selectedLessonId===r.id}
+                  aria-label={'Điểm danh lớp '+r.class_name+' ngày '+dtext(r.session_date)+' lúc '+timeValue(r)}
+                  onClick={()=>onLessonSelect(r)}>
+                  {detail}<small className="cal-lesson-action">{selectedLessonId===r.id?'Đang điểm danh':'Nhấn để điểm danh'}</small>
+                </button>:
+                <div key={r.id||date+'-'+slot.time+'-'+i} className={'cal-grid-lesson '+period.id}>{detail}</div>;
+            }):<span className="cal-slot-placeholder" aria-label="Không có lớp tại khung giờ này">—</span>}
           </td>;
         })}
       </tr>))}</tbody>
     </table>
   </div>
-  <p className="muted">Các ngày dùng chung hàng khung giờ. Ô chưa có lớp được để trống, kể cả giữa hai tiết; nhãn “Tiết trống” chỉ biểu thị khoảng cách và không tự tạo giờ học mới. Lịch từng trường vẫn giữ nguyên giờ bắt đầu/kết thúc thực tế.</p>
+  <p className="muted">{onLessonSelect?
+      "Bấm trực tiếp vào tiết học trên thời khóa biểu để mở danh sách điểm danh lớp đó ở ngay bên dưới. Ô trống không tạo buổi học mới.":
+      "Các ngày dùng chung hàng khung giờ. Ô chưa có lớp được để trống, kể cả giữa hai tiết; nhãn “Tiết trống” chỉ biểu thị khoảng cách và không tự tạo giờ học mới. Lịch từng trường vẫn giữ nguyên giờ bắt đầu/kết thúc thực tế."}</p>
  </section>;
 }
