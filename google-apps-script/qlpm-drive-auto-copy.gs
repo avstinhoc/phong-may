@@ -73,7 +73,7 @@ function doPost(e) {
     if (body.root_id !== ROOT_FOLDER_ID || body.template_id !== TEMPLATE_SHEET_ID)
       throw new Error('Cấu hình thư mục/file mẫu không khớp.');
     const data = [String(body.ts), body.nonce, body.school_id, filename,
-      ROOT_FOLDER_ID, TEMPLATE_SHEET_ID].join('\n');
+      ROOT_FOLDER_ID, TEMPLATE_SHEET_ID].join('|');
     if (!safeEqual_(body.signature, sign_(data, secret)))
       throw new Error('Chữ ký xác thực không hợp lệ.');
 
