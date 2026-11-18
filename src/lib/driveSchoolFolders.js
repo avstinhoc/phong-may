@@ -7,5 +7,5 @@ export function parseDriveFolderUrl(value){
  return match[1];
 }
 export function schoolFolderSuggestedName(name){
- return ('QLPM - '+String(name||'Trường').trim()).slice(0,140);
+ return String(name||'Trường').trim().slice(0,140);
 }
