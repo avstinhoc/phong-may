@@ -16,9 +16,8 @@ export function SchoolManager({ schools, workplaces=[],workplaceSchools=[], onCr
     setName("");onCreated(data);
     const linked=await provisionSchoolWorkbook(supabase,data);
     setBusy(false);
-    if(linked.ok)ping("Đã tạo trường và chuẩn bị file Sheets riêng.");
-    else ping("Đã tạo trường. Sheets chưa tự sao chép: "+linked.message+
-      " Bạn vẫn có thể dán link bản sao trong Danh sách học sinh.");
+    if(linked.ok)ping("Đã tạo trường và có thể sử dụng Google Sheets chung.");
+    else ping("Đã tạo trường. "+linked.message);
   }
   async function rename(e) {
     e.preventDefault();
