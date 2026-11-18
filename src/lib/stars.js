@@ -27,7 +27,7 @@ export const FIRE_TIERS = [
  {min:56, label:'Lửa hồng đậm',color:'#ec3774',core:'#ffc8b7',size:24.1,glow:14.0},
  {min:60, label:'Lửa hồng neon',color:'#e33591',core:'#ffd0df',size:24.5,glow:14.8},
  {min:64, label:'Lửa tím hồng',color:'#d633b0',core:'#ffd2f7',size:24.9,glow:15.6},
- {min:68, label:'Lửa tím sen',color:'#c434c8',core:'#fbc3ff',size:25.4,glow:16.4},
+ {min:68, label:'Lửa tím sen',color:'#9b08bd',core:'#ec31ef',size:25.4,glow:16.4},
  {min:72, label:'Lửa tím sáng',color:'#9a0dc5',core:'#ed3ef5',size:25.9,glow:17.1},
  {min:76, label:'Lửa tím neon',color:'#7906ce',core:'#d637f4',size:26.3,glow:17.9},
  {min:80, label:'Lửa tím đậm',color:'#6503c9',core:'#c12afb',size:26.8,glow:18.7},
