@@ -65,24 +65,19 @@ async function googleToken(){
  return cache.token;
 }
 const idSafe=(id:string)=>/^[A-Za-z0-9_-]{25,160}$/.test(id);
-// A workbook is a private school boundary even when the school names match.
-// A user's RLS query cannot see other teachers' links, so check only on server.
+// Workbook security is scoped to the actual school UUID, not the teacher account.
+// Different schools must not reuse the same sheet, even if the names match.
 async function assertExclusiveWorkbook(url:string,link:Dict){
  const secret=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
- if(!secret)throw fail("Máy chủ chưa bật kiểm tra an toàn Google Sheets. Báo quản trị viên.",503);
+ if(!secret)throw fail("Thiếu cấu hình xác thực Google Sheets trên máy chủ.",503);
  const admin=createClient(url,secret,{auth:{persistSession:false,autoRefreshToken:false}});
- const {data,error}=await admin.from("school_sheet_links").select("id,created_at")
-    .eq("spreadsheet_id",link.spreadsheet_id).eq("status","verified")
-    .order("created_at",{ascending:true}).order("id",{ascending:true}).limit(1);
- if(error)throw fail("Không kiểm tra được quyền sở hữu file Google Sheets.",503);
- // Allow only the earliest verified link to continue. Later duplicate links
- // must make their own copy; another teacher's mistake cannot lock the owner out.
- if(data?.length&&data[0].id!==link.id)throw fail(
-   "File Google Sheets này đang được liên kết với hồ sơ trường khác. "+
-   "Để không trộn học sinh và điểm danh, mỗi giáo viên/trường phải dùng file riêng. "+
-   "Mở file mẫu → Tệp → Tạo bản sao, rồi dán link bản sao vào trường này.",409);
+ const {data,error}=await admin.from("school_sheet_links").select("id,school_id,created_at")
+   .eq("spreadsheet_id",link.spreadsheet_id).eq("status","verified")
+   .order("created_at",{ascending:true}).order("id",{ascending:true}).limit(1);
+ if(error)throw fail("Không kiểm tra được quyền liên kết Google Sheets.",503);
+ if(data?.length&&data[0].school_id!==link.school_id)throw fail(
+   "File Google Sheets này đã được xác minh cho trường khác. Hãy dùng mẫu trống tạo bản sao mới cho trường này.",409);
 }
-
 async function metadata(id:string,token:string){
  const url="https://sheets.googleapis.com/v4/spreadsheets/"+id+"?fields=spreadsheetId,properties(title),sheets(properties(sheetId,title,gridProperties))";
  return await (await api(url,token)).json();
@@ -481,16 +476,15 @@ Deno.serve(async(req:Request)=>{
    const {data:school}=await db.from("schools").select("id,name").eq("id",schoolId).maybeSingle();
    if(!school)throw fail("Không tìm thấy trường.",404);
    const {data:existing}=await db.from("school_sheet_links").select("id,spreadsheet_id")
-    .eq("school_id",schoolId).eq("owner_id",ownerId).maybeSingle();
+    .eq("school_id",schoolId).maybeSingle();
    if(existing)return respond(200,{success:true,alreadyLinked:true,spreadsheetId:existing.spreadsheet_id},origin);
-   // Service Accounts cannot create a file in a personal My Drive.
-   // Manual copies keep ownership with the teacher and prevent accidental writes.
-   throw fail("Hãy mở file Sheets mẫu bằng Google của bạn → Tệp → Tạo bản sao, chia sẻ bản sao cho email Service Account (Editor), rồi dán link bản sao vào mục Liên kết Google Sheets.",409);
+   // A standalone service account cannot create teacher-owned files in personal My Drive.
+    throw fail("Mở nút Tạo file Google Sheets của trường để sao chép mẫu trống vào Drive, cấp quyền Editor cho Service Account và gắn link bản sao. Không cần OAuth cho Sheets.",409);
   }
   const linkId=clean(payload.link_id);
   if(!/^[a-f0-9-]{36}$/i.test(linkId))throw fail("Thiếu ID liên kết trường.");
   const {data:link,error:linkErr}=await db.from("school_sheet_links").select("*")
-   .eq("id",linkId).eq("owner_id",ownerId).maybeSingle();
+   .eq("id",linkId).maybeSingle();
   if(linkErr||!link)throw fail("Không có quyền quản lý liên kết này.",403);
   if(!idSafe(link.spreadsheet_id))throw fail("Mã Google Sheets không hợp lệ.");
   await assertExclusiveWorkbook(url,link);

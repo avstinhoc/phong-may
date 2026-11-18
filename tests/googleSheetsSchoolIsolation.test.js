@@ -4,27 +4,40 @@ import {readFileSync} from 'node:fs';
 
 const server=readFileSync(new URL('../supabase/functions/google-sheets-sync/index.ts',import.meta.url),'utf8');
 const ui=readFileSync(new URL('../src/SheetsConnectionPanel.jsx',import.meta.url),'utf8');
+const migration=readFileSync(new URL('../supabase/migrations/20261118093000_shared_google_sheets_per_school.sql',import.meta.url),'utf8');
 
-test('cross-school workbook collision checked server-side before any Google Sheets call',()=>{
+test('shared Google Sheets requires the same real school UUID, never just matching school names',()=>{
  assert.ok(server.includes('async function assertExclusiveWorkbook(url:string,link:Dict)'));
  assert.ok(server.includes('SUPABASE_SERVICE_ROLE_KEY'));
  assert.ok(server.includes('.eq("status","verified")'));
- assert.ok(server.includes('data[0].id!==link.id'));
+ assert.ok(server.includes('data[0].school_id!==link.school_id'));
  assert.ok(server.includes('order("created_at"'));
  assert.ok(server.indexOf('await assertExclusiveWorkbook(url,link)')<server.indexOf('const token=await googleToken();',server.indexOf('await assertExclusiveWorkbook(url,link)')));
- assert.ok(server.includes('mỗi giáo viên/trường phải dùng file riêng'));
+ assert.ok(server.includes('.eq("id",linkId).maybeSingle()'));
+ assert.ok(!server.includes('.eq("id",linkId).eq("owner_id",ownerId)'));
 });
-
-test('new schools do not silently reuse private reference workbook',()=>{
- assert.ok(!ui.includes('setUrl(profile.school_name?.toLocaleLowerCase'));
- assert.ok(ui.includes("setUrl('')"));
- assert.ok(ui.includes('Mỗi giáo viên/trường có file Google Sheets riêng.'));
+test('school-level RLS allows only authorized staff to use a shared workbook',()=>{
+ assert.ok(migration.includes('school_sheet_links_one_per_school'));
+ assert.ok(migration.includes('public.can_access_school(school_id)'));
+ assert.ok(migration.includes('public.can_access_school(l.school_id)'));
+ assert.ok(migration.includes('owner_id=(select auth.uid()) or public.is_admin()'));
+ assert.ok(migration.includes('new.spreadsheet_id'));
+ assert.ok(migration.includes('protect_shared_school_sheet_link'));
 });
-
-test('Service Account workflow offers Google copy and editor access without OAuth',()=>{
- assert.ok(ui.includes('Tạo bản sao Google Sheets'));
- assert.ok(ui.includes('ic3-sheets-sync@qlpm-ic3.iam.gserviceaccount.com'));
- assert.ok(ui.includes('sourceCopyId'));
+test('source template is fixed and cannot be saved as a live school workbook',()=>{
+ assert.ok(ui.includes('1zxht2Ft4mr6DEkycI--wXqZJbXLRJ-8iHtVc64horpM'));
+ assert.ok(ui.includes('/copy?title='));
+ assert.ok(ui.includes('suggestedTitle'));
+ assert.ok(ui.includes('Tạo file Google Sheets của trường'));
+ assert.ok(ui.includes('Dán link bản sao'));
  assert.ok(ui.includes('Người chỉnh sửa (Editor)'));
+ assert.ok(ui.includes('ic3-sheets-sync@qlpm-ic3.iam.gserviceaccount.com'));
+ assert.ok(ui.includes('if(id===EMPTY_SCHOOL_TEMPLATE_ID)'));
  assert.ok(!ui.includes('Quyền Google:'));
+});
+test('other school teachers see shared link instead of a private personal link',()=>{
+ assert.ok(ui.includes(".select('*').eq('school_id',profile.school_id).maybeSingle()"));
+ assert.ok(ui.includes('const canManageLink='));
+ assert.ok(ui.includes('Dùng chung cho giáo viên tại'));
+ assert.ok(!ui.includes(".eq('owner_id',profile.id).eq('school_id',profile.school_id)"));
 });

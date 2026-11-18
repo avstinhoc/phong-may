@@ -4,6 +4,7 @@ import { supabase, configurationError, authMessage, isEmailSendLimit } from "./l
 import { SchoolManager, Accounts, TimetableImport } from "./Management";
 import { WorkplaceManager } from "./WorkplaceManager";
 import { StudentRoster } from "./StudentRoster";
+import { StudentEvaluation } from "./StudentEvaluation";
 import { StudentPortal } from "./StudentPortal";
 import { AuthCallback, emailCallbackUrl } from "./AuthCallback";
 import { startGoogleAuth, googleOAuthError } from "./lib/googleAuth";
@@ -262,7 +263,7 @@ function App() {
           {page === "attendance" && isTeacher && <Attendance profile={profile} refresh={refresh} reload={reload} ping={ping} focusDate={calendarDate} setFocusDate={setCalendarDate} onImported={async(date,name)=>{setCalendarDate(date);const {data,error}=await supabase.rpc("create_my_school",{school_name:name});if(!error)setSchoolId(data);reload();}} />}
           {page === "records" && isTeacher && <Records profile={profile} refresh={refresh} reload={reload} ping={ping} />}
           {page === "cleaning" && isTeacher && <Cleaning profile={profile} refresh={refresh} reload={reload} ping={ping} />}
-          {page === "evaluation" && <Evaluation profile={profile} refresh={refresh} reload={reload} ping={ping} />}
+          {page === "evaluation" && <StudentEvaluation profile={profile} refresh={refresh} reload={reload} ping={ping} />}
           </>}
         </div>
         <footer>IC3 GS6 Computer Lab <span>•</span> Dữ liệu được lưu trên Supabase</footer>
@@ -1595,117 +1596,6 @@ function Cleaning({profile,refresh,reload,ping}){
         <small>{visibleLogs.filter(l=>l.computer_id===p.id).slice(0,2).map(l=>dateText(l.cleaning_date)+' · '+(l.status==='done'?'Đã làm':'Chưa làm')).join(' | ')||'Chưa có lịch'}</small>
       </article>)}</div>
     </div>}
-  </>;
-}
-
-function Evaluation({ profile, refresh, reload, ping }) {
-  const students = useRows("students", profile, refresh);
-  const records = useRows("student_records", profile, refresh);
-  const attendance = useRows("attendance", profile, refresh);
-  const [classFilter,setClassFilter]=useState(""),[nameFilter,setNameFilter]=useState("");
-  const filteredStudents=students.rows.filter(s=>(!classFilter||s.class_name===classFilter)&&searchName(s.full_name).includes(searchName(nameFilter)));
-  const [selected, setSelected] = useState("");
-  const [commentEdit, setCommentEdit] = useState("");
-
-  const target = students.rows.find(s => s.id === selected);
-
-  const evalData = useMemo(() => {
-    if (!target) return null;
-    const r = records.rows.filter(x => x.student_id === target.id);
-    const score = r.filter(x => x.record_type === "point" || x.record_type === "reward")
-      .reduce((a, b) => a + Number(b.points || 0), 0);
-    const violations = r.filter(x => x.record_type === "violation");
-    const rewards = r.filter(x => x.record_type === "reward");
-    const studentAttendance = attendance.rows.filter(x => x.student_id === target.id);
-    const abs = studentAttendance.filter(x => x.status === "absent").length;
-    const present = studentAttendance.filter(x => ["present", "late"].includes(x.status)).length;
-    const attendanceRate = studentAttendance.length
-      ? Math.round(present / studentAttendance.length * 100)
-      : null;
-
-    let level = "Đang cập nhật";
-    let comment = "Chưa có đủ dữ liệu để đưa ra nhận xét đáng tin cậy.";
-
-    if (r.length || studentAttendance.length) {
-      if (score >= 8 && violations.length <= 1 && abs === 0 &&
-        (attendanceRate === null || attendanceRate >= 90)) {
-        level = "Tốt";
-        comment = "Có ý thức học tập tích cực, kết quả ghi nhận tốt và chấp hành nội quy. Tiếp tục phát huy tinh thần chủ động trong các bài thực hành.";
-      } else if (score >= 3 && violations.length <= 3 &&
-        (attendanceRate === null || attendanceRate >= 70)) {
-        level = "Khá";
-        comment = "Có sự tham gia và tiến bộ trong quá trình học. Cần duy trì việc luyện tập, chú ý nội quy và hoàn thành nhiệm vụ đúng thời hạn.";
-      } else {
-        level = "Cần cố gắng";
-        comment = "Cần tăng cường luyện tập, chủ động hỏi khi gặp khó khăn và chú ý hơn đến nội quy phòng máy. Giáo viên nên trao đổi trực tiếp để hỗ trợ phù hợp.";
-      }
-    }
-
-    return {
-      score,
-      violations: violations.length,
-      rewards: rewards.length,
-      abs,
-      present,
-      attendanceRate,
-      level,
-      comment
-    };
-  }, [target, records.rows, attendance.rows]);
-
-  useEffect(() => {
-    setCommentEdit(evalData?.comment || "");
-  }, [selected, evalData?.comment]);
-
-  async function save() {
-    if (!target || !evalData) return;
-    const { error } = await supabase.from("student_evaluations").insert({
-      school_id: profile.school_id,
-      student_id: target.id,
-      period_label: "Đánh giá " + today(),
-      level: evalData.level,
-      comment: commentEdit,
-      metrics: evalData,
-      created_by: profile.id
-    });
-    if (error) ping(error.message);
-    else { ping("Đã lưu nhận xét"); reload(); }
-  }
-
-  return <>
-    <SectionHead title="Đánh giá học sinh" desc="Tạo nhận xét tự động dựa trên điểm, vi phạm, thưởng và chuyên cần" />
-    <div className="panel eval-panel">
-      <div className="form-row"><label>Lọc theo lớp<select value={classFilter} onChange={e=>{setClassFilter(e.target.value);setSelected("");}}><option value="">Tất cả lớp</option>{[...new Set(students.rows.map(s=>s.class_name).filter(Boolean))].sort().map(c=><option key={c}>{c}</option>)}</select></label><label>Tìm tên học sinh<input value={nameFilter} onChange={e=>{setNameFilter(e.target.value);setSelected("");}} placeholder="Nhập tên, có dấu hoặc không dấu"/></label></div>
-      <label>Chọn học sinh
-        <select value={selected} onChange={e => setSelected(e.target.value)}>
-          <option value="">Chọn học sinh cần đánh giá</option>
-          {filteredStudents.map(s => <option key={s.id} value={s.id}>{s.full_name} – {s.class_name}</option>)}
-        </select>
-      </label>
-
-      {target && evalData && <>
-        <div className="eval-profile">
-          <div className="avatar big">{target.full_name.slice(0, 1)}</div>
-          <div><h2>{target.full_name}</h2><p>{target.class_name} · {target.school_name}</p></div>
-          <span className="status active">{evalData.level}</span>
-        </div>
-
-        <div className="metrics-grid compact">
-          <Metric label="Điểm tích lũy" value={evalData.score} sub="Điểm và thưởng" Icon={Award} />
-          <Metric label="Lỗi ghi nhận" value={evalData.violations} sub="Số lần vi phạm" Icon={AlertTriangle} tone="orange" />
-          <Metric label="Lượt khen thưởng" value={evalData.rewards} sub="Ghi nhận tích cực" Icon={Sparkles} tone="purple" />
-          <Metric label="Buổi vắng" value={evalData.abs} sub="Theo dữ liệu điểm danh" Icon={CalendarDays} tone="blue" />
-          <Metric label="Chuyên cần" value={evalData.attendanceRate === null ? "Chưa có" : evalData.attendanceRate + "%"} sub={`${evalData.present} lượt có mặt/đi muộn`} Icon={UserCheck} tone="green" />
-        </div>
-
-        <div className="ai-comment">
-          <div><Sparkles /> <b>Nhận xét tự động – giáo viên có thể chỉnh sửa</b></div>
-          <textarea rows="5" value={commentEdit} onChange={e => setCommentEdit(e.target.value)} />
-          <small>Đây là đánh giá theo quy tắc dựa trên dữ liệu hiện có, không phải mô hình AI tạo sinh. Giáo viên cần xem lại trước khi lưu.</small>
-        </div>
-        <button className="btn primary" onClick={save}>Lưu nhận xét vào hồ sơ</button>
-      </>}
-    </div>
   </>;
 }
 

@@ -1,16 +1,10 @@
-// A school record must never be rolled back because Google Drive creation fails.
-// Service accounts require access to a Shared Drive folder to own new workbooks;
-// personal My Drive users can still paste a manually copied workbook link.
+// Service Accounts cannot own newly copied files in teachers' personal My Drive.
+// New schools show a guided Google /copy flow in Danh sách học sinh, not a doomed API call.
 export async function provisionSchoolWorkbook(supabase,schoolId){
- const {data,error}=await supabase.functions.invoke('google-sheets-sync',{
-  body:{action:'provision_school',school_id:schoolId}
- });
- if(error){
-  let msg=error.message||'Không thể sao chép file Sheets';
-  try{const response=await error.context?.json?.();msg=response?.error||msg;}catch{}
-  return {ok:false,message:msg};
- }
- if(data?.error)return {ok:false,message:data.error};
- if(!data?.success)return {ok:false,message:'Google chưa xác nhận việc tạo Sheets.'};
- return {ok:true,spreadsheetId:data.spreadsheetId,alreadyLinked:!!data.alreadyLinked};
+ if(!schoolId)return {ok:false,message:'Chưa chọn trường học.'};
+ const {data,error}=await supabase.from('school_sheet_links')
+  .select('spreadsheet_id').eq('school_id',schoolId).maybeSingle();
+ if(error)return {ok:false,message:error.message};
+ if(data?.spreadsheet_id)return {ok:true,alreadyLinked:true,spreadsheetId:data.spreadsheet_id};
+ return {ok:false,manual:true,message:'Vào Danh sách học sinh → Liên kết Google Sheets → Tạo file Google Sheets của trường. Sau khi xác nhận bản sao trên Google, cấp quyền Editor cho Service Account và dán liên kết.'};
 }

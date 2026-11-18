@@ -94,8 +94,7 @@ export function WorkplaceManager({profile,schools=[],workplaces=[],links=[],ping
    );
    if(linkError)throw new Error('Trường đã tạo nhưng chưa gắn với đơn vị: '+linkError.message);
    const linked=await provisionSchoolWorkbook(supabase,schoolId);
-   if(!linked.ok)ping('Trường đã tạo nhưng chưa sao chép được Sheets: '+linked.message+
-    '. Bạn có thể dán link bản sao vào Danh sách học sinh.');
+   if(!linked.ok)ping('Trường đã tạo. '+linked.message);
    setNewSchoolNames(values=>({...values,[unit.id]:''}));
   },'Đã thêm trường '+newName+' vào '+unit.name);
  }
