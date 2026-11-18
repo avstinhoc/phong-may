@@ -1257,3 +1257,121 @@
 .student-portal .portal-pc{border-radius:1rem;border-top:4px solid #149787}
 .student-portal .pc-broken{border-top-color:#d97544}
 .fire-frame .star-flame{filter:hue-rotate(var(--fire-hue));padding:0;background:transparent}
+
+
+/* QLPM Flame Streak V2: nine distinctive, scalable fire colors + full PC frame. */
+.qlpm-flame{
+ display:inline-flex;align-items:center;justify-content:center;
+ vertical-align:middle;flex:none;width:var(--flame-size,24px);height:calc(var(--flame-size,24px)*1.25);
+ margin-inline:3px;color:var(--flame-color,#f49b29);
+ filter:drop-shadow(0 1px 5px color-mix(in srgb,var(--flame-color,#ff922b) 60%,transparent));
+ transform-origin:50% 90%;animation:qlpmFlameDance var(--flame-speed,1.5s) ease-in-out infinite alternate;
+}
+.qlpm-flame--compact{width:calc(var(--flame-size,24px)*.82);height:var(--flame-size,24px)}
+.qlpm-flame svg{display:block;width:100%;height:100%;overflow:visible}
+.qlpm-flame-outer{fill:var(--flame-color,#ff922b)}
+.qlpm-flame-inner{fill:var(--flame-core,#ffeca0)}
+.qlpm-flame--gray{filter:grayscale(1) drop-shadow(0 1px 2px #84929e77);animation:qlpmGrayEmber 2.8s ease-in-out infinite}
+.qlpm-flame--cooling{animation-duration:2.3s;opacity:.86}
+@keyframes qlpmFlameDance{from{transform:rotate(-5deg) scale(.98)}to{transform:rotate(5deg) scale(1.18) translateY(-2px)}}
+@keyframes qlpmGrayEmber{0%,100%{opacity:.52;transform:scale(.96)}50%{opacity:.85;transform:scale(1.04)}}
+
+/* Applied to the WHOLE teacher PC, public class PC, and reward podium tile. */
+.flame-pc{
+ position:relative;isolation:isolate;overflow:visible;
+ border:2px solid var(--flame-color,#ff922b)!important;
+ border-radius:16px!important;
+ background:linear-gradient(145deg,#fff 50%,color-mix(in srgb,var(--flame-color) 7%,white))!important;
+ box-shadow:0 0 var(--flame-glow,9px) color-mix(in srgb,var(--flame-color) 44%,transparent),
+  0 14px 30px color-mix(in srgb,var(--flame-color) 13%,transparent)!important;
+ transition:box-shadow .35s ease,border-color .35s ease,background .35s ease;
+}
+.flame-pc::before{
+ content:"";position:absolute;inset:-5px;z-index:0;
+ border:3px solid transparent;border-radius:inherit;pointer-events:none;
+ background:linear-gradient(120deg,transparent 4%,var(--flame-color),var(--flame-core),transparent 68%,var(--flame-color)) border-box;
+ background-size:280% 280%;
+ -webkit-mask:linear-gradient(#fff 0 0) padding-box,linear-gradient(#fff 0 0);
+ -webkit-mask-composite:xor;mask-composite:exclude;
+ animation:qlpmFrameGlide 3.7s ease-in-out infinite;
+}
+.flame-pc>*{position:relative;z-index:1}
+.flame-pc--tier-5::before,.flame-pc--tier-6::before,
+.flame-pc--tier-7::before,.flame-pc--tier-8::before,.flame-pc--tier-9::before{animation-duration:2.6s}
+.flame-pc--tier-7,.flame-pc--tier-8,.flame-pc--tier-9{border-width:3px!important}
+.flame-pc--gray{
+ background:linear-gradient(145deg,#fff,#f2f4f6)!important;
+ border-color:#a3acb6!important;box-shadow:0 0 6px #96a1ac44!important;
+}
+.flame-pc--gray::before{background:linear-gradient(120deg,#e1e6eb,#9aa7b2,#e7eef1);animation:qlpmGrayEmber 3s ease-in-out infinite}
+.flame-pc--cooling::before{animation-duration:6s;opacity:.65}
+@keyframes qlpmFrameGlide{
+ 0%,100%{background-position:0 45%;opacity:.78}
+ 50%{background-position:100% 55%;opacity:1}
+}
+.computer-card.flame-pc{border-radius:16px;min-height:250px}
+.student-portal .portal-pc.flame-pc{border-top-width:3px!important;outline-offset:5px}
+.student-portal .portal-pc.seat-found{outline:3px solid #0a968a;scroll-margin:110px}
+.portal-pupil-pill{display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap}
+.star-wallet.flame-pc,.portal-star-rank.flame-pc{overflow:visible}
+.star-wallet .star-streak-state{display:block;flex:1 1 100%;font-size:11px;line-height:1.4;color:#607b82}
+.star-wallet .flame-restore-button{flex:1 1 100%;color:#626e7b;border:1px solid #c7d2dc;background:#f1f5f8;font-weight:700}
+.star-wallet>strong{display:flex;align-items:center;gap:3px}
+.portal-star-rank .qlpm-flame{margin-left:4px}
+
+/* Compact student page: machine finder first, personal result details on demand. */
+.student-portal .portal-content{gap:13px}
+.student-portal .portal-hero{padding:24px 28px;min-height:180px}
+.student-portal .portal-search-compact{padding:16px 18px}
+.portal-search-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+.portal-search-heading h3{margin:0!important;font-size:15px}
+.portal-search-heading p{margin:4px 0 0;font-size:11px}
+.portal-search-spinner{font-size:11px;color:#168f82}
+.portal-seat-inline{margin:0!important;display:flex;flex-wrap:wrap;align-items:end}
+.portal-seat-inline .portal-seat-label{min-width:170px;flex:1 1 200px;font-size:11px;font-weight:700}
+.portal-seat-inline input{height:41px;padding:10px 12px;border:1px solid #cfe1e3;border-radius:9px;width:100%}
+.portal-seat-inline button{height:41px}
+.portal-seat-inline output{flex:1 1 100%;min-height:20px;color:#176d63;font-size:11px}
+.portal-private-lookup{border-top:1px solid #e1ecea;margin-top:11px;padding-top:11px}
+.portal-private-lookup>summary{cursor:pointer;display:flex;align-items:center;gap:8px;color:#256d68;font-weight:750;font-size:12px;list-style:none}
+.portal-private-lookup>summary::-webkit-details-marker{display:none}
+.portal-private-lookup>summary small{margin-left:auto;font-size:10px;font-weight:500;color:#809b9a}
+.portal-private-lookup>summary::before{content:"▸";color:#0b988b}
+.portal-private-lookup[open]>summary::before{content:"▾"}
+.portal-form--private{grid-template-columns:minmax(0,1fr) auto;align-items:end;margin-top:11px}
+.portal-private-lookup .muted{font-size:10px;line-height:1.5;margin:10px 0 0}
+.portal-star-collapsible{background:linear-gradient(110deg,#fffef8,#edf9f5);padding:15px 18px}
+.portal-rank-summary{cursor:pointer;display:flex;gap:12px;align-items:center;justify-content:space-between;list-style:none}
+.portal-rank-summary::-webkit-details-marker{display:none}
+.portal-rank-summary>span:first-child{font-size:15px;color:#1b554e;font-weight:850}
+.portal-rank-summary>small{font-size:11px;font-weight:600;color:#866026;margin-left:auto}
+.portal-rank-arrow{font-size:18px;color:#0c8b7d;transition:transform .2s}
+.portal-star-collapsible[open] .portal-rank-arrow{transform:rotate(180deg)}
+.portal-star-collapsible>.muted{margin:11px 0;font-size:11px}
+.portal-star-collapsible .portal-star-grid{margin-top:12px}
+
+/* Floating refresh sits RIGHT NEXT to the back-to-top arrow. */
+.portal-floating-actions{position:fixed;bottom:18px;right:18px;display:flex;align-items:center;gap:9px;z-index:40}
+.portal-float-action{
+ border:1px solid #c4e3dc;background:linear-gradient(145deg,#0b746e,#0f9e88);color:#fff;
+ width:48px;height:48px;border-radius:14px;cursor:pointer;font-size:24px;font-weight:850;
+ box-shadow:0 7px 18px #0a565337;transition:transform .2s,box-shadow .2s;
+}
+.portal-float-action:hover{transform:translateY(-3px);box-shadow:0 10px 24px #0a565351}
+.portal-float-action:disabled{opacity:.55;cursor:wait}
+.portal-floating-actions+.portal-footer{padding-bottom:50px}
+@media(max-width:760px){
+ .student-portal .portal-hero{padding:20px}
+ .portal-star-collapsible{padding:13px}
+ .portal-rank-summary{flex-wrap:wrap;gap:7px}
+ .portal-rank-summary>small{margin-left:0;flex:1 1 100%;order:3}
+ .portal-form--private{grid-template-columns:1fr}
+ .portal-private-lookup>summary{flex-wrap:wrap}
+ .portal-private-lookup>summary small{margin-left:0}
+ .portal-floating-actions{right:12px;bottom:12px}
+ .portal-float-action{height:44px;width:44px}
+}
+@media(prefers-reduced-motion:reduce){
+ .qlpm-flame,.flame-pc::before{animation:none!important}
+ .portal-float-action{transition:none}
+}

@@ -14,7 +14,8 @@ import { ReportsCenter } from "./ReportsCenter";
 import { HelpAssistant } from "./HelpAssistant";
 import { ProfileSettings } from "./ProfileSettings";
 import { properName, searchName, comparePC, compareStudentName } from "./lib/students";
-import {fireStyle,groupedHistory,isFormalViolation} from "./lib/stars";
+import {fireStyle,flameEffect,groupedHistory,isFormalViolation} from "./lib/stars";
+import {FlameBadge} from "./FlameBadge";
 import { normalizeComputerCode,validFullName } from "./lib/registration";
 import {pendingRegistrationsForClass,nextFriendRegistration,canConfirmFlaggedName} from "./lib/studentRegistrationUI";
 import {buildIncidentReportHtml} from "./lib/incidentReportHtml";
@@ -1033,8 +1034,11 @@ function Computers({ profile, refresh, reload, ping }) {
         const users = classAssignments.filter(a => a.computer_id === c.id && a.active);
         const machineViolationCount=users.reduce((total,a)=>
           total+records.rows.filter(r=>r.student_id===a.student_id&&isFormalViolation(r)).length,0);
+        const machineFlame=users.map(a=>flameEffect(wallets.rows.find(w=>w.student_id===a.student_id)))
+          .filter(fx=>fx.visible).sort((a,b)=>a.tier-b.tier||(['gray','cooling','active'].indexOf(a.state)-['gray','cooling','active'].indexOf(b.state))).at(-1);
         return (
-          <div className={`computer-card ${["maintenance","broken"].includes(c.status) ? "maintenance" : users.length ? "occupied" : ""}`} key={c.id}>
+          <div className={`computer-card ${["maintenance","broken"].includes(c.status) ? "maintenance" : users.length ? "occupied" : ""} ${machineFlame?.className||""}`}
+             style={machineFlame?.style} key={c.id}>
             <div className="pc-top">
               <Monitor size={22} />
               <span className={`status ${["maintenance","broken"].includes(c.status) ? "pending" : users.length ? "active" : "free"}`}>
@@ -1053,10 +1057,10 @@ function Computers({ profile, refresh, reload, ping }) {
                   return count?<small key={a.student_id}>{full.trim().split(/\s+/).slice(-2).join(" ")}: {count} lỗi</small>:null;
                 })}
               </div>}
-              {users.length ? users.map(a => { const wallet=wallets.rows.find(w=>w.student_id===a.student_id); const effect=fireStyle(wallet?.effect_score); return (
+              {users.length ? users.map(a => { const wallet=wallets.rows.find(w=>w.student_id===a.student_id); return (
                 <div className="pc-user-row" key={a.id}>
-                  <span className={effect?'fire-frame':''} style={effect}>• {(students.rows.find(s => s.id === a.student_id)?.full_name || "Học sinh").trim().split(/\s+/).slice(-2).join(" ")}
-                   {wallet&&<b> ⭐ {wallet.available}{effect&&<span className="star-flame">🔥</span>}</b>}</span>
+                  <span>• {(students.rows.find(s => s.id === a.student_id)?.full_name || "Học sinh").trim().split(/\s+/).slice(-2).join(" ")}
+                   {wallet&&<b> ⭐ {wallet.available} <FlameBadge wallet={wallet} compact/></b>}</span>
                   <button className="mini-btn danger" onClick={() => release(a)}>Gỡ</button>
                   {records.rows.filter(r=>r.student_id===a.student_id && isFormalViolation(r)).slice(-3).map(r=><small className="negative" key={r.id}>{r.title}</small>)}
                 </div>
@@ -1425,8 +1429,9 @@ function Records({ profile, refresh, reload, ping }) {
     }
   }
   async function redeemOneStar(st){
-    const amount=Number(amounts[st.id]??1);
-    if(redeemBusy||!Number.isSafeInteger(amount)||amount<1||amount>st.stars.available)return ping('Kiểm tra số sao muốn đổi.');
+    const amount=Number(amounts[st.id]??2);
+    if(redeemBusy||!Number.isSafeInteger(amount)||amount<2||amount>st.stars.available)
+      return ping('Đổi quà tối thiểu 2 sao, không vượt số dư hiện có.');
     if(!window.confirm('Đổi '+amount+' sao của '+st.full_name+' lấy quà?'))return;
     setRedeemBusy(st.id);
     const {error}=await supabase.rpc('ic3_redeem_student_stars',{
@@ -1560,14 +1565,21 @@ function Records({ profile, refresh, reload, ping }) {
         <p>⭐ Sao hiện có được dùng để đổi thưởng; sao đã kiếm vẫn được giữ để xếp hạng theo lớp.</p></div>
         <span className="status active">{leaderboard.length} học sinh</span></div>
       <div className="star-wallet-grid">
-        {leaderboard.map((st,i)=><article className={'star-wallet '+(fireStyle(st.stars.effect_score)?'fire-frame':'')} style={fireStyle(st.stars.effect_score)} key={st.id}>
+        {leaderboard.map((st,i)=><article className={'star-wallet '+(flameEffect(st.stars).visible?flameEffect(st.stars).className:'')} style={fireStyle(st.stars)} key={st.id}>
           <span className="star-place">{i===0?'🥇':i===1?'🥈':i===2?'🥉':'#'+(i+1)}</span>
           <div className="star-wallet-label"><b>{st.full_name} </b><small>Lớp {st.class_name} · Đã kiếm {st.stars.earned} ⭐</small></div>
-          <strong>⭐ {st.stars.available} {fireStyle(st.stars.effect_score)&&<span className="star-flame">🔥</span>}</strong>
-          <label>Số sao muốn đổi<input type="number" min="1" step="1" max={st.stars.available} value={amounts[st.id]??1}
+          <strong>⭐ {st.stars.available} <FlameBadge wallet={st.stars}/></strong>
+          <label>Số sao muốn đổi (ít nhất 2)<input type="number" min="2" step="1" max={Math.max(2,st.stars.available)} value={amounts[st.id]??2}
             onChange={e=>setAmounts(old=>({...old,[st.id]:e.target.value}))}/></label>
-          {st.stars.can_restore&&<button disabled={!!redeemBusy} onClick={()=>restore(st)}>Phục hồi lửa ({st.stars.chances} lượt)</button>}
-          <button type="button" className="mini-btn success" disabled={!!redeemBusy||st.stars.available<1} onClick={()=>redeemOneStar(st)}>
+          {st.stars.can_restore&&<button type="button" className="mini-btn flame-restore-button"
+            disabled={!!redeemBusy} onClick={()=>restore(st)}>↻ Khôi phục lửa xám · Còn {st.stars.chances}/3 lượt (không hoàn sao)</button>}
+          {st.stars.earned>=20&&<small className="star-streak-state">
+            {st.stars.flame_state==='gray'?'Lửa đang xám, cần khôi phục hoặc kiếm sao.':
+             st.stars.flame_state==='cooling'?'Lửa đang yếu dần – hãy kiếm sao để giữ chuỗi.':
+             st.stars.flame_state==='off'?'Khung đã tắt do mất chuỗi.':
+             'Đang giữ chuỗi · '+(st.stars.inactivity_days??0)+' ngày kể từ lần cộng sao.'}
+          </small>}
+          <button type="button" className="mini-btn success" disabled={!!redeemBusy||st.stars.available<2} onClick={()=>redeemOneStar(st)}>
             {redeemBusy===st.id?'Đang đổi…':'Xác nhận đổi quà'}
           </button>
         </article>)}
