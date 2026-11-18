@@ -130,3 +130,50 @@
 @media(max-width:900px){.school-three-grades{grid-template-columns:1fr 1fr}.school-grade-board:last-child{grid-column:1/-1}.school-class-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.school-showcase-decoration{font-size:70px;margin-right:5px}}
 @media(max-width:640px){.school-public-header{padding:10px 12px;gap:7px;flex-wrap:wrap}.school-public-brand>b{font-size:13px}.school-public-brand small{font-size:7px}.school-public-nav{order:3;width:100%;justify-content:space-between;gap:0}.school-public-nav>a{font-size:11px;padding:7px 8px}.school-header-refresh{font-size:11px}.school-public-main{padding:15px 12px 70px}.school-showcase{padding:21px;border-radius:19px;min-height:190px}.school-showcase-decoration{display:none}.school-showcase h1{font-size:26px}.school-main-standings{padding:20px 12px;border-radius:18px}.school-standings-heading h2{font-size:19px}.school-standings-trophy{font-size:31px}.school-three-grades{grid-template-columns:1fr}.school-grade-board:last-child{grid-column:auto}.school-class-grid{grid-template-columns:1fr}.school-podium-row{min-width:1020px}.school-class-index input{min-width:210px}.school-public-footer{flex-direction:column}.school-public-footer small{text-align:left}.school-public-main section[id]{scroll-margin-top:125px}.school-class-section{scroll-margin-top:125px}}
 @media(prefers-reduced-motion:reduce){.school-class-card,.school-podium-card{transition:none}}
+
+
+/* Navigation refresh: clearer, colorful, finger-friendly school header tabs. */
+.school-public-header{gap:clamp(16px,2.2vw,42px);min-height:84px;padding-top:13px;padding-bottom:13px}
+.school-public-nav{gap:clamp(10px,1.4vw,23px);flex:1;justify-content:center}
+.school-public-nav>a{
+ display:inline-flex;align-items:center;justify-content:center;gap:7px;
+ border:1.5px solid #ffffff80;min-height:46px;
+ padding:12px clamp(15px,1.55vw,26px);border-radius:14px;
+ font-size:15px;font-weight:850;letter-spacing:.15px;
+ box-shadow:0 3px 10px #043d462a;
+ transition:transform .15s ease,box-shadow .15s ease,background .15s ease;
+}
+.school-public-nav>a:hover,.school-public-nav>a:focus-visible{
+ transform:translateY(-2px);box-shadow:0 7px 16px #032e3940;
+ outline-offset:3px;color:#fff;
+}
+.school-public-nav .school-nav-rank{background:#f7d663;color:#603f09;border-color:#ffe59d}
+.school-public-nav .school-nav-rank:hover{background:#ffdfa1;color:#603f09}
+.school-public-nav .school-nav-grade8{background:#a64deb;color:#fff;border-color:#ce8fff}
+.school-public-nav .school-nav-grade8:hover{background:#bb66f4}
+.school-public-nav .school-nav-grade7{background:#277bc4;color:#fff;border-color:#7db8f1}
+.school-public-nav .school-nav-grade7:hover{background:#4393d9}
+.school-public-nav .school-nav-grade6{background:#e4802d;color:#fff;border-color:#ffc58c}
+.school-public-nav .school-nav-grade6:hover{background:#ef954f}
+.school-header-refresh{font-size:13px;padding:13px 16px;min-height:46px}
+.school-class-card{display:flex;flex-direction:column}
+.school-class-card-top{margin-bottom:3px}
+.school-class-open--solo{margin-top:auto;justify-content:center;gap:12px;padding:14px 16px;font-size:13px;border:1px solid #0c968c;box-shadow:0 5px 13px #0f95872b}
+.school-class-open--solo:hover{background:#067c75;box-shadow:0 8px 17px #067c7540}
+.school-class-open--solo span{margin-left:auto}
+.school-class-card>p{margin:0 0 18px}
+.school-class-grid{grid-auto-rows:1fr}
+@media(max-width:1130px){
+ .school-public-header{flex-wrap:wrap;gap:12px}
+ .school-public-nav{order:3;flex:1 1 100%;gap:9px;justify-content:space-between}
+ .school-public-nav>a{padding:10px 14px;font-size:13px;flex:1}
+}
+@media(max-width:640px){
+ .school-public-header{min-height:80px;padding:10px 12px;gap:10px}
+ .school-public-nav{order:3;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;flex:1 1 100%}
+ .school-public-nav>a{min-height:42px;padding:9px 3px;font-size:10px;letter-spacing:0;line-height:1.15;text-align:center;border-radius:10px;white-space:normal}
+ .school-header-refresh{min-height:40px;padding:9px 11px;font-size:11px}
+ .school-public-main section[id]{scroll-margin-top:152px}
+ .school-class-section{scroll-margin-top:152px}
+}
+@media(prefers-reduced-motion:reduce){.school-public-nav>a{transition:none}}
