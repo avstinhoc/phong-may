@@ -280,7 +280,7 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
   {open&&<div className="sheets-link-content">
    {!profile.school_id?<p className="notice-box">Hãy chọn trường công tác ở menu trái trước khi liên kết.</p>:<>
 
-    <section className="sheets-folder-setup">
+    <section className="sheets-folder-setup" hidden>
      <div className="sheets-folder-head">
       <strong>Thư mục Google Drive chung: QLPM</strong>
       <span className={'sheets-folder-status '+(rootFolder?'ready':'pending')}>
@@ -332,7 +332,7 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
     </div>}
     {error&&<div className="sheets-link-error" role="alert"><strong>Chưa thực hiện được:</strong> {error}</div>}
     {message&&<div className="sheets-link-message" role="status">{message}</div>}
-    {link&&<details className="sheets-fixed-date-guide">
+    {link&&<details className="sheets-fixed-date-guide" hidden>
       <summary>Ghi ngày học cố định trong Google Sheets (B1–B70)</summary>
       <p>File mẫu đang dùng <code>TODAY()</code> nên ngày cũ thay đổi mỗi ngày.
       Cài đoạn Apps Script miễn phí một lần cho file: <b>Tiện ích mở rộng → Apps Script</b> → dán mã → <b>Lưu</b>.
