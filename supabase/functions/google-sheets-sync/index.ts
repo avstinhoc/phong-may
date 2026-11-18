@@ -458,7 +458,7 @@ async function syncSchool(db:any,link:Dict,token:string,ownerId:string,offset=0)
    const existing=await getMap(db,link.id,name);
    let fresh=false;
    if(!sheet){
-    const template=tabs.find(t=>t.title===link.template_tab)||tabs.find(t=>classroomName(t.title));
+    const template=tabs.find(t=>t.title===link.template_tab)||tabs.find(t=>t.title==="Gốc")||tabs.find(t=>classroomName(t.title));
     if(!template){errors.push("Thiếu tab mẫu để tạo "+name);continue;}
     const id=await cloneClassTab(link.spreadsheet_id,template,name,school.name,token);
     sheet={id,title:name};tabs.push(sheet);fresh=true;created.push(name);
@@ -633,10 +633,13 @@ Deno.serve(async(req:Request)=>{
     if(usedErr)throw fail("Không kiểm tra được trùng file giữa các trường.",503);
     if(usedBy?.length)throw fail("File Sheets đã được liên kết cho một trường khác. Không được dùng chung giữa các trường.",409);
     const sheetMeta=await metadata(spreadsheetId,token);
+    const detectedTemplate=(sheetMeta.sheets||[]).some((s:Dict)=>s.properties?.title==="Gốc")?
+      "Gốc":(sheetMeta.sheets||[]).some((s:Dict)=>s.properties?.title==="6.1")?"6.1":
+      (sheetMeta.sheets||[])[0]?.properties?.title||"Gốc";
     const {data:inserted,error:insertErr}=await admin.from("school_sheet_links")
       .insert({school_id:schoolId,owner_id:ownerId,spreadsheet_id:spreadsheetId,
         spreadsheet_title:clean(sheetMeta.properties?.title).slice(0,180),
-        template_tab:"6.1",status:"verified",auto_sync:true,
+        template_tab:detectedTemplate,status:"verified",auto_sync:true,
         last_checked_at:new Date().toISOString()})
       .select("id,spreadsheet_id").single();
     if(insertErr){
