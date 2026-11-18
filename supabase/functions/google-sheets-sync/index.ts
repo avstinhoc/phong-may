@@ -868,6 +868,9 @@ Deno.serve(async(req:Request)=>{
    const ordinal=Number((map.lesson_columns||{})[sessionId]);
    if(!Number.isInteger(rowNo)||rowNo<8||rowNo>70||!Number.isInteger(ordinal)||ordinal<1||ordinal>70)
      throw fail("Chưa ghép dòng học sinh hoặc buổi học với Sheets.",409);
+   const shared=await workbookPeerLinks(link);
+   if(!await sharedClassWriteAllowed(shared.admin,link,shared.peers,student.class_name))
+    throw fail("Lớp do hồ sơ trường khác cùng tên quản lý; không được ghi đè điểm danh.",409);
    const rows=await readTab(link.spreadsheet_id,map.sheet_title,token);
    if(normalize((rows[rowNo-5]||[])[2])!==normalize(student.full_name))
      throw fail("Dòng học sinh trong Sheets đã đổi, cần kiểm tra lại trước khi ghi.",409);
@@ -913,6 +916,9 @@ Deno.serve(async(req:Request)=>{
   }
   const className=clean(payload.class_name);
   if(!validClass(className))throw fail("Tên lớp không hợp lệ.");
+  const shared=await workbookPeerLinks(link);
+  if(!await sharedClassWriteAllowed(shared.admin,link,shared.peers,className))
+   throw fail("Lớp do hồ sơ khác cùng trường quản lý, không được ghi đè Google Sheets.",409);
   const meta=await metadata(link.spreadsheet_id,token);
   const tabs=(meta.sheets||[]).map((s:Dict)=>({id:s.properties.sheetId,title:s.properties.title}));
   if(action==="clone"){
