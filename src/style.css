@@ -1175,3 +1175,27 @@
 @media(max-width:1210px){.evaluation-v2-shell{grid-template-columns:minmax(0,1fr)}.evaluation-v2-aside{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.evaluation-v2-privacy{grid-column:1/-1}}
 @media(max-width:780px){.evaluation-v2-hero{padding:21px;gap:14px}.evaluation-v2-hero-pill{display:none}.evaluation-v2-orb{width:48px;height:48px;border-radius:13px}.evaluation-v2-stats{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:550px){.evaluation-v2-hero{align-items:flex-start}.evaluation-v2-orb{display:none}.evaluation-v2-panel{padding:14px}.evaluation-v2-filters{grid-template-columns:1fr}.evaluation-v2-filters label:last-child:nth-child(3){grid-column:auto}.evaluation-v2-aside{display:flex}.evaluation-v2-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.evaluation-v2-controls .btn{flex:1 1 auto}.evaluation-v2-source{width:100%}.evaluation-v2-profile{flex-wrap:wrap}.evaluation-v2-level{margin-left:0}}
+
+
+/* QLPM school Drive folder: permission inheritance onboarding. */
+.sheets-folder-setup{background:#f6fbff;border:1px solid #cfdfe8;border-radius:13px;padding:16px;
+ display:flex;flex-direction:column;gap:12px;margin:14px 0;color:#3a606c;font-size:11.5px;line-height:1.75}
+.sheets-folder-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.sheets-folder-head strong{font-size:13px;color:#164b59}
+.sheets-folder-status{border:1px solid #dbdfdc;border-radius:999px;padding:4px 10px;
+ font-size:10px;font-weight:800;white-space:nowrap}
+.sheets-folder-status.ready{color:#117362;background:#e0f6ed;border-color:#bce9d7}
+.sheets-folder-status.pending{color:#986433;background:#fff5e8;border-color:#edd3ae}
+.sheets-folder-setup p{margin:0;line-height:1.8}
+.sheets-folder-setup ol{padding-left:22px;margin:0;display:grid;gap:8px}
+.sheets-folder-setup a{text-decoration:underline;font-weight:700;color:#127c7c}
+.sheets-folder-setup code{font-size:10.5px;user-select:all;overflow-wrap:anywhere}
+.sheets-folder-fields{display:flex;flex-wrap:wrap;align-items:end;gap:9px}
+.sheets-folder-fields label{display:flex;flex-direction:column;gap:6px;flex:1 1 310px;font-weight:700;color:#37636d}
+.sheets-folder-fields input{width:100%;min-height:40px;border:1px solid #c9dee7;border-radius:9px;
+ padding:10px 12px;font-size:12px;background:#fff;outline:none}
+.sheets-folder-fields input:focus{border-color:#0a9689;box-shadow:0 0 0 3px #0e978916}
+.sheets-folder-fields .btn{min-height:40px}
+.sheets-folder-setup small{font-size:10.5px;line-height:1.7;color:#6b878d}
+@media(max-width:700px){.sheets-folder-setup{padding:13px}.sheets-folder-fields label{flex:1 1 100%}
+ .sheets-folder-fields .btn{flex:1 1 100%}}
