@@ -17,9 +17,10 @@ test('teacher sees quick Mất trật tự (−2 sao), no Ngắt chuỗi option'
 });
 
 test('high-tier flame colors remain bold and grow gradually',()=>{
- const colors=FIRE_TIERS.filter(t=>t.min>=72);
+ const colors=FIRE_TIERS.filter(t=>t.min>=68);
+ assert.equal(flameEffect({earned:70,effect_score:70,flame_state:'active'}).style['--flame-color'],'#9b08bd');
  assert.equal(FIRE_TIERS.length,27);
- assert.equal(colors.length,14);
+ assert.equal(colors.length,15);
  for(const tier of colors){
   const fx=flameEffect({earned:tier.min,effect_score:tier.min,flame_state:'active'});
   assert.equal(fx.style['--flame-color'],tier.color);
