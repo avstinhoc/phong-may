@@ -13,7 +13,7 @@ test('accept only native Google Drive folder URLs, not Sheet links or arbitrary 
  assert.equal(parseDriveFolderUrl('https://drive.google.com/drive/u/0/folders/'+id+'?usp=sharing'),id);
  assert.throws(()=>parseDriveFolderUrl('https://docs.google.com/spreadsheets/d/'+id+'/edit'));
  assert.throws(()=>parseDriveFolderUrl('https://malicious.test/drive/folders/'+id));
- assert.equal(schoolFolderSuggestedName('THCS Duy Tân'),'QLPM - THCS Duy Tân');
+ assert.equal(schoolFolderSuggestedName('THCS Duy Tân'),'THCS Duy Tân');
 });
 
 test('server checks school membership, folder editor access, file parent and file edit access',()=>{
@@ -47,4 +47,30 @@ test('website guides a school teacher through one-time folder sharing then movin
  assert.ok(ui.includes('schoolFolder?.folder_name'));
  assert.ok(ui.includes('setSchoolFolder(folderData||null)'));
  assert.ok(ui.includes('Dán link bản sao &amp; liên kết'));
+});
+
+const rootMigration=readFileSync(new URL('../supabase/migrations/20261118114600_qlpm_drive_root.sql',import.meta.url),'utf8');
+
+test('QLPM Drive structure is root → individual school folder → spreadsheet',()=>{
+ assert.ok(rootMigration.includes('create table if not exists public.qlpm_drive_root'));
+ assert.ok(rootMigration.includes('enable row level security'));
+ assert.ok(rootMigration.includes('grant select on public.qlpm_drive_root to authenticated'));
+ assert.ok(edge.includes('action==="register_qlpm_root"'));
+ assert.ok(edge.includes('profile.role!=="admin"'));
+ assert.ok(edge.includes('info.parents?.includes(qlpmRoot.folder_id)'));
+ assert.ok(edge.includes('folderInfo.parents?.includes(qlpmRoot.folder_id)'));
+ assert.ok(edge.includes('actualSchoolFolder.parents?.includes(rootGuard.folder_id)'));
+ assert.ok(ui.includes('Bước 1 · Thư mục cha chung: QLPM – Google Sheets'));
+ assert.ok(ui.includes('Bước 2 · Thư mục con: {profile.school_name}'));
+ assert.ok(ui.includes('Bước 3 · Tạo file Google Sheets của trường từ mẫu trống'));
+ assert.ok(ui.includes('register_qlpm_root'));
+});
+
+test('root is admin-only to configure, existing school links remain intact',()=>{
+ assert.ok(rootMigration.includes('grant select on public.qlpm_drive_root to authenticated'));
+ assert.ok(!rootMigration.includes('grant insert on public.qlpm_drive_root to authenticated'));
+ assert.ok(edge.includes('if(profile.role!=="admin")throw fail('));
+ assert.ok(edge.includes('if(existingChild?.length)throw fail('));
+ assert.ok(ui.includes('Liên kết Google Sheets'));
+ assert.ok(ui.includes('File Sheets đã liên kết trước đây vẫn được giữ nguyên'));
 });
