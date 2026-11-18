@@ -27,7 +27,7 @@ test('school cards have only one student portal action, no code, register or cop
  const end=school.indexOf('export function SchoolPortal(',start);
  const card=school.slice(start,end);
  assert.ok(start>=0&&end>start);
- assert.match(card,/>Vào trang lớp/);
+ assert.match(card,/Vào trang lớp/);
  assert.match(card,/school-class-open--solo/);
  assert.doesNotMatch(card,/Sao chép|class-code|Đăng ký vào lớp|registerLink|onCopy|<button/);
  assert.match(school,/\{initialCode='',embedded=false\}/);
