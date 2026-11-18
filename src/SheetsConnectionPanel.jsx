@@ -3,6 +3,7 @@ import {supabase} from './lib/supabase';
 import {parseSheetUrl,validateSheetTabName,mapLessonsInOrder,validateLessonMapping} from './lib/googleSheetTemplate';
 import {replaceExistingTopLeftLogo} from './lib/replaceExcelLogo';
 import {fixedDateScript} from './lib/sheetDateScript';
+import {parseDriveFolderUrl,schoolFolderSuggestedName} from './lib/driveSchoolFolders';
 
 const labelDate=v=>String(v||'').split('-').reverse().join('/');
 const SHEETS_EDITOR_EMAIL='ic3-sheets-sync@qlpm-ic3.iam.gserviceaccount.com';
@@ -19,12 +20,15 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
   [busy,setBusy]=useState(''),[error,setError]=useState(''),[message,setMessage]=useState(''),
   [selectedClass,setSelectedClass]=useState(''),[tabName,setTabName]=useState(''),
   [newClass,setNewClass]=useState(''),[templateTab,setTemplateTab]=useState('6.1'),
-  [preview,setPreview]=useState(null),[mapping,setMapping]=useState({});
+  [preview,setPreview]=useState(null),[mapping,setMapping]=useState({}),
+  [schoolFolder,setSchoolFolder]=useState(null),[folderUrl,setFolderUrl]=useState('');
  const autoSyncedForRef=useRef('');
  const autoInspectedForRef=useRef('');
  const currentTab=bindings.find(x=>x.class_name===selectedClass);
  const canManageLink=!link||link.owner_id===profile.id||profile.role==='admin';
+ const canChangeFolder=!schoolFolder||schoolFolder.configured_by===profile.id||profile.role==='admin';
  const suggestedTitle=('DS ĐIỂM DANH '+String(profile.school_name||'TRƯỜNG').toLocaleUpperCase('vi')).slice(0,110);
+ const suggestedFolder=schoolFolderSuggestedName(profile.school_name);
  const sourceCopyUrl='https://docs.google.com/spreadsheets/d/'+EMPTY_SCHOOL_TEMPLATE_ID+
   '/copy?title='+encodeURIComponent(suggestedTitle);
  const classSessions=useMemo(()=>sessions.filter(x=>x.class_name===selectedClass)
@@ -32,6 +36,11 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
    String(a.start_time).localeCompare(String(b.start_time))),[sessions,selectedClass]);
  async function load(){
   if(!profile.school_id)return;
+  const {data:folderData,error:folderError}=await supabase.from('school_drive_folders')
+    .select('*').eq('school_id',profile.school_id).maybeSingle();
+  if(folderError)throw folderError;
+  setSchoolFolder(folderData||null);
+  setFolderUrl(folderData?'https://drive.google.com/drive/folders/'+folderData.folder_id:'');
   const {data:linkData,error:linkError}=await supabase.from('school_sheet_links')
    .select('*').eq('school_id',profile.school_id).maybeSingle();
   if(linkError)throw linkError;
@@ -141,32 +150,43 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
   try{await callback();}catch(e){setError(e.message||String(e));}
   finally{setBusy('');}
  }
+ async function callSchoolDrive(action,extra={}){
+  const {data,error:callError}=await supabase.functions.invoke('google-sheets-sync',{
+   body:{action,school_id:profile.school_id,...extra}
+  });
+  if(callError)throw Error(await getMessage(callError));
+  if(data?.error)throw Error(data.error);
+  return data;
+ }
+ async function saveSchoolFolder(){
+  if(!canChangeFolder)throw Error('Thư mục trường do người khác quản lý. Hãy nhờ người tạo hoặc Admin thay đổi.');
+  const folderId=parseDriveFolderUrl(folderUrl);
+  const data=await callSchoolDrive('register_school_folder',{folder_id:folderId});
+  await load();
+  setMessage('Đã kiểm tra quyền Editor của Service Account trên thư mục '+(data.folder?.folder_name||'trường')+'. File mới trong thư mục kế thừa quyền này.');
+ }
  async function persistSchoolCopy(nextUrl){
   const id=parseSheetUrl(nextUrl);
-  if(id===EMPTY_SCHOOL_TEMPLATE_ID)throw Error('Đây là file mẫu; cần lấy link của bản sao mới.');
+  if(id===EMPTY_SCHOOL_TEMPLATE_ID)throw Error('Không được gắn file mẫu. Hãy tạo bản sao dành cho trường.');
+  if(!schoolFolder)throw Error('Hãy tạo thư mục trường và kiểm tra quyền Editor trước. File bản sao cần được chuyển vào thư mục.');
   if(link){
-   if(link.spreadsheet_id!==id)throw Error('Trường đã có Sheets dùng chung. Hãy hỏi chủ liên kết hoặc Admin trước khi đổi file.');
-   setMessage('File này đã được liên kết cho trường.');return;
+   if(link.spreadsheet_id!==id)throw Error('Trường đã có một file Sheets chung. Không tạo link thứ hai.');
+   setMessage('Trường đã liên kết file này rồi.');return;
   }
-  const {error}=await supabase.from('school_sheet_links').insert({
-   school_id:profile.school_id,owner_id:profile.id,spreadsheet_id:id,
-   template_tab:'6.1',status:'unverified',auto_sync:true
-  });
-  if(error){
-   if(error.code==='23505'){await load();throw Error('Đồng nghiệp vừa liên kết Sheets cho trường. Hãy dùng file chung đã hiển thị.');}
-   throw error;
-  }
-  setUrl(nextUrl);await load();
-  setMessage('Đã gắn file cho trường. Đang tự động kiểm tra quyền truy cập...');
+  const data=await callSchoolDrive('link_school_workbook',{spreadsheet_id:id});
+  await load();
+  setMessage(data.alreadyLinked?'Trường đã liên kết file này.':
+   'Đã kiểm tra file nằm trong thư mục của trường, quyền Editor hợp lệ và đã bật đồng bộ cho trường.');
  }
  async function saveLink(){
-  if(!canManageLink)throw Error('Chỉ chủ liên kết hoặc Admin được thay đổi file Sheets của trường.');
+  if(!canManageLink)throw Error('Chỉ chủ liên kết hoặc Admin được thay đổi file của trường.');
   await persistSchoolCopy(url);
  }
  async function pasteNewSchoolCopy(){
-  if(!navigator.clipboard?.readText)throw Error('Không tự đọc được clipboard. Hãy dán link vào ô đường dẫn rồi bấm Lưu liên kết.');
+  if(!navigator.clipboard?.readText)throw Error('Không tự đọc được clipboard. Hãy dán link bản sao vào ô đường dẫn.');
   let copied;
-  try{copied=await navigator.clipboard.readText();}catch{throw Error('Hãy cho phép đọc clipboard hoặc dán link Google Sheets mới vào ô trên.');}
+  try{copied=await navigator.clipboard.readText();}
+  catch{throw Error('Trình duyệt chưa cho phép đọc clipboard. Dán link vào ô Sheets và bấm Lưu liên kết.');}
   await persistSchoolCopy(copied.trim());
  }
  async function disconnect(){
