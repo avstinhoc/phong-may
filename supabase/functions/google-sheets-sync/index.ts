@@ -480,6 +480,32 @@ Deno.serve(async(req:Request)=>{
   const payload=await req.json().catch(()=>null);
   if(!payload||typeof payload!=="object")throw fail("Yêu cầu không hợp lệ.");
   const action=clean(payload.action);
+  if(action==="register_qlpm_root"){
+   if(profile.role!=="admin")throw fail("Chỉ Admin được thiết lập thư mục Drive cha QLPM.",403);
+   const rootId=clean(payload.folder_id);
+   if(!/^[A-Za-z0-9_-]{20,160}$/.test(rootId))throw fail("Link thư mục cha Google Drive không hợp lệ.",400);
+   const secret=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+   if(!secret)throw fail("Máy chủ thiếu cấu hình quản lý thư mục.",503);
+   const admin=createClient(url,secret,{auth:{persistSession:false,autoRefreshToken:false}});
+   const {data:existingRoot,error:rootError}=await admin.from("qlpm_drive_root")
+      .select("folder_id").eq("id",1).maybeSingle();
+   if(rootError)throw fail("Không đọc được cấu hình thư mục cha.",503);
+   if(existingRoot&&existingRoot.folder_id!==rootId){
+    const {data:existingChild,error:childErr}=await admin.from("school_drive_folders")
+       .select("school_id").limit(1);
+    if(childErr)throw fail("Không kiểm tra được thư mục trường.",503);
+    if(existingChild?.length)throw fail("Đã có thư mục trường. Không thể thay thư mục cha khi chưa chuyển toàn bộ thư mục trường.",409);
+   }
+   const token=await googleToken();
+   const info=await driveFileInfo(rootId,token);
+   ensureDriveFolder(info);
+   const {data:stored,error:storeErr}=await admin.from("qlpm_drive_root")
+      .upsert({id:1,folder_id:rootId,folder_name:clean(info.name).slice(0,180),
+       configured_by:ownerId,verified_at:new Date().toISOString()},{onConflict:"id"})
+      .select("folder_id,folder_name,verified_at").single();
+   if(storeErr)throw fail("Không lưu được thư mục cha: "+storeErr.message,409);
+   return respond(200,{success:true,root:stored},origin);
+  }
   if(action==="provision_school"){
    const schoolId=clean(payload.school_id);
    if(!/^[a-f0-9-]{36}$/i.test(schoolId))throw fail("Không có ID trường mới.",400);
@@ -512,6 +538,12 @@ Deno.serve(async(req:Request)=>{
       .select("*").eq("school_id",schoolId).maybeSingle();
    if(folderReadError)throw fail("Không đọc được cấu hình thư mục trường.",503);
    const token=await googleToken();
+   const {data:qlpmRoot,error:rootReadError}=await admin.from("qlpm_drive_root")
+     .select("folder_id,folder_name").eq("id",1).maybeSingle();
+   if(rootReadError)throw fail("Không đọc được cấu hình thư mục cha QLPM.",503);
+   if(!qlpmRoot)throw fail("Admin cần tạo thư mục cha QLPM – Google Sheets và cấp quyền Editor cho Service Account một lần trước khi thêm thư mục trường.",409);
+   const rootInfo=await driveFileInfo(qlpmRoot.folder_id,token);
+   ensureDriveFolder(rootInfo);
    if(action==="register_school_folder"){
     const folderId=clean(payload.folder_id);
     if(!/^[A-Za-z0-9_-]{20,160}$/.test(folderId))throw fail("Link thư mục Google Drive không hợp lệ.",400);
@@ -520,6 +552,8 @@ Deno.serve(async(req:Request)=>{
       throw fail("Thư mục trường đã có người quản lý; hãy nhờ người cấu hình hoặc Admin đổi thư mục.",403);
     const info=await driveFileInfo(folderId,token);
     ensureDriveFolder(info);
+    if(!info.parents?.includes(qlpmRoot.folder_id))
+      throw fail("Thư mục trường phải nằm trực tiếp bên trong QLPM – Google Sheets. Hãy di chuyển thư mục "+clean(info.name)+" vào thư mục cha rồi kiểm tra lại.",409);
     const {data:existingLink}=await admin.from("school_sheet_links").select("id,spreadsheet_id")
       .eq("school_id",schoolId).maybeSingle();
     if(existingLink&&(!existingFolder||existingFolder.folder_id!==folderId)){
@@ -542,6 +576,8 @@ Deno.serve(async(req:Request)=>{
    if(!existingFolder)throw fail("Hãy tạo và kiểm tra thư mục Drive của trường trước khi liên kết Sheets.",409);
    const folderInfo=await driveFileInfo(existingFolder.folder_id,token);
    ensureDriveFolder(folderInfo);
+   if(!folderInfo.parents?.includes(qlpmRoot.folder_id))
+    throw fail("Thư mục trường không còn nằm trong QLPM – Google Sheets. Hãy chuyển trở lại thư mục cha.",409);
    const spreadsheetId=clean(payload.spreadsheet_id);
    if(!idSafe(spreadsheetId))throw fail("Link Sheets bản sao không hợp lệ.",400);
    if(spreadsheetId==="1zxht2Ft4mr6DEkycI--wXqZJbXLRJ-8iHtVc64horpM")
@@ -587,6 +623,12 @@ Deno.serve(async(req:Request)=>{
     .select("folder_id").eq("school_id",link.school_id).maybeSingle();
   if(folderGuardError)throw fail("Không xác minh được thư mục Drive của trường.",503);
   if(folderGuard){
+    const {data:rootGuard,error:rootGuardErr}=await db.from("qlpm_drive_root")
+      .select("folder_id").eq("id",1).maybeSingle();
+    if(rootGuardErr||!rootGuard)throw fail("Thiếu thư mục cha QLPM – Google Sheets.",409);
+    const actualSchoolFolder=await driveFileInfo(folderGuard.folder_id,token);
+    if(!actualSchoolFolder.parents?.includes(rootGuard.folder_id))
+      throw fail("Thư mục trường không còn nằm trong thư mục cha QLPM.",409);
     const activeFile=await driveFileInfo(link.spreadsheet_id,token);
     if(activeFile.mimeType!==SHEET_MIME||activeFile.trashed||
        !activeFile.parents?.includes(folderGuard.folder_id)||activeFile.capabilities?.canEdit!==true)
