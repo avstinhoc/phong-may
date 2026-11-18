@@ -89,4 +89,6 @@ test('Sheets UI has one primary creation action and omits obsolete setup accordi
  assert.ok(!ui.includes('Admin · Cấu hình tự động tạo file lần đầu'));
  assert.ok(!ui.includes('Nếu chưa cấu hình Apps Script: Tạo và gắn link thủ công'));
  assert.ok(!ui.includes('<b>QLPM</b> chứa file mẫu'));
+ assert.ok(edge.includes('if(rootErr)throw fail("Máy chủ không đọc được cấu hình thư mục QLPM.'));
+ assert.ok(edge.includes('if(!root)throw fail("Chưa đăng ký thư mục QLPM dùng chung.'));
 });
