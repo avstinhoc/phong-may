@@ -139,7 +139,7 @@ export function StudentRoster({profile,refresh,ping}){
  }
  return <section className="panel roster"><h2>Danh sách học sinh</h2><p className="muted">Cấu trúc theo mẫu: hồ sơ, điểm danh theo buổi, điểm kiểm tra và nhận xét. Ô trống = có mặt, bấm ô để đánh dấu vắng. Số tiết và buổi học riêng cho từng lớp.</p>
  <SheetsConnectionPanel profile={profile} classes={classes} sessions={data.sessions}
-   rosterVersion={version} logoData={reportLogo} logoLabel={center?.name||profile.school_name||'IC3'}
+   refresh={refresh} rosterVersion={version} logoData={reportLogo} logoLabel={center?.name||profile.school_name||'IC3'}
    onSynced={()=>setVersion(v=>v+1)}/>
  <div className="roster-export-options">
   <label>Logo trong file Excel
