@@ -14,6 +14,7 @@ import { ReportsCenter } from "./ReportsCenter";
 import { HelpAssistant } from "./HelpAssistant";
 import { ProfileSettings } from "./ProfileSettings";
 import { properName, searchName, comparePC, compareStudentName } from "./lib/students";
+import {starTotals,starLeaderboard} from "./lib/stars";
 import { normalizeComputerCode,validFullName } from "./lib/registration";
 import {pendingRegistrationsForClass,nextFriendRegistration,canConfirmFlaggedName} from "./lib/studentRegistrationUI";
 import {buildIncidentReportHtml} from "./lib/incidentReportHtml";
@@ -73,16 +74,30 @@ function App() {
   const [schools, setSchools] = useState([]);
   const [workplaces,setWorkplaces] = useState([]);
   const [workplaceSchools,setWorkplaceSchools] = useState([]);
-  const [schoolId, setSchoolId] = useState("");
+  const [schoolId, setSchoolId] = useState(()=>{try{return sessionStorage.getItem('qlpm.schoolId')||'';}catch{return '';}});
   const [profileError, setProfileError] = useState("");
   const school = schools.find(s => s.id === schoolId);
   const profile = account ? {...account, school_id: school?.id || null, school_name: school?.name || "", school_logo:school?.logo_data||null} : null;
-  const [page, setPage] = useState("dashboard");
+  const [page, setPage] = useState(()=>{
+    try{const saved=sessionStorage.getItem('qlpm.page');return nav.some(x=>x[0]===saved)?saved:'dashboard';}
+    catch{return 'dashboard';}
+  });
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState("");
   const [authMode, setAuthMode] = useState("login");
   const [mobileNav, setMobileNav] = useState(false);
   const [refresh, setRefresh] = useState(0);
+  useEffect(()=>{
+    try{sessionStorage.setItem('qlpm.page',page);sessionStorage.setItem('qlpm.schoolId',schoolId);}catch{}
+  },[page,schoolId]);
+  // No reload to dashboard; refresh active data upon focus and once per visible minute.
+  useEffect(()=>{
+    const onFocus=()=>{if(!document.hidden)setRefresh(v=>v+1);};
+    window.addEventListener('focus',onFocus);
+    document.addEventListener('visibilitychange',onFocus);
+    const timer=window.setInterval(()=>{if(!document.hidden)setRefresh(v=>v+1);},60000);
+    return()=>{window.removeEventListener('focus',onFocus);document.removeEventListener('visibilitychange',onFocus);window.clearInterval(timer);};
+  },[]);
 
   useEffect(() => {
     if (!supabase) {
@@ -154,6 +169,7 @@ function App() {
   const reload = () => setRefresh(v => v + 1);
   const signOut = async () => {
     await supabase.auth.signOut();
+    try{sessionStorage.removeItem('qlpm.page');sessionStorage.removeItem('qlpm.schoolId');}catch{}
     setProfile(null);
     setSchools([]);setWorkplaces([]);setWorkplaceSchools([]); setSchoolId(""); setPage("dashboard");
   };
@@ -233,14 +249,14 @@ function App() {
           </div>
           <div className="top-actions"><button className="btn" onClick={signOut}><LogOut size={16}/>Đăng xuất</button>
             <span className="role-pill">{profile.role === "admin" ? "ADMIN" : profile.role === "teacher" ? "GIÁO VIÊN" : "HỌC SINH"}</span>
-            <button className="icon-btn" title="Làm mới" onClick={reload}><RefreshCw size={18} /></button>
+            <button className="icon-btn" title="Làm mới mục hiện tại và giữ nguyên trang" onClick={reload}><RefreshCw size={18} /></button>
             <button type="button" className="avatar avatar-action" onClick={()=>setPage('personal')} title="Cá nhân">{profile.avatar_data?<img src={profile.avatar_data} alt="Ảnh đại diện"/>:(profile.full_name || "U").slice(0, 1).toUpperCase()}</button>
           </div>
         </header>
 
         {notice && <div className="toast"><CheckCircle2 size={17} />{notice}</div>}
 
-        <div className="content" key={["workplaces","schools","settings","finance","reports","accounts","personal"].includes(page)?page:schoolId}>
+        <div className="content" key={(["workplaces","schools","settings","finance","reports","accounts","personal"].includes(page)?page:schoolId)+':'+page+':'+refresh}>
           {page === "schools" && <SchoolManager
             schools={schools} workplaces={workplaces} workplaceSchools={workplaceSchools} role={profile.role}
             onCreated={id => {setSchoolId(id); reload();}}
