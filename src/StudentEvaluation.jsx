@@ -4,6 +4,7 @@ import {Sparkles,BookOpenCheck,UserRound,BarChart3,ShieldCheck,CalendarCheck,
   History,FileCheck2,Info,Search,RefreshCw} from 'lucide-react';
 import {supabase} from './lib/supabase';
 import {searchName,compareStudentName} from './lib/students';
+import {exportClassEvaluation} from './lib/evaluationReport';
 import * as XLSX from 'xlsx';
 
 const emptyData={students:[],records:[],attendance:[],sessions:[],results:[],evaluations:[]};
@@ -165,6 +166,16 @@ export function StudentEvaluation({profile,refresh,reload,ping}){
       <label>Chọn học sinh<select value={selected} onChange={e=>setSelected(e.target.value)}>
        <option value="">Chọn một học sinh</option>{visible.map(x=><option key={x.id} value={x.id}>{x.full_name} · {x.class_name}</option>)}
       </select></label>
+      <div className="evaluation-report-actions">
+        <button type="button" className="btn outline" disabled={loading||!classFilter}
+          onClick={()=>{try{exportClassEvaluation({profile,className:classFilter,period:periodName(period,customPeriod),
+            data,makeEvidence:st=>makeEvidence(st,data,0,periodName(period,customPeriod)),format:'xlsx'});ping?.('Đã xuất Excel đánh giá lớp.');}
+            catch(e){setError(e.message);}}}>📊 Excel theo lớp</button>
+        <button type="button" className="btn outline" disabled={loading||!classFilter}
+          onClick={()=>{try{exportClassEvaluation({profile,className:classFilter,period:periodName(period,customPeriod),
+            data,makeEvidence:st=>makeEvidence(st,data,0,periodName(period,customPeriod)),format:'pdf'});}
+            catch(e){setError(e.message);}}}>🖨 In / PDF theo lớp</button>
+      </div>
      </div>
      {loading&&<p className="evaluation-v2-empty"><Loader2 className="eval-spin" size={19}/> Đang tải số liệu của trường...</p>}
      {error&&<p className="evaluation-v2-error" role="alert">{error}</p>}
