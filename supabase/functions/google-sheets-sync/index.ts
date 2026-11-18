@@ -78,6 +78,19 @@ async function assertExclusiveWorkbook(url:string,link:Dict){
  if(data?.length&&data[0].school_id!==link.school_id)throw fail(
    "File Google Sheets này đã được xác minh cho trường khác. Hãy dùng mẫu trống tạo bản sao mới cho trường này.",409);
 }
+const FOLDER_MIME="application/vnd.google-apps.folder";
+const SHEET_MIME="application/vnd.google-apps.spreadsheet";
+async function driveFileInfo(id:string,token:string){
+ const fields="id,name,mimeType,parents,trashed,capabilities(canEdit,canAddChildren)";
+ const response=await api("https://www.googleapis.com/drive/v3/files/"+encodeURIComponent(id)+
+  "?fields="+encodeURIComponent(fields)+"&supportsAllDrives=true",token);
+ return await response.json();
+}
+function ensureDriveFolder(info:Dict){
+ if(info.mimeType!==FOLDER_MIME||info.trashed)throw fail("Liên kết không phải thư mục Google Drive hợp lệ.",400);
+ if(info.capabilities?.canEdit!==true && info.capabilities?.canAddChildren!==true)
+  throw fail("Service Account chưa có quyền Editor với thư mục. Chia sẻ thư mục cho ic3-sheets-sync@qlpm-ic3.iam.gserviceaccount.com ở quyền Người chỉnh sửa rồi thử lại.",403);
+}
 async function metadata(id:string,token:string){
  const url="https://sheets.googleapis.com/v4/spreadsheets/"+id+"?fields=spreadsheetId,properties(title),sheets(properties(sheetId,title,gridProperties))";
  return await (await api(url,token)).json();
