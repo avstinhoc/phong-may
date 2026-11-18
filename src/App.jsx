@@ -256,7 +256,7 @@ function App() {
 
         {notice && <div className="toast"><CheckCircle2 size={17} />{notice}</div>}
 
-        <div className="content" key={(["workplaces","schools","settings","finance","reports","accounts","personal"].includes(page)?page:schoolId)+':'+page+':'+refresh}>
+        <div className="content" key={(["workplaces","schools","settings","finance","reports","accounts","personal"].includes(page)?page:schoolId)+':'+page}>
           {page === "schools" && <SchoolManager
             schools={schools} workplaces={workplaces} workplaceSchools={workplaceSchools} role={profile.role}
             onCreated={id => {setSchoolId(id); reload();}}
