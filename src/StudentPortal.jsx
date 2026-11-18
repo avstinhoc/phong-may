@@ -1,5 +1,6 @@
 import React,{useEffect,useMemo,useState} from 'react';
-import {fireStyle} from './lib/stars';
+import {flameEffect} from './lib/stars';
+import {FlameBadge} from './FlameBadge';
 import {supabase} from './lib/supabase';
 const stateLabel={available:'Sẵn sàng',occupied:'Đang sử dụng',broken:'Hỏng',maintenance:'Bảo trì'};
 const typeLabel={point:'Điểm',reward:'Thưởng',violation:'Vi phạm'};
@@ -27,23 +28,30 @@ export function StudentPortal(){
     }
     normalizedCode=resolved.data;
     setCode(normalizedCode);
-    const [main,badges,stars]=await Promise.all([
+    const [main,badges,stars,flames]=await Promise.all([
       supabase.rpc('get_student_class_portal',{
         p_code:normalizedCode,p_secret:nextSecret.trim()||null}),
       supabase.rpc('get_class_violation_badges',{p_code:normalizedCode}),
-       supabase.rpc('ic3_class_stars',{p_code:normalizedCode})
+       supabase.rpc('ic3_class_stars',{p_code:normalizedCode}),
+       supabase.rpc('ic3_class_flame_status',{p_code:normalizedCode})
     ]);
     setBusy(false);
     if(main.error){setPayload(null);setViolationBadges([]);setError(main.error.message);}
     else{setPayload(main.data);setViolationBadges(Array.isArray(badges.data)?badges.data:[]);
-      setStarBoard(Array.isArray(stars.data)?stars.data:[]);}
+      const flameMap=new Map((flames.data||[]).map(item=>[item.student_id,item]));
+       setStarBoard((Array.isArray(stars.data)?stars.data:[]).map(item=>({...item,...(flameMap.get(item.student_id)||{})})));}
 
   }
   useEffect(()=>{if(code)load(code,'');},[]);
   const student=payload?.student;
   const scores=student?.scores?.scores||{};
   const machines=payload?.computers||[];
-  const ranked=[...starBoard].sort((a,b)=>Number(b.earned)-Number(a.earned)||Number(b.available)-Number(a.available));
+  const ranked=[...starBoard].sort((a,b)=>Number(b.earned)-Number(a.earned||0)||Number(b.available)-Number(a.available||0));
+  const fireForMachine=c=>{
+    const residents=starBoard.filter(st=>st.computer===c.computer);
+    return residents.map(st=>flameEffect(st)).filter(fx=>fx.visible)
+      .sort((a,b)=>a.tier-b.tier||(['gray','cooling','active'].indexOf(a.state)-['gray','cooling','active'].indexOf(b.state))).at(-1);
+  };
   function locateSeat(e){
     e.preventDefault();
     const key=value=>seatKey(value).replace(/^(pc|máy|may)\s*/,'').replace(/^0+(?=\d)/,'');
@@ -68,7 +76,7 @@ export function StudentPortal(){
     <header className="portal-header">
       {payload?.logo?<img className="portal-logo" src={payload.logo} alt="Logo trường"/>:<div className="brand-mark">IC3</div>}
       <div><b>IC3 GS6 · Lớp học của chúng mình</b><small>Máy tính • Lịch dạy • Vệ sinh • Điểm & phần thưởng</small></div>
-      {code&&<button type="button" className="btn outline" disabled={busy} onClick={()=>load()}>{busy?'Đang tải…':'↻ Tải lại lớp'}</button>}
+
     </header>
     <main className="portal-content">
       <section className="portal-hero">
@@ -83,17 +91,32 @@ export function StudentPortal(){
         </div>
         <div className="portal-hero-art" aria-hidden="true">💻<span>🌟</span></div>
       </section>
-      <section className="panel portal-search">
-        <h3>{payload?'Tìm vị trí trong phòng máy':'Mở lớp học'}</h3>
-        {payload&&<form className="seat-search" onSubmit={locateSeat}><label>Số máy / vị trí<input required value={seat} onChange={e=>setSeat(e.target.value)} placeholder="Ví dụ: PC01"/></label><button className="btn primary">Tìm máy</button><output>{seatMessage}</output></form>}
-        <form className="portal-form" onSubmit={e=>{e.preventDefault();load();}}>
-          {!payload&&<label>Mã lớp<input required value={code} onChange={e=>setCode(e.target.value.toUpperCase())} placeholder="Nhập mã lớp" autoComplete="off"/></label>}
-          <label>Mã xem điểm cá nhân (nếu có)<input type="text" inputMode="text" maxLength={48} autoComplete="off" value={secret} onChange={e=>setSecret(e.target.value.toUpperCase())} placeholder="Ví dụ: ABCD-EFGH-JKLM"/></label>
-          <button className="btn primary" disabled={busy}>{busy?'Đang tra cứu…':payload?'Xem kết quả cá nhân':'Mở lớp'}</button>
-        </form>
+      <section className="panel portal-search portal-search-compact">
+        <div className="portal-search-heading">
+          <div><h3>📍 {payload?'Tìm nhanh vị trí máy':'Mở lớp học'}</h3>
+            <p className="muted">{payload?'Nhập PC1, PC01 hoặc số 1 để tới ngay ô máy.':'Nhập mã lớp được giáo viên cấp để bắt đầu.'}</p></div>
+          {busy&&<span className="portal-search-spinner">Đang tải dữ liệu…</span>}
+        </div>
+        {payload&&<form className="seat-search portal-seat-inline" onSubmit={locateSeat}>
+          <label className="portal-seat-label">Số máy / vị trí
+            <input required value={seat} onChange={e=>setSeat(e.target.value)} placeholder="Ví dụ: PC02"/></label>
+          <button className="btn primary">🔎 Tìm máy</button>
+          {seatMessage&&<output role="status">{seatMessage}</output>}
+        </form>}
+        {!payload&&<form className="portal-form" onSubmit={e=>{e.preventDefault();load();}}>
+          <label>Mã lớp<input required value={code} onChange={e=>setCode(e.target.value.toUpperCase())} placeholder="Nhập mã lớp" autoComplete="off"/></label>
+          <button className="btn primary" disabled={busy}>{busy?'Đang mở…':'Mở lớp'}</button></form>}
+        {payload&&<details className="portal-private-lookup">
+          <summary><span>🔐 Tra cứu kết quả cá nhân</span><small>Chỉ mở khi có mã xem điểm riêng</small></summary>
+          <form className="portal-form portal-form--private" onSubmit={e=>{e.preventDefault();load();}}>
+            <label>Mã xem điểm cá nhân<input type="text" inputMode="text" maxLength={48} autoComplete="off"
+              value={secret} onChange={e=>setSecret(e.target.value.toUpperCase())} placeholder="Ví dụ: ABCD-EFGH-JKLM"/></label>
+            <button className="btn primary" disabled={busy}>{busy?'Đang tra cứu…':'Xem kết quả cá nhân'}</button>
+          </form>
+          <p className="muted">Mã xem điểm chỉ dùng cho bản thân, không chia sẻ công khai.</p>
+          {secret.trim()&&!student&&<p className="notice-box">Mã cá nhân chưa đúng hoặc chưa được giáo viên cấp.</p>}
+        </details>}
         {error&&<p role="alert" className="notice-box">{error}</p>}
-        {payload&&secret.trim()&&!student&&<p className="notice-box">Mã cá nhân chưa đúng hoặc chưa được giáo viên cấp. Bạn vẫn xem được thông tin chung của lớp.</p>}
-        <p className="muted">Tên các bạn trên máy hiển thị ngắn gọn theo mã lớp. Mã xem điểm chỉ dùng cho bạn, không nên chia sẻ công khai.</p>
       </section>
       {payload&&<>
         <div className="portal-metrics portal-overview">
@@ -102,23 +125,34 @@ export function StudentPortal(){
           <div><small>Máy cần sửa</small><b>{counts.broken}</b><span>🛠️</span></div>
           <div><small>Vị trí lớp mình</small><b>{counts.occupied}</b><span>👨‍🎓</span></div>
         </div>
-        <section className="panel portal-star-leaderboard">
-          <div className="portal-section-title"><div><h2>🏆 Bảng xếp hạng sao lớp {payload.class_name}</h2>
-            <p className="muted">Sao đã kiếm được lưu vĩnh viễn để xếp hạng. Sao còn lại dùng đổi quà với giáo viên.</p></div></div>
+        <details className="panel portal-star-leaderboard portal-star-collapsible">
+          <summary className="portal-rank-summary">
+            <span>🏆 Bảng xếp hạng sao · Lớp {payload.class_name}</span>
+            <small>{ranked[0]&&Number(ranked[0].earned)>0
+              ?'🥇 '+ranked[0].student_name+' · '+ranked[0].earned+' sao đã kiếm'
+              :'Khám phá những ngôi sao của lớp'}</small>
+            <span className="portal-rank-arrow" aria-hidden="true">⌄</span>
+          </summary>
+          <p className="muted">Tổng sao kiếm được dùng để xếp hạng; sao hiện có để đổi quà. Giữ chuỗi để nâng cấp lửa và khung máy.</p>
           <div className="portal-star-grid">
-            {ranked.filter(st=>Number(st.earned)>0).slice(0,12).map((st,i)=><div key={st.student_id}
-              style={fireStyle(st.effect_score)} className={'portal-star-rank '+(fireStyle(st.effect_score)?'fire-frame':'')}>
-              <span>{i===0?'🥇':i===1?'🥈':i===2?'🥉':'#'+(i+1)}</span>
-              <b>{st.student_name}</b>
-              <span>⭐ {st.earned} {fireStyle(st.effect_score)&&<span className="star-flame">🔥</span>} đã kiếm · {st.available} hiện có</span>
-            </div>)}
+            {ranked.filter(st=>Number(st.earned)>0).slice(0,12).map((st,i)=>{
+              const fx=flameEffect(st);
+              return <div key={st.student_id}
+                style={fx.style} className={'portal-star-rank '+(fx.visible?fx.className:'')}>
+                <span>{i===0?'🥇':i===1?'🥈':i===2?'🥉':'#'+(i+1)}</span>
+                <b>{st.student_name} <FlameBadge wallet={st} compact/></b>
+                <span>⭐ {st.earned} đã kiếm · {st.available} hiện có</span>
+              </div>;
+            })}
             {!ranked.some(st=>Number(st.earned)>0)&&<p className="muted">Chưa có sao thưởng. Cùng cố gắng nhé! ✨</p>}
           </div>
-        </section>
+        </details>
         <section className="panel">
           <div className="portal-section-title"><div><h2>💻 Sơ đồ máy tính lớp {payload.class_name}</h2><p className="muted">Xem bạn nào đang ngồi máy nào và việc vệ sinh cần làm.</p></div><span className="portal-mini-pill">{counts.waiting} việc vệ sinh chưa xong</span></div>
           <div className="portal-pcs">
-            {machines.map(c=><article id={'seat-'+c.computer} tabIndex={-1} className={'portal-pc '+(highlight===c.computer?'seat-found ':'')+((c.status==='broken'||c.status==='maintenance')?'pc-broken':'')} key={c.computer}>
+            {machines.map(c=>{const fx=fireForMachine(c);return <article id={'seat-'+c.computer} tabIndex={-1}
+              style={fx?.style} className={'portal-pc '+(highlight===c.computer?'seat-found ':'')+
+                ((c.status==='broken'||c.status==='maintenance')?'pc-broken ':'')+(fx?.className||'')} key={c.computer}>
               <div className="portal-pc-head"><b>🖥 {c.computer}</b><span className={c.status==='broken'||c.status==='maintenance'?'portal-bad':'portal-good'}>{stateLabel[c.status]||c.status}</span></div>
               <p>{c.occupied}/{c.capacity} học sinh lớp mình</p>
               {(() => {
@@ -133,8 +167,8 @@ export function StudentPortal(){
                 {(c.students||[]).length?<div>{(()=>{
                   const seated=starBoard.filter(st=>st.computer===c.computer);
                   if(seated.length!==(c.students||[]).length)return c.students.map((name,i)=><span key={i}>{name}</span>);
-                  return seated.map(st=><span key={st.student_id} style={fireStyle(st.effect_score)} className={fireStyle(st.effect_score)?'fire-frame':''}>
-                    {st.student_name} · ⭐ {st.available} {fireStyle(st.effect_score)&&<span className="star-flame">🔥</span>}
+                  return seated.map(st=><span key={st.student_id} className="portal-pupil-pill">
+                    {st.student_name} · ⭐ {st.available} <FlameBadge wallet={st} compact/>
                   </span>);
                 })()}</div>:<small>Chưa có bạn nào</small>}
               </div>
@@ -142,7 +176,7 @@ export function StudentPortal(){
                 <strong>🧹 Lịch vệ sinh</strong>
                 {(c.cleaning||[]).length?<ul>{c.cleaning.slice(0,3).map((l,i)=><li key={i}><b>{date(l.date)}</b> · {l.student} <span className={l.status==='done'?'done':'pending'}>{l.status==='done'?'✓ Đã làm':'Chưa làm'}</span></li>)}</ul>:<small>Chưa được phân công</small>}
               </div>
-            </article>)}
+            </article>;})}
           </div>
         </section>
         <section className="panel">
@@ -170,7 +204,12 @@ export function StudentPortal(){
           </section>
         </>}
       </>}
-      <button className="portal-top" aria-label="Về đầu trang" onClick={()=>window.scrollTo({top:0,behavior:'smooth'})}>↑</button>
+      <div className="portal-floating-actions" role="group" aria-label="Điều hướng trang lớp">
+        <button className="portal-float-action" type="button" aria-label="Tải lại dữ liệu lớp" title="Tải lại dữ liệu lớp"
+          disabled={busy} onClick={()=>load()}>{busy?'…':'↻'}</button>
+        <button className="portal-float-action" type="button" aria-label="Về đầu trang" title="Về đầu trang"
+          onClick={()=>window.scrollTo({top:0,behavior:'smooth'})}>↑</button>
+      </div>
       <footer className="portal-footer">IC3 GS6 · Học Tin học thật vui 🌟</footer>
     </main>
   </div>;
