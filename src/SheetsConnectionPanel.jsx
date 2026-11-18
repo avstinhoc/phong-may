@@ -3,7 +3,7 @@ import {supabase} from './lib/supabase';
 import {parseSheetUrl,validateSheetTabName,mapLessonsInOrder,validateLessonMapping} from './lib/googleSheetTemplate';
 import {replaceExistingTopLeftLogo} from './lib/replaceExcelLogo';
 import {fixedDateScript} from './lib/sheetDateScript';
-import {parseDriveFolderUrl,schoolFolderSuggestedName} from './lib/driveSchoolFolders';
+import {parseDriveFolderUrl} from './lib/driveSchoolFolders';
 
 const labelDate=v=>String(v||'').split('-').reverse().join('/');
 const SHEETS_EDITOR_EMAIL='ic3-sheets-sync@qlpm-ic3.iam.gserviceaccount.com';
@@ -23,15 +23,12 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
   [selectedClass,setSelectedClass]=useState(''),[tabName,setTabName]=useState(''),
   [newClass,setNewClass]=useState(''),[templateTab,setTemplateTab]=useState('6.1'),
   [preview,setPreview]=useState(null),[mapping,setMapping]=useState({}),
-  [schoolFolder,setSchoolFolder]=useState(null),[folderUrl,setFolderUrl]=useState(''),
   [rootFolder,setRootFolder]=useState(null),[rootUrl,setRootUrl]=useState('');
  const autoSyncedForRef=useRef('');
  const autoInspectedForRef=useRef('');
  const currentTab=bindings.find(x=>x.class_name===selectedClass);
  const canManageLink=!link||link.owner_id===profile.id||profile.role==='admin';
- const canChangeFolder=!schoolFolder||schoolFolder.configured_by===profile.id||profile.role==='admin';
  const suggestedTitle=('DS ĐIỂM DANH '+String(profile.school_name||'TRƯỜNG').toLocaleUpperCase('vi')).slice(0,110);
- const suggestedFolder=schoolFolderSuggestedName(profile.school_name);
  const sourceCopyUrl='https://docs.google.com/spreadsheets/d/'+EMPTY_SCHOOL_TEMPLATE_ID+
   '/copy?title='+encodeURIComponent(suggestedTitle);
  const classSessions=useMemo(()=>sessions.filter(x=>x.class_name===selectedClass)
@@ -44,11 +41,6 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
   if(rootError)throw rootError;
   setRootFolder(rootData||null);
   setRootUrl(rootData?'https://drive.google.com/drive/folders/'+rootData.folder_id:SUGGESTED_QLPM_ROOT_URL);
-  const {data:folderData,error:folderError}=await supabase.from('school_drive_folders')
-    .select('*').eq('school_id',profile.school_id).maybeSingle();
-  if(folderError)throw folderError;
-  setSchoolFolder(folderData||null);
-  setFolderUrl(folderData?'https://drive.google.com/drive/folders/'+folderData.folder_id:'');
   const {data:linkData,error:linkError}=await supabase.from('school_sheet_links')
    .select('*').eq('school_id',profile.school_id).maybeSingle();
   if(linkError)throw linkError;
@@ -68,6 +60,11 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
   return()=>{live=false;};
  },[profile.id,profile.school_id]);
  useEffect(()=>{setMapping(currentTab?.lesson_columns||{});setPreview(null);},[currentTab?.id,selectedClass]);
+ useEffect(()=>{
+  if(!tabs.length||tabs.some(t=>t.title===templateTab))return;
+  const chosen=tabs.find(t=>t.title==='Gốc')||tabs.find(t=>t.title==='6.1')||tabs[0];
+  if(chosen?.title)setTemplateTab(chosen.title);
+ },[tabs,templateTab]);
 
  useEffect(()=>{autoSyncedForRef.current='';autoInspectedForRef.current='';},[profile.school_id]);
  useEffect(()=>{
@@ -171,38 +168,46 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
   const folderId=parseDriveFolderUrl(rootUrl);
   const result=await callSchoolDrive('register_qlpm_root',{folder_id:folderId});
   await load();
-  setMessage('Đã xác minh thư mục cha '+(result.root?.folder_name||'QLPM – Google Sheets')+'. Các thư mục trường bên trong sẽ tự kế thừa quyền Editor của Service Account.');
+  setMessage('Đã kiểm tra quyền Editor và lưu thư mục '+(result.root?.folder_name||'QLPM')+'. File mẫu và file của các trường cùng nằm trong thư mục này.');
  }
- async function saveSchoolFolder(){
-  if(!rootFolder)throw Error('Admin cần cấu hình thư mục cha QLPM – Google Sheets trước.');
-  if(!canChangeFolder)throw Error('Thư mục trường do người khác quản lý. Hãy nhờ người tạo hoặc Admin thay đổi.');
-  const folderId=parseDriveFolderUrl(folderUrl);
-  const data=await callSchoolDrive('register_school_folder',{folder_id:folderId});
+ async function createSchoolWorkbook(){
+  if(link){
+   setMessage('Trường đã có bảng tính chung.');return;
+  }
+  if(!rootFolder)throw Error('Admin chưa cấu hình thư mục QLPM dùng chung.');
+  const result=await callSchoolDrive('create_school_workbook');
   await load();
-  setMessage('Đã xác minh thư mục con '+(data.folder?.folder_name||'trường')+' nằm trong QLPM – Google Sheets và kế thừa quyền Editor.');
+  if(result.alreadyLinked){
+   setMessage('Trường này đã có Google Sheets. Đã tải lại liên kết.');
+  }else{
+   setMessage((result.reused?'Đã phát hiện file trường có sẵn trong QLPM và liên kết.':
+      'Đã tạo file mới từ mẫu DS ĐIỂM DANH, lưu trong thư mục QLPM và gắn link tự động.')+
+      ' File: '+(result.title||suggestedTitle));
+  }
+  onSynced?.();
  }
  async function persistSchoolCopy(nextUrl){
   const id=parseSheetUrl(nextUrl);
-  if(id===EMPTY_SCHOOL_TEMPLATE_ID)throw Error('Không được gắn file mẫu. Hãy tạo bản sao dành cho trường.');
-  if(!schoolFolder)throw Error('Hãy tạo thư mục trường và kiểm tra quyền Editor trước. File bản sao cần được chuyển vào thư mục.');
+  if(id===EMPTY_SCHOOL_TEMPLATE_ID)throw Error('Đây là file mẫu trống. Hãy chọn file điểm danh riêng của trường.');
+  if(!rootFolder)throw Error('Admin chưa cấu hình thư mục QLPM dùng chung.');
   if(link){
-   if(link.spreadsheet_id!==id)throw Error('Trường đã có một file Sheets chung. Không tạo link thứ hai.');
-   setMessage('Trường đã liên kết file này rồi.');return;
+   if(link.spreadsheet_id!==id)throw Error('Trường đã có Sheets dùng chung. Không thể tự gắn file thứ hai.');
+   setMessage('File này đã được liên kết cho trường.');return;
   }
-  const data=await callSchoolDrive('link_school_workbook',{spreadsheet_id:id});
+  const result=await callSchoolDrive('link_school_workbook',{spreadsheet_id:id});
   await load();
-  setMessage(data.alreadyLinked?'Trường đã liên kết file này.':
-   'Đã kiểm tra file nằm trong thư mục của trường, quyền Editor hợp lệ và đã bật đồng bộ cho trường.');
+  setMessage(result.alreadyLinked?'Trường đã có liên kết.':
+    'Đã xác minh file nằm trực tiếp trong QLPM và Service Account có quyền Editor. Liên kết đã được lưu.');
  }
  async function saveLink(){
   if(!canManageLink)throw Error('Chỉ chủ liên kết hoặc Admin được thay đổi file của trường.');
   await persistSchoolCopy(url);
  }
  async function pasteNewSchoolCopy(){
-  if(!navigator.clipboard?.readText)throw Error('Không tự đọc được clipboard. Hãy dán link bản sao vào ô đường dẫn.');
+  if(!navigator.clipboard?.readText)throw Error('Trình duyệt không hỗ trợ đọc clipboard. Hãy dán link Sheets vào ô trên.');
   let copied;
   try{copied=await navigator.clipboard.readText();}
-  catch{throw Error('Trình duyệt chưa cho phép đọc clipboard. Dán link vào ô Sheets và bấm Lưu liên kết.');}
+  catch{throw Error('Chưa cấp quyền đọc clipboard. Hãy dán link Sheets vào ô đường dẫn.');}
   await persistSchoolCopy(copied.trim());
  }
  async function disconnect(){
@@ -282,83 +287,69 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
   </button>
   {open&&<div className="sheets-link-content">
    {!profile.school_id?<p className="notice-box">Hãy chọn trường công tác ở menu trái trước khi liên kết.</p>:<>
-    <p className="muted">Cấu trúc chung: <b>QLPM – Google Sheets</b> (thư mục cha) → thư mục từng trường → file <b>DS ĐIỂM DANH [TÊN TRƯỜNG]</b>. Chỉ chia sẻ quyền Editor cho Service Account tại thư mục cha <b>một lần</b>.</p>
+    <p className="muted"><b>QLPM</b> chứa file mẫu <b>DS ĐIỂM DANH</b> (ẩn khỏi luồng tạo tự động) và một file <b>DS ĐIỂM DANH [TÊN TRƯỜNG]</b> cho từng trường. Không cần thư mục con, không cần chia sẻ lại mỗi file.</p>
     <section className="sheets-folder-setup">
      <div className="sheets-folder-head">
-      <strong>Bước 1 · Thư mục cha chung: QLPM – Google Sheets</strong>
+      <strong>Thư mục Google Drive chung: QLPM</strong>
       <span className={'sheets-folder-status '+(rootFolder?'ready':'pending')}>
-       {rootFolder?'✓ Đã xác minh quyền Editor':'Chưa cấu hình'}</span>
+       {rootFolder?'✓ Đã lưu thư mục':'Chưa cấu hình'}</span>
      </div>
-     {rootFolder?
-       <p><b>{rootFolder.folder_name}</b> là thư mục cha chung của toàn bộ các trường.
-       {profile.role==='admin'&&<a href={'https://drive.google.com/drive/folders/'+rootFolder.folder_id} target="_blank" rel="noopener noreferrer"> Mở thư mục cha</a>}
-       </p>:
-       <p><b>Admin</b> tạo thư mục <b>QLPM – Google Sheets</b> trong Google Drive của mình và chia sẻ đúng một lần cho <code>{SHEETS_EDITOR_EMAIL}</code> với quyền <b>Người chỉnh sửa (Editor)</b>.</p>}
-     {profile.role==='admin'&&<div className="sheets-folder-fields">
-      <label>Link thư mục cha Google Drive
-       <input type="url" value={rootUrl} disabled={!!busy} onChange={e=>setRootUrl(e.target.value)}
-        placeholder="https://drive.google.com/drive/folders/..." aria-label="Link thư mục cha QLPM Google Sheets"/>
-      </label>
-      <button type="button" className="btn outline" disabled={!!busy||!rootUrl.trim()}
-       onClick={()=>run('root',saveRootFolder)}>{busy==='root'?'Đang kiểm tra…':'Kiểm tra & lưu thư mục cha'}</button>
-      <button type="button" className="btn outline" onClick={()=>navigator.clipboard?.writeText(SHEETS_EDITOR_EMAIL)
-       .then(()=>setMessage('Đã sao chép email để cấp Editor cho thư mục cha.'))
-       .catch(()=>setError('Hãy sao chép email Service Account trong hướng dẫn.'))}>Sao chép email Editor</button>
-     </div>}
-     {!rootFolder&&profile.role!=='admin'&&<small>Liên hệ Admin để cấu hình thư mục cha trước khi tạo thư mục trường mới.</small>}
-     <small>Đừng chia sẻ thư mục cha cho toàn bộ giáo viên: người có quyền tại thư mục cha có thể truy cập các trường khác. Chỉ chia sẻ <b>thư mục con tương ứng</b> cho giáo viên thuộc trường đó.</small>
-    </section>
-    <section className="sheets-folder-setup">
-     <div className="sheets-folder-head">
-      <strong>Bước 2 · Thư mục con: {profile.school_name}</strong>
-      <span className={'sheets-folder-status '+(schoolFolder?'ready':'pending')}>
-       {schoolFolder?'✓ Đã kiểm tra thuộc thư mục cha':'Chưa cấu hình'}</span>
-     </div>
-     {schoolFolder?
-       <p>Đã kết nối thư mục <b>{schoolFolder.folder_name}</b>.
-         <a href={'https://drive.google.com/drive/folders/'+schoolFolder.folder_id} target="_blank" rel="noopener noreferrer"> Mở thư mục của trường</a>
-       </p>:
-       <p>Trong thư mục cha <b>QLPM – Google Sheets</b>, Admin tạo thư mục con có tên <b>{suggestedFolder}</b>.
-         Admin có thể chia sẻ <b>chỉ thư mục con này</b> với giáo viên của trường. Service Account sẽ kế thừa Editor từ cha, không phải chia sẻ lại.</p>}
-     <div className="sheets-folder-fields">
-      <label>Link thư mục con của {profile.school_name}
-       <input type="url" value={folderUrl} disabled={!!busy||!canChangeFolder||!rootFolder}
-        onChange={e=>setFolderUrl(e.target.value)}
-        placeholder="https://drive.google.com/drive/folders/..." aria-label="Link thư mục con của trường"/>
-      </label>
-      <button type="button" className="btn outline" disabled={!!busy||!folderUrl.trim()||!canChangeFolder||!rootFolder}
-       onClick={()=>run('folder',saveSchoolFolder)}>{busy==='folder'?'Đang kiểm tra…':schoolFolder?'Kiểm tra lại thư mục con':'Kiểm tra & lưu thư mục con'}</button>
-     </div>
-     {link&&!schoolFolder&&<small>File Sheets đã liên kết trước đây vẫn được giữ nguyên. Nếu muốn đưa vào cấu trúc mới, hãy di chuyển file vào đúng thư mục con trước khi xác minh.</small>}
+     {rootFolder?<p>Thư mục <b>{rootFolder.folder_name}</b> đã được lưu. File mẫu và file điểm danh các trường nằm trực tiếp bên trong.
+       <a href={'https://drive.google.com/drive/folders/'+rootFolder.folder_id} target="_blank" rel="noopener noreferrer"> Mở thư mục QLPM</a>
+      </p>:<p>Admin liên kết thư mục <b>QLPM</b> của bạn và đảm bảo Service Account có quyền Editor. Không cần tạo thêm thư mục trường.</p>}
+     {profile.role==='admin'&&<details>
+      <summary>Admin · Kiểm tra lại thư mục QLPM</summary>
+      <div className="sheets-folder-fields">
+       <label>Đường dẫn thư mục QLPM
+        <input type="url" value={rootUrl} disabled={!!busy} onChange={e=>setRootUrl(e.target.value)}
+         placeholder="https://drive.google.com/drive/folders/..." aria-label="Đường dẫn Drive QLPM"/>
+       </label>
+       <button type="button" className="btn outline" disabled={!!busy||!rootUrl.trim()}
+        onClick={()=>run('root',saveRootFolder)}>{busy==='root'?'Đang kiểm tra…':'Kiểm tra & lưu QLPM'}</button>
+      </div>
+     </details>}
+     <small>Đã chia sẻ Editor cho <code>{SHEETS_EDITOR_EMAIL}</code>. Chỉ cần quyền này ở thư mục QLPM; hãy để <b>Quyền truy cập chung: Hạn chế</b> để bảo vệ dữ liệu học sinh.</small>
     </section>
     <div className="sheets-link-grid">
      <label>Đường dẫn Google Sheets của {profile.school_name}
       <input type="url" value={url} disabled={!!busy||!!link||!canManageLink} onChange={e=>setUrl(e.target.value)}
-        placeholder="https://docs.google.com/spreadsheets/d/..." aria-label="Dán link Google Sheets cho trường này"/>
+       placeholder="Hệ thống tự điền sau khi tạo file trường" aria-label="Đường dẫn Sheets của trường"/>
      </label>
-     <button className="btn primary" disabled={!!busy||!url.trim()||!!link||!canManageLink} onClick={()=>run('save',saveLink)}>
-      {busy==='save'?'Đang lưu…':'Lưu liên kết'}
-     </button>
+     <button className="btn outline" disabled={!!busy||!url.trim()||!!link||!canManageLink}
+      onClick={()=>run('save',saveLink)}>Lưu link có sẵn</button>
      {link&&<button className="btn outline" disabled={!!busy} onClick={()=>run('inspect',inspect)}>
        {busy==='inspect'?'Đang kiểm tra…':'Kiểm tra quyền & đọc tabs'}
-      </button>}
+     </button>}
     </div>
     {!link&&<div className="sheets-copy-guide">
-     <strong>Bước 3 · Tạo file Google Sheets của trường từ mẫu trống</strong>
-     <p>Tên file đề xuất: <b>{suggestedTitle}</b>. Chỉ dùng mẫu trống cố định, không dùng Sheets của trường khác.</p>
-     <ol>
-      <li>Sau khi thư mục cha và thư mục con đã được xác minh, bấm <b>Tạo file Google Sheets của trường</b>. Google yêu cầu bạn xác nhận bản sao và đặt tên theo trường.</li>
-      <li>Trong file bản sao, bấm biểu tượng <b>Di chuyển</b> bên cạnh tên file → chọn thư mục <b>{schoolFolder?.folder_name||suggestedFolder}</b>. File trong thư mục con kế thừa quyền Editor từ thư mục cha, không cần chia sẻ lại.</li>
-      <li>Chọn <b>Chia sẻ → Sao chép đường liên kết</b>. Quay về QLPM bấm <b>Dán link bản sao &amp; liên kết</b> hoặc dán vào ô đường dẫn phía trên. Hệ thống chỉ nhận file đúng thư mục và có quyền chỉnh sửa.</li>
-     </ol>
-     <div className="sheets-link-actions">
-      {schoolFolder?<a className="btn primary" href={sourceCopyUrl} target="_blank" rel="noopener noreferrer">Tạo file Google Sheets của trường</a>:
-       <button type="button" className="btn primary" disabled title="Hãy cấu hình và xác minh thư mục trường trước">Tạo file Google Sheets của trường</button>}
-      {schoolFolder&&<a className="btn outline" href={'https://drive.google.com/drive/folders/'+schoolFolder.folder_id} target="_blank" rel="noopener noreferrer">Mở thư mục trường</a>}
-      <button type="button" className="btn outline" disabled={!!busy||!schoolFolder}
-       onClick={()=>run('paste',pasteNewSchoolCopy)}>Dán link bản sao &amp; liên kết</button>
-     </div>
-     <small>Không gắn trực tiếp file mẫu. Nếu bản sao chưa được chuyển vào thư mục trường, QLPM sẽ báo lỗi và hướng dẫn di chuyển. Không cần OAuth Drive riêng.</small>
+      <strong>Tạo file Google Sheets của trường</strong>
+      <p><b>{suggestedTitle}</b> sẽ được tạo từ file mẫu <b>DS ĐIỂM DANH</b> trong thư mục QLPM. Nếu file đúng tên đã tồn tại, hệ thống sẽ dùng file đó thay vì sao chép lần nữa.</p>
+      <div className="sheets-link-actions">
+       <button type="button" className="btn primary" disabled={!!busy||!rootFolder}
+        onClick={()=>run('create',createSchoolWorkbook)}>
+        {busy==='create'?'Đang tạo và liên kết…':'Tạo file Google Sheets của trường'}</button>
+      </div>
+      <p className="muted">Sau khi tạo thành công: file tự lưu trong QLPM, tự đặt tên theo trường, tự gắn vào ô đường dẫn và bật đồng bộ cho trường. Đồng nghiệp có quyền trong cùng trường dùng chung liên kết.</p>
+      <details className="sheets-automation-guide">
+       <summary>Admin · Cấu hình tự động tạo file lần đầu (Google Apps Script)</summary>
+       <p>Google không cho Service Account sở hữu file mới trong My Drive cá nhân. Để nút trên tạo file hoàn toàn tự động, chủ Drive cần triển khai Apps Script một lần, chạy dưới tài khoản Google sở hữu thư mục QLPM.</p>
+       <ol>
+        <li>Mở <a href="https://script.google.com/home/projects/create" target="_blank" rel="noopener noreferrer">Google Apps Script</a>, dán mã từ
+         <a href="https://github.com/avstinhoc/phong-may/blob/main/google-apps-script/qlpm-drive-auto-copy.gs" target="_blank" rel="noopener noreferrer"> mã sao chép QLPM</a>.</li>
+        <li>Chạy hàm <code>setupQlpmCopy</code> một lần, cấp quyền Google Drive và sao chép <b>signing key</b> từ Execution log.</li>
+        <li><b>Deploy → New deployment → Web app</b>. Chọn <b>Execute as: Me</b>; quyền truy cập <b>Anyone</b>. Sao chép URL <code>/exec</code>.</li>
+        <li>Trong <b>Supabase → Edge Functions → Secrets</b>, thêm <code>QLPM_APPS_SCRIPT_WEB_APP_URL</code> (URL /exec) và <code>QLPM_APPS_SCRIPT_SIGNING_KEY</code> (khóa vừa tạo). Không đặt khóa ở Vercel hoặc mã frontend.</li>
+       </ol>
+       <small>Đây là bước cấp quyền chạy Apps Script của chủ Google Drive một lần, không khôi phục đăng nhập Google OAuth riêng cho Sheets của giáo viên.</small>
+      </details>
+      <details className="sheets-automation-guide">
+       <summary>Nếu chưa cấu hình Apps Script: Tạo và gắn link thủ công</summary>
+       <p>Tạo bản sao file mẫu, di chuyển bản sao vào thư mục QLPM, đặt tên <b>{suggestedTitle}</b>, rồi sao chép URL vào ô phía trên và bấm <b>Lưu link có sẵn</b>.</p>
+       <div className="sheets-link-actions">
+        <a className="btn outline" href={sourceCopyUrl} target="_blank" rel="noopener noreferrer">Tạo bản sao thủ công</a>
+        <button type="button" className="btn outline" disabled={!!busy} onClick={()=>run('paste',pasteNewSchoolCopy)}>Dán link từ clipboard</button>
+       </div>
+      </details>
     </div>}
     {link&&!canManageLink&&<p className="sheets-link-footnote"><b>Đang dùng chung Google Sheets của trường.</b> Bạn có thể đồng bộ trên QLPM theo quyền trường; muốn mở và chỉnh sửa trực tiếp trong Google Sheets, nhờ chủ file chia sẻ thêm email Google của bạn ở quyền Editor.</p>}
         {link&&<div className="sheets-link-meta">

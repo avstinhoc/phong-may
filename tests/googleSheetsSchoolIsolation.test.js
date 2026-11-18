@@ -29,8 +29,8 @@ test('source template is fixed and cannot be saved as a live school workbook',()
  assert.ok(ui.includes('/copy?title='));
  assert.ok(ui.includes('suggestedTitle'));
  assert.ok(ui.includes('Tạo file Google Sheets của trường'));
- assert.ok(ui.includes('Dán link bản sao'));
- assert.ok(ui.includes('Người chỉnh sửa (Editor)'));
+ assert.ok(ui.includes('Lưu link có sẵn'));
+ assert.ok(ui.includes('Service Account'));
  assert.ok(ui.includes('ic3-sheets-sync@qlpm-ic3.iam.gserviceaccount.com'));
  assert.ok(ui.includes('if(id===EMPTY_SCHOOL_TEMPLATE_ID)'));
  assert.ok(!ui.includes('Quyền Google:'));
