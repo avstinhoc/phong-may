@@ -18,8 +18,20 @@ export function ClassSettings({refresh,profile,ping,schools=[],onChanged}){
  const [editingCode,setEditingCode]=useState(null),[updatedCode,setUpdatedCode]=useState('');
  const [loading,setLoading]=useState(false);
  const preview=shortCodePreview(activeSchoolName,name);
+ const [sharedBoardRef,setSharedBoardRef]=useState({schoolId:'',code:''});
  const boardClass=rows.find(row=>row.school_id===activeSchool&&!row.archived_at&&row.registration_code);
- const schoolBoardUrl=boardClass?'/school?code='+encodeURIComponent(boardClass.registration_code):'';
+ const boardCode=boardClass?.registration_code||(sharedBoardRef.schoolId===activeSchool?sharedBoardRef.code:'');
+ const schoolBoardUrl=boardCode?'/school?code='+encodeURIComponent(boardCode):'';
+ // Get an existing class code for this school even if a different teacher owns it.
+ // The server checks teacher role and school membership before returning the code.
+ useEffect(()=>{
+   let alive=true;
+   if(!activeSchool)return;
+   supabase.rpc('ic3_my_school_board_code',{p_school_id:activeSchool}).then(({data,error})=>{
+     if(alive&&!error)setSharedBoardRef({schoolId:activeSchool,code:data||''});
+   });
+   return()=>{alive=false;};
+ },[activeSchool,refresh]);
 
  useEffect(()=>{
    let alive=true;
@@ -145,7 +157,7 @@ export function ClassSettings({refresh,profile,ping,schools=[],onChanged}){
       })}
     </select>
   </label>
-  <p className="muted">Mỗi trường chỉ có một BXH theo ID trường. Giáo viên khác chọn cùng bản ghi trường sẽ xuất hiện trên BXH chung; trường trùng tên nhưng ID khác không được tự gộp để bảo vệ dữ liệu. {!schoolBoardUrl&&'Tạo lớp đầu tiên hoặc xin link BXH chung từ giáo viên đã có mã lớp.'}</p>
+  <p className="muted">Mỗi trường chỉ có một BXH theo ID trường. Giáo viên khác chọn cùng bản ghi trường sẽ xuất hiện trên BXH chung; trường trùng tên nhưng ID khác không được tự gộp để bảo vệ dữ liệu. {!schoolBoardUrl&&'Nếu trường chưa có mã lớp, hãy tạo một lớp trước để bật link BXH chung.'}</p>
   <label className="field-inline"><input type="checkbox" checked={showArchived} onChange={e=>setShowArchived(e.target.checked)}/> Hiện mã đã ngừng sử dụng</label>
   <div className="panel table-panel"><div className="table-wrap"><table>
    <thead><tr><th>Lớp</th><th>Mã đăng ký</th><th>Duyệt tự động</th><th>Trang học sinh</th><th>Đăng ký</th><th>Thao tác</th></tr></thead>
