@@ -16,7 +16,7 @@ const getMessage=async error=>{
  }
  return error?.message||'Không thể kết nối Google Sheets.';
 };
-export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=null,logoLabel='',rosterVersion=0,onSynced}){
+export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=null,logoLabel='',rosterVersion=0,refresh=0,onSynced}){
  const [open,setOpen]=useState(false),[link,setLink]=useState(null),
   [url,setUrl]=useState(''),[tabs,setTabs]=useState([]),[bindings,setBindings]=useState([]),
   [busy,setBusy]=useState(''),[error,setError]=useState(''),[message,setMessage]=useState(''),
@@ -57,7 +57,7 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
  }
  useEffect(()=>{let live=true;(async()=>{try{if(live)await load();}catch(e){if(live)setError(e.message);}})();
   return()=>{live=false;};
- },[profile.id,profile.school_id]);
+ },[profile.id,profile.school_id,refresh]);
  useEffect(()=>{setMapping(currentTab?.lesson_columns||{});setPreview(null);},[currentTab?.id,selectedClass]);
  useEffect(()=>{
   if(!tabs.length||tabs.some(t=>t.title===templateTab))return;
