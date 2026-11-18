@@ -202,7 +202,7 @@ async function getMap(db:any,linkId:string,className:string){
  return data;
 }
 async function studentsFromDB(db:any,schoolId:string,className:string){
- const {data,error}=await db.from("students").select("id,school_id,full_name,student_code,class_name,date_of_birth,phone,status")
+ const {data,error}=await db.from("students").select("id,school_id,full_name,student_code,class_name,date_of_birth,phone,status,school_name")
    .eq("school_id",schoolId).eq("class_name",className).eq("status","active").limit(300);
  if(error)throw fail("Không đọc được danh sách học sinh.",500);
  return data||[];
@@ -286,6 +286,7 @@ async function syncClass(db:any,link:Dict,map:Dict,token:string,actorId:string,m
  const conflicts:string[]=[];
  const newRows:Dict[]=[];
  const newStudentRows={...(map.student_rows||{})};
+ const attendanceSnapshot:Dict={...(map.attendance_snapshot||{})};
  if(mode==="pull"||mode==="pull_names"){
   const {data:sourceSchool}=await db.from("schools").select("name").eq("id",link.school_id).maybeSingle();
   const schoolDisplayName=sourceSchool?.name||"";
@@ -348,7 +349,7 @@ async function syncClass(db:any,link:Dict,map:Dict,token:string,actorId:string,m
    }
   }
  }
- if(mode==="push"){
+ if(mode==="push"||mode==="reconcile"){
   const changes:Dict[]=[];
   const used=new Set(pairs.map(p=>p.rowNo));
   const takenStudents=new Set<string>();
@@ -372,7 +373,7 @@ async function syncClass(db:any,link:Dict,map:Dict,token:string,actorId:string,m
     if((page||[]).length<500)break;
    }
   }
-  const absByKey=new Map(marks.map(x=>[x.student_id+":"+x.session_id,x.status]));
+  const marksByKey=new Map(marks.map(x=>[x.student_id+":"+x.session_id,x]));
   const push=(rowNo:number,column:number,value:any)=>changes.push({range:sheetName(map.sheet_title)+"!"+col(column)+rowNo,values:[[value]]});
   for(const student of students){
    const linkedRow=Number((map.student_rows||{})[student.id]);
@@ -408,17 +409,59 @@ async function syncClass(db:any,link:Dict,map:Dict,token:string,actorId:string,m
    for(const [sessionId,ordinal] of Object.entries(map.lesson_columns||{})){
     const n=Number(ordinal);
     if(!Number.isInteger(n)||n<1||n>70)continue;
-    const status=absByKey.get(student.id+":"+sessionId),old=p.raw[8+n];
-    if(["absent","excused"].includes(status)&&!statusAbsent(old))push(p.rowNo,9+n,true);
-    if(statusAbsent(old)&&!["absent","excused"].includes(status))conflicts.push("Sheets đánh dấu vắng "+student.full_name+" ở B"+n);
+    const k=student.id+":"+sessionId;
+    const prev=marksByKey.get(k);
+    const onWeb=["absent","excused"].includes(prev?.status);
+    const onSheet=statusAbsent(p.raw[8+n]);
+    const baseline=attendanceSnapshot[k];
+    if(onWeb===onSheet){attendanceSnapshot[k]=onWeb;continue;}
+    // Explicit push: website wins. Automatic sync: infer the changed side from a
+    // previously matched snapshot, otherwise preserve both and report a conflict.
+    if(mode==="push"||(typeof baseline==="boolean"&&onSheet===baseline)){
+      push(p.rowNo,9+n,onWeb);attendanceSnapshot[k]=onWeb;continue;
+    }
+    if(mode==="reconcile"&&typeof baseline==="boolean"&&onWeb===baseline){
+      if(onSheet&&!prev){
+        const {error:e}=await db.from("attendance").insert({
+          school_id:link.school_id,student_id:student.id,session_id:sessionId,status:"absent"
+        });
+        if(e){conflicts.push("Không thể nhập điểm danh "+student.full_name+": "+e.message);continue;}
+      }else if(!onSheet&&prev?.status==="absent"){
+        const {error:e}=await db.from("attendance").delete().eq("id",prev.id).eq("school_id",link.school_id);
+        if(e){conflicts.push("Không thể bỏ vắng "+student.full_name+": "+e.message);continue;}
+      }else{conflicts.push("Trạng thái khác vắng/có mặt cần kiểm tra: "+student.full_name);continue;}
+      attendanceSnapshot[k]=onSheet;continue;
+    }
+    conflicts.push("Điểm danh khác nhau, chưa biết bên sửa sau: "+student.full_name+" · B"+n+". Chọn Nhập từ Sheets hoặc Đẩy từ Web để xác nhận.");
    }
   }
   if(changes.length)await batchValues(link.spreadsheet_id,changes,token);
   counts.cellsWritten=changes.length;
  }
+ if(mode==="pull"){
+  // Explicit Sheets -> Web: unchecked cells must clear old absent marks.
+  const known=await studentsFromDB(db,link.school_id,map.class_name);
+  for(const p of pairs){
+   const st=known.find(x=>x.id===p.matchedId||normalize(x.full_name)===normalize(p.name));
+   if(!st||p.ambiguous)continue;
+   for(const [sessionId,ordinal] of Object.entries(map.lesson_columns||{})){
+    const n=Number(ordinal);
+    if(!Number.isInteger(n)||n<1||n>70)continue;
+    const sheetAbsent=statusAbsent(p.raw[8+n]);
+    const {data:prev,error:readErr}=await db.from("attendance").select("id,status")
+      .eq("student_id",st.id).eq("session_id",sessionId).eq("school_id",link.school_id).maybeSingle();
+    if(readErr){conflicts.push("Không đọc được điểm danh "+st.full_name);continue;}
+    if(!sheetAbsent&&prev?.status==="absent"){
+      const {error:e}=await db.from("attendance").delete().eq("id",prev.id).eq("school_id",link.school_id);
+      if(e){conflicts.push("Không bỏ được điểm vắng "+st.full_name);continue;}
+    }
+    attendanceSnapshot[st.id+":"+sessionId]=sheetAbsent;
+   }
+  }
+ }
  if(mode!=="preview"){
   const {error}=await db.from("school_sheet_tabs").update({
-    student_rows:newStudentRows,last_synced_at:new Date().toISOString()
+    student_rows:newStudentRows,attendance_snapshot:attendanceSnapshot,last_synced_at:new Date().toISOString()
   }).eq("id",map.id);
   if(error)conflicts.push("Chưa lưu được ánh xạ học sinh.");
   await db.from("school_sheet_links").update({last_synced_at:new Date().toISOString()}).eq("id",link.id);
