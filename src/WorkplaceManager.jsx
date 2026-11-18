@@ -3,6 +3,7 @@ import {Building2,School,Plus,Trash2,ImagePlus,ArrowRight,Link2Off} from 'lucide
 import {supabase} from './lib/supabase';
 import {groupSchoolNames,schoolNameKey} from './lib/workplaceReports';
 import {provisionSchoolWorkbook} from './lib/sheetProvision';
+import {uppercaseSchoolName} from './lib/schoolNames';
 
 const KIND_LABEL={company:'Công ty',center:'Trung tâm'};
 const clean=value=>String(value||'').trim().replace(/\s+/g,' ');
@@ -78,7 +79,7 @@ export function WorkplaceManager({profile,schools=[],workplaces=[],links=[],ping
   },'Đã gỡ '+group.name+' khỏi '+unit.name+'; không xóa dữ liệu trường.');
  }
  async function createSchool(unit){
-  const newName=clean(newSchoolNames[unit.id]);
+  const newName=uppercaseSchoolName(newSchoolNames[unit.id]);
   if(!newName){ping('Nhập tên trường trước khi thêm.');return;}
   if(schools.some(s=>schoolNameKey(s.name)===schoolNameKey(newName))){
    ping('Trường '+newName+' đã có trong danh sách. Hãy dùng Gắn trường để tránh tạo trùng hồ sơ.');
@@ -204,7 +205,7 @@ export function WorkplaceManager({profile,schools=[],workplaces=[],links=[],ping
       <div className="workplace-attach-row">
        <input placeholder="Ví dụ: THCS Vũng Tàu" maxLength={200} disabled={busy}
         value={newSchoolNames[unit.id]||''}
-        onChange={e=>setNewSchoolNames(v=>({...v,[unit.id]:e.target.value}))}/>
+        onChange={e=>setNewSchoolNames(v=>({...v,[unit.id]:uppercaseSchoolName(e.target.value,false)}))}/>
        <button className="btn outline" disabled={busy||!clean(newSchoolNames[unit.id])} onClick={()=>createSchool(unit)} type="button">Tạo trường</button>
       </div>
      </label>
