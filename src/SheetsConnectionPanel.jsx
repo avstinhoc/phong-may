@@ -6,6 +6,7 @@ import {fixedDateScript} from './lib/sheetDateScript';
 
 const labelDate=v=>String(v||'').split('-').reverse().join('/');
 const SHEETS_EDITOR_EMAIL='ic3-sheets-sync@qlpm-ic3.iam.gserviceaccount.com';
+const EMPTY_SCHOOL_TEMPLATE_ID='1zxht2Ft4mr6DEkycI--wXqZJbXLRJ-8iHtVc64horpM';
 const getMessage=async error=>{
  if(error?.context?.json){
   try{const d=await error.context.json();if(d?.error)return d.error;}catch{}
@@ -22,18 +23,17 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
  const autoSyncedForRef=useRef('');
  const autoInspectedForRef=useRef('');
  const currentTab=bindings.find(x=>x.class_name===selectedClass);
- const sourceCopyId=useMemo(()=>{
-  if(!url.trim())return link?.spreadsheet_id||null;
-  try{return parseSheetUrl(url);}catch{return null;}
- },[url,link?.spreadsheet_id]);
- const sourceCopyUrl=sourceCopyId?'https://docs.google.com/spreadsheets/d/'+sourceCopyId+'/copy':'';
+ const canManageLink=!link||link.owner_id===profile.id||profile.role==='admin';
+ const suggestedTitle=('DS ĐIỂM DANH '+String(profile.school_name||'TRƯỜNG').toLocaleUpperCase('vi')).slice(0,110);
+ const sourceCopyUrl='https://docs.google.com/spreadsheets/d/'+EMPTY_SCHOOL_TEMPLATE_ID+
+  '/copy?title='+encodeURIComponent(suggestedTitle);
  const classSessions=useMemo(()=>sessions.filter(x=>x.class_name===selectedClass)
   .sort((a,b)=>String(a.session_date).localeCompare(String(b.session_date))||
    String(a.start_time).localeCompare(String(b.start_time))),[sessions,selectedClass]);
  async function load(){
   if(!profile.school_id)return;
   const {data:linkData,error:linkError}=await supabase.from('school_sheet_links')
-   .select('*').eq('owner_id',profile.id).eq('school_id',profile.school_id).maybeSingle();
+   .select('*').eq('school_id',profile.school_id).maybeSingle();
   if(linkError)throw linkError;
   setLink(linkData);
   if(linkData){
@@ -141,20 +141,37 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
   try{await callback();}catch(e){setError(e.message||String(e));}
   finally{setBusy('');}
  }
- async function saveLink(){
-  const id=parseSheetUrl(url);
-  if(link&&link.spreadsheet_id!==id)
-   throw Error('Muốn đổi file Google Sheets, hãy ngắt liên kết cũ trước để tránh nhầm dữ liệu lớp. Thao tác này không xóa học sinh hoặc file Google.');
-  const {error}=await supabase.from('school_sheet_links').upsert({
+ async function persistSchoolCopy(nextUrl){
+  const id=parseSheetUrl(nextUrl);
+  if(id===EMPTY_SCHOOL_TEMPLATE_ID)throw Error('Đây là file mẫu; cần lấy link của bản sao mới.');
+  if(link){
+   if(link.spreadsheet_id!==id)throw Error('Trường đã có Sheets dùng chung. Hãy hỏi chủ liên kết hoặc Admin trước khi đổi file.');
+   setMessage('File này đã được liên kết cho trường.');return;
+  }
+  const {error}=await supabase.from('school_sheet_links').insert({
    school_id:profile.school_id,owner_id:profile.id,spreadsheet_id:id,
    template_tab:'6.1',status:'unverified',auto_sync:true
-  },{onConflict:'owner_id,school_id'});
-  if(error)throw error;
-  await load();
-  setMessage('Đã lưu đường dẫn. Bước tiếp theo: kiểm tra quyền Google Sheets.');
+  });
+  if(error){
+   if(error.code==='23505'){await load();throw Error('Đồng nghiệp vừa liên kết Sheets cho trường. Hãy dùng file chung đã hiển thị.');}
+   throw error;
+  }
+  setUrl(nextUrl);await load();
+  setMessage('Đã gắn file cho trường. Đang tự động kiểm tra quyền truy cập...');
+ }
+ async function saveLink(){
+  if(!canManageLink)throw Error('Chỉ chủ liên kết hoặc Admin được thay đổi file Sheets của trường.');
+  await persistSchoolCopy(url);
+ }
+ async function pasteNewSchoolCopy(){
+  if(!navigator.clipboard?.readText)throw Error('Không tự đọc được clipboard. Hãy dán link vào ô đường dẫn rồi bấm Lưu liên kết.');
+  let copied;
+  try{copied=await navigator.clipboard.readText();}catch{throw Error('Hãy cho phép đọc clipboard hoặc dán link Google Sheets mới vào ô trên.');}
+  await persistSchoolCopy(copied.trim());
  }
  async function disconnect(){
-  if(!link||!window.confirm('Ngắt liên kết Google Sheets khỏi trường này? File gốc và dữ liệu học sinh trên web đều không bị xóa. Các ánh xạ tab/tiết của liên kết này sẽ được gỡ bỏ.'))return;
+  if(!link||!canManageLink)throw Error('Chỉ chủ liên kết hoặc Admin được ngắt file Sheets của trường.');
+  if(!window.confirm('Ngắt Google Sheets chung của toàn trường? Dữ liệu trên Google và học sinh trên web vẫn nguyên, nhưng liên kết tab của cả trường sẽ được gỡ.'))return;
   const {error}=await supabase.from('school_sheet_links').delete().eq('id',link.id);
   if(error)throw error;
   await load();setMessage('Đã ngắt liên kết. File Google Sheets gốc vẫn nguyên vẹn.');
@@ -222,48 +239,49 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
   <button type="button" className={'sheets-link-toggle '+(open?'active':'')} onClick={()=>setOpen(x=>!x)}
     aria-expanded={open}>
     <span className="sheets-link-icon" aria-hidden="true">▦</span>
-    <span><strong>Liên kết Google Sheets</strong><small>Giữ file mẫu gốc · Đồng bộ lớp, học sinh, điểm và điểm danh</small></span>
+    <span><strong>Liên kết Google Sheets</strong><small>Mỗi trường một bảng tính chung · Tạo từ mẫu trống</small></span>
     <span className={'sheets-link-status '+(link?.status==='verified'?'verified':'')}>
       {link?.status==='verified'?'Đã cấp quyền':link?'Chưa xác thực':'Chưa liên kết'}</span>
     <span className="sheets-link-chevron" aria-hidden="true">{open?'⌃':'⌄'}</span>
   </button>
   {open&&<div className="sheets-link-content">
    {!profile.school_id?<p className="notice-box">Hãy chọn trường công tác ở menu trái trước khi liên kết.</p>:<>
-    <p className="muted">Mỗi giáo viên/trường có file Google Sheets riêng. Dùng tài khoản Google của giáo viên để tạo bản sao, rồi cấp quyền Chỉnh sửa cho Service Account.</p>
+    <p className="muted">Mỗi trường chỉ dùng một bảng tính. Đồng nghiệp được phân quyền tại cùng trường sẽ sử dụng chung; trường khác phải có file riêng. Chủ file cần chia sẻ quyền Người chỉnh sửa cho Service Account.</p>
     <div className="sheets-link-grid">
      <label>Đường dẫn Google Sheets của {profile.school_name}
-      <input type="url" value={url} disabled={!!busy} onChange={e=>setUrl(e.target.value)}
+      <input type="url" value={url} disabled={!!busy||!!link||!canManageLink} onChange={e=>setUrl(e.target.value)}
         placeholder="https://docs.google.com/spreadsheets/d/..." aria-label="Dán link Google Sheets cho trường này"/>
      </label>
-     <button className="btn primary" disabled={!!busy||!url.trim()} onClick={()=>run('save',saveLink)}>
+     <button className="btn primary" disabled={!!busy||!url.trim()||!!link||!canManageLink} onClick={()=>run('save',saveLink)}>
       {busy==='save'?'Đang lưu…':'Lưu liên kết'}
      </button>
      {link&&<button className="btn outline" disabled={!!busy} onClick={()=>run('inspect',inspect)}>
        {busy==='inspect'?'Đang kiểm tra…':'Kiểm tra quyền & đọc tabs'}
       </button>}
     </div>
-    <div className="sheets-copy-guide">
-      <strong>Tạo bảng tính mới từ file Google Sheets mẫu</strong>
+    {!link&&<div className="sheets-copy-guide">
+      <strong>Tạo file Google Sheets của trường từ mẫu trống</strong>
+      <p>Đề xuất đặt tên: <b>{suggestedTitle}</b>. Mẫu mặc định không phải file đang liên kết của trường khác.</p>
       <ol>
-        <li>Dán liên kết <b>file mẫu</b> vào ô trên, rồi chọn <b>Tạo bản sao Google Sheets</b>. Google sẽ hỏi bạn xác nhận tạo bản sao trong Drive cá nhân.</li>
-        <li>Trong <b>bản sao mới</b>, bấm <b>Chia sẻ</b> → thêm email dưới đây → chọn <b>Người chỉnh sửa (Editor)</b> → <b>Gửi</b>.</li>
-        <li>Quay lại QLPM, thay link mẫu bằng <b>link của bản sao mới</b>, chọn <b>Lưu liên kết</b> và <b>Kiểm tra quyền &amp; đọc tabs</b>.</li>
+        <li>Bấm <b>Tạo file Google Sheets của trường</b>. Google mở xác nhận bản sao vào Drive của giáo viên. Nếu tên chưa tự điền, hãy đặt <b>{suggestedTitle}</b>.</li>
+        <li>Trong file bản sao, chọn <b>Chia sẻ</b> → thêm email dịch vụ bên dưới → chọn <b>Người chỉnh sửa (Editor)</b> → <b>Gửi</b>.</li>
+        <li>Chọn <b>Chia sẻ → Sao chép đường liên kết</b> rồi về QLPM bấm <b>Dán link bản sao &amp; liên kết</b>. Nếu trình duyệt không cho đọc clipboard, dán link vào ô đường dẫn và bấm Lưu liên kết.</li>
       </ol>
       <div className="sheets-link-actions">
-        {sourceCopyUrl?<a className="btn primary" href={sourceCopyUrl} target="_blank" rel="noopener noreferrer">Tạo bản sao Google Sheets</a>
-         :<button type="button" className="btn primary" disabled title="Dán link Google Sheets mẫu vào ô phía trên trước">Tạo bản sao Google Sheets</button>}
-        <button type="button" className="btn outline" onClick={()=>navigator.clipboard?.writeText(SHEETS_EDITOR_EMAIL)
-          .then(()=>setMessage('Đã sao chép email để chia sẻ file bản sao.'))
-          .catch(()=>setError('Không sao chép được email. Hãy chọn email bên dưới và sao chép thủ công.'))}>Sao chép email cấp quyền</button>
+       <a className="btn primary" href={sourceCopyUrl} target="_blank" rel="noopener noreferrer">Tạo file Google Sheets của trường</a>
+       <button type="button" className="btn outline" disabled={!!busy} onClick={()=>run('paste',pasteNewSchoolCopy)}>Dán link bản sao &amp; liên kết</button>
+       <button type="button" className="btn outline" onClick={()=>navigator.clipboard?.writeText(SHEETS_EDITOR_EMAIL)
+         .then(()=>setMessage('Đã sao chép email dịch vụ. Cấp quyền Editor trong Google Sheets.'))
+         .catch(()=>setError('Không sao chép được; hãy chọn email bên dưới để copy.'))}>Sao chép email cấp quyền</button>
       </div>
       <code className="sheets-service-email">{SHEETS_EDITOR_EMAIL}</code>
-      <small>Không bật “Bất kỳ ai có đường liên kết”. Nếu file mẫu đã chứa dữ liệu học sinh của trường khác, hãy dùng <b>mẫu trống</b> hoặc xóa thông tin cũ khỏi bản sao trước khi sử dụng.</small>
-    </div>
+      <small>Không dán link file mẫu trực tiếp vào trường. Google yêu cầu người dùng xác nhận bản sao trong Drive cá nhân; Service Account không thể tự sở hữu file trong My Drive.</small>
+    </div>}
     {link&&<div className="sheets-link-meta">
      <a href={'https://docs.google.com/spreadsheets/d/'+link.spreadsheet_id+'/edit'}
        target="_blank" rel="noreferrer">Mở file Google Sheets gốc</a>
-     <small>{link.spreadsheet_title||'Chưa đọc được tên file'} · Cập nhật lần cuối: {link.last_synced_at?new Date(link.last_synced_at).toLocaleString('vi-VN'):'Chưa đồng bộ'}</small>
-     <button className="mini-btn danger" disabled={!!busy} onClick={()=>run('disconnect',disconnect)}>Ngắt liên kết</button>
+     <small>{link.spreadsheet_title||'Chưa đọc được tên file'} · Dùng chung cho giáo viên tại {profile.school_name} · Cập nhật lần cuối: {link.last_synced_at?new Date(link.last_synced_at).toLocaleString('vi-VN'):'Chưa đồng bộ'}</small>
+     {canManageLink&&<button className="mini-btn danger" disabled={!!busy} onClick={()=>run('disconnect',disconnect)}>Ngắt liên kết toàn trường</button>}
     </div>}
     {error&&<div className="sheets-link-error" role="alert"><strong>Chưa thực hiện được:</strong> {error}</div>}
     {message&&<div className="sheets-link-message" role="status">{message}</div>}
@@ -283,7 +301,7 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
        Những ngày đã bị thay đổi cần đối chiếu lịch dạy để nhập lại ngày thật. Không tự chốt ngày hôm nay cho buổi đã dạy.</p>
     </details>}
     {link?.status==='verified'&&<div className="sheets-link-auto">
-      <label><input type="checkbox" checked={!!link.auto_sync} disabled={!!busy}
+      <label><input type="checkbox" checked={!!link.auto_sync} disabled={!!busy||!canManageLink}
          onChange={e=>run('auto-toggle',()=>changeAuto(e.target.checked))}/>
        Tự đồng bộ lớp, học sinh, điểm và điểm danh khi mở Danh sách học sinh</label>
       <small>Mặc định bật, không cần đồng bộ thủ công trước. Tự tạo tab còn thiếu và bổ sung ô trống; dữ liệu khác nhau được báo xung đột, không ghi đè. Không chạy ngầm 24/7.</small>
