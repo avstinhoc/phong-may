@@ -60,6 +60,11 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
   return()=>{live=false;};
  },[profile.id,profile.school_id]);
  useEffect(()=>{setMapping(currentTab?.lesson_columns||{});setPreview(null);},[currentTab?.id,selectedClass]);
+ useEffect(()=>{
+  if(!tabs.length||tabs.some(t=>t.title===templateTab))return;
+  const chosen=tabs.find(t=>t.title==='Gốc')||tabs.find(t=>t.title==='6.1')||tabs[0];
+  if(chosen?.title)setTemplateTab(chosen.title);
+ },[tabs,templateTab]);
 
  useEffect(()=>{autoSyncedForRef.current='';autoInspectedForRef.current='';},[profile.school_id]);
  useEffect(()=>{
