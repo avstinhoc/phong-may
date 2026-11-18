@@ -18,7 +18,7 @@ Google xác nhận **Service Account không có quota lưu trữ và không th�
 
 ## Thiết lập một lần bởi chủ Drive
 
-1. Đảm bảo file mẫu **DS ĐIỂM DANH** trống dữ liệu học sinh và nằm trực tiếp trong thư mục QLPM. Link mẫu: https://docs.google.com/spreadsheets/d/1zxht2Ft4mr6DEkycI--wXqZJbXLRJ-8iHtVc64horpM/edit
+1. File mẫu **DS ĐIỂM DANH** đã được kiểm tra: có tab **Gốc**, vùng danh sách học sinh đang trống và nằm trực tiếp trong thư mục QLPM. QLPM sẽ nhân tab **Gốc** thành các lớp 6.1, 6.2… khi đồng bộ. Link mẫu: https://docs.google.com/spreadsheets/d/1zxht2Ft4mr6DEkycI--wXqZJbXLRJ-8iHtVc64horpM/edit
 2. Đảm bảo thư mục QLPM đã cấp `Editor` cho `ic3-sheets-sync@qlpm-ic3.iam.gserviceaccount.com`. **Đổi quyền truy cập chung về Hạn chế**; tuyệt đối không để **Anyone → Editor**.
 3. Đăng nhập Google bằng **chủ sở hữu thư mục QLPM**, mở https://script.google.com/home/projects/create, tạo project `QLPM Drive Copy`.
 4. Copy **toàn bộ mã nguồn** [qlpm-drive-auto-copy.gs](../google-apps-script/qlpm-drive-auto-copy.gs) vào file `Code.gs`. Lưu.
