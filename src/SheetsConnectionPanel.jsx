@@ -29,8 +29,7 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
  const currentTab=bindings.find(x=>x.class_name===selectedClass);
  const canManageLink=!link||link.owner_id===profile.id||profile.role==='admin';
  const suggestedTitle=('DS ĐIỂM DANH '+String(profile.school_name||'TRƯỜNG').toLocaleUpperCase('vi')).slice(0,110);
- const sourceCopyUrl='https://docs.google.com/spreadsheets/d/'+EMPTY_SCHOOL_TEMPLATE_ID+
-  '/copy?title='+encodeURIComponent(suggestedTitle);
+
  const classSessions=useMemo(()=>sessions.filter(x=>x.class_name===selectedClass)
   .sort((a,b)=>String(a.session_date).localeCompare(String(b.session_date))||
    String(a.start_time).localeCompare(String(b.start_time))),[sessions,selectedClass]);
@@ -203,13 +202,6 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
   if(!canManageLink)throw Error('Chỉ chủ liên kết hoặc Admin được thay đổi file của trường.');
   await persistSchoolCopy(url);
  }
- async function pasteNewSchoolCopy(){
-  if(!navigator.clipboard?.readText)throw Error('Trình duyệt không hỗ trợ đọc clipboard. Hãy dán link Sheets vào ô trên.');
-  let copied;
-  try{copied=await navigator.clipboard.readText();}
-  catch{throw Error('Chưa cấp quyền đọc clipboard. Hãy dán link Sheets vào ô đường dẫn.');}
-  await persistSchoolCopy(copied.trim());
- }
  async function disconnect(){
   if(!link||!canManageLink)throw Error('Chỉ chủ liên kết hoặc Admin được ngắt file Sheets của trường.');
   if(!window.confirm('Ngắt Google Sheets chung của toàn trường? Dữ liệu trên Google và học sinh trên web vẫn nguyên, nhưng liên kết tab của cả trường sẽ được gỡ.'))return;
@@ -287,7 +279,7 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
   </button>
   {open&&<div className="sheets-link-content">
    {!profile.school_id?<p className="notice-box">Hãy chọn trường công tác ở menu trái trước khi liên kết.</p>:<>
-    <p className="muted"><b>QLPM</b> chứa file mẫu <b>DS ĐIỂM DANH</b> (ẩn khỏi luồng tạo tự động) và một file <b>DS ĐIỂM DANH [TÊN TRƯỜNG]</b> cho từng trường. Không cần thư mục con, không cần chia sẻ lại mỗi file.</p>
+
     <section className="sheets-folder-setup">
      <div className="sheets-folder-head">
       <strong>Thư mục Google Drive chung: QLPM</strong>
@@ -330,26 +322,6 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
         {busy==='create'?'Đang tạo và liên kết…':'Tạo file Google Sheets của trường'}</button>
       </div>
       <p className="muted">Sau khi tạo thành công: file tự lưu trong QLPM, tự đặt tên theo trường, tự gắn vào ô đường dẫn và bật đồng bộ cho trường. Đồng nghiệp có quyền trong cùng trường dùng chung liên kết.</p>
-      <details className="sheets-automation-guide">
-       <summary>Admin · Cấu hình tự động tạo file lần đầu (Google Apps Script)</summary>
-       <p>Google không cho Service Account sở hữu file mới trong My Drive cá nhân. Để nút trên tạo file hoàn toàn tự động, chủ Drive cần triển khai Apps Script một lần, chạy dưới tài khoản Google sở hữu thư mục QLPM.</p>
-       <ol>
-        <li>Mở <a href="https://script.google.com/home/projects/create" target="_blank" rel="noopener noreferrer">Google Apps Script</a>, dán mã từ
-         <a href="https://github.com/avstinhoc/phong-may/blob/main/google-apps-script/qlpm-drive-auto-copy.gs" target="_blank" rel="noopener noreferrer"> mã sao chép QLPM</a>.</li>
-        <li>Chạy hàm <code>setupQlpmCopy</code> một lần, cấp quyền Google Drive và sao chép <b>signing key</b> từ Execution log.</li>
-        <li><b>Deploy → New deployment → Web app</b>. Chọn <b>Execute as: Me</b>; quyền truy cập <b>Anyone</b>. Sao chép URL <code>/exec</code>.</li>
-        <li>Trong <b>Supabase → Edge Functions → Secrets</b>, thêm <code>QLPM_APPS_SCRIPT_WEB_APP_URL</code> (URL /exec) và <code>QLPM_APPS_SCRIPT_SIGNING_KEY</code> (khóa vừa tạo). Không đặt khóa ở Vercel hoặc mã frontend.</li>
-       </ol>
-       <small>Đây là bước cấp quyền chạy Apps Script của chủ Google Drive một lần, không khôi phục đăng nhập Google OAuth riêng cho Sheets của giáo viên.</small>
-      </details>
-      <details className="sheets-automation-guide">
-       <summary>Nếu chưa cấu hình Apps Script: Tạo và gắn link thủ công</summary>
-       <p>Tạo bản sao file mẫu, di chuyển bản sao vào thư mục QLPM, đặt tên <b>{suggestedTitle}</b>, rồi sao chép URL vào ô phía trên và bấm <b>Lưu link có sẵn</b>.</p>
-       <div className="sheets-link-actions">
-        <a className="btn outline" href={sourceCopyUrl} target="_blank" rel="noopener noreferrer">Tạo bản sao thủ công</a>
-        <button type="button" className="btn outline" disabled={!!busy} onClick={()=>run('paste',pasteNewSchoolCopy)}>Dán link từ clipboard</button>
-       </div>
-      </details>
     </div>}
     {link&&!canManageLink&&<p className="sheets-link-footnote"><b>Đang dùng chung Google Sheets của trường.</b> Bạn có thể đồng bộ trên QLPM theo quyền trường; muốn mở và chỉnh sửa trực tiếp trong Google Sheets, nhờ chủ file chia sẻ thêm email Google của bạn ở quyền Editor.</p>}
         {link&&<div className="sheets-link-meta">

@@ -591,7 +591,8 @@ Deno.serve(async(req:Request)=>{
     const admin=createClient(url,serviceKey,{auth:{persistSession:false,autoRefreshToken:false}});
     const {data:root,error:rootErr}=await admin.from("qlpm_drive_root")
        .select("folder_id,folder_name").eq("id",1).maybeSingle();
-    if(rootErr||!root)throw fail("Chưa cấu hình thư mục QLPM dùng chung.",409);
+    if(rootErr)throw fail("Máy chủ không đọc được cấu hình thư mục QLPM. Hãy kiểm tra quyền service_role trên bảng qlpm_drive_root.",503);
+    if(!root)throw fail("Chưa đăng ký thư mục QLPM dùng chung.",409);
     if(root.folder_id!==QLPM_ROOT_ID)
       throw fail("Thư mục QLPM không trùng với cấu hình đã xác minh. Hãy liên hệ Admin.",409);
     const token=await googleToken();

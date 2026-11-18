@@ -26,7 +26,7 @@ test('school-level RLS allows only authorized staff to use a shared workbook',()
 });
 test('source template is fixed and cannot be saved as a live school workbook',()=>{
  assert.ok(ui.includes('1zxht2Ft4mr6DEkycI--wXqZJbXLRJ-8iHtVc64horpM'));
- assert.ok(ui.includes('/copy?title='));
+ assert.ok(ui.includes("callSchoolDrive('create_school_workbook'"));
  assert.ok(ui.includes('suggestedTitle'));
  assert.ok(ui.includes('Tạo file Google Sheets của trường'));
  assert.ok(ui.includes('Lưu link có sẵn'));

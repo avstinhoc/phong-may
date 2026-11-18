@@ -19,7 +19,7 @@ test('QLPM root contains the template and school files directly (no new school s
  assert.ok(edge.includes('const QLPM_TEMPLATE_ID="'+template+'"'));
  assert.ok(script.includes("const TEMPLATE_NAME = 'DS ĐIỂM DANH'"));
  assert.ok(script.includes('template.makeCopy(filename, root)'));
- assert.ok(ui.includes('Không cần thư mục con'));
+ assert.ok(ui.includes('Thư mục Google Drive chung: QLPM'));
  assert.ok(!ui.includes('setSchoolFolder('));
 });
 
@@ -75,4 +75,20 @@ test('block publicly shared Drive roots when permission metadata is returned',()
  assert.ok(edge.includes('p.type==="anyone"'));
  assert.ok(edge.includes('Quyền truy cập chung → Hạn chế'));
  assert.ok(edge.includes('ensurePrivateRoot(rootInfo)'));
+});
+
+const grants=readFileSync(new URL('../supabase/migrations/20261118132500_server_qlpm_root_link_grants.sql',import.meta.url),'utf8');
+test('the Edge service_role can read root and link Sheets; teacher writes stay revoked',()=>{
+ assert.ok(grants.includes('grant select, insert, update on table public.qlpm_drive_root to service_role'));
+ assert.ok(grants.includes('grant insert on table public.school_sheet_links to service_role'));
+ assert.ok(grants.includes('revoke insert, update, delete on table public.qlpm_drive_root from anon, authenticated'));
+ assert.ok(grants.includes('revoke insert on table public.school_sheet_links from anon, authenticated'));
+});
+test('Sheets UI has one primary creation action and omits obsolete setup accordions/intro',()=>{
+ assert.ok(ui.includes('Tạo file Google Sheets của trường'));
+ assert.ok(!ui.includes('Admin · Cấu hình tự động tạo file lần đầu'));
+ assert.ok(!ui.includes('Nếu chưa cấu hình Apps Script: Tạo và gắn link thủ công'));
+ assert.ok(!ui.includes('<b>QLPM</b> chứa file mẫu'));
+ assert.ok(edge.includes('if(rootErr)throw fail("Máy chủ không đọc được cấu hình thư mục QLPM.'));
+ assert.ok(edge.includes('if(!root)throw fail("Chưa đăng ký thư mục QLPM dùng chung.'));
 });
