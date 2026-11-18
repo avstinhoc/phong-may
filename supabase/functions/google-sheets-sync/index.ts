@@ -220,7 +220,8 @@ async function ensureClass(db:any,schoolId:string,className:string,ownerId:strin
  if(existing?.length)return existing[0].id;
  const slug=schoolName.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[đĐ]/g,"D")
    .toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,25)||"TRUONG";
- const code=("IC3-"+slug+"-"+className).toUpperCase();
+ const normalizedClass=className.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^A-Z0-9.]/g,"").slice(0,24);
+ const code=("IC3-"+slug+"-"+normalizedClass).toUpperCase();
  let res=await db.from("classes").insert({school_id:schoolId,class_name:className,
     registration_code:code,created_by:ownerId}).select("id").single();
  if(res.error?.code==="23505"){
