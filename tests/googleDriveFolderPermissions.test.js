@@ -32,7 +32,8 @@ test('owner Apps Script copies only signed requests and never creates duplicate 
  assert.ok(script.includes("root.getFilesByName(filename)"));
  assert.ok(script.includes("QLPM_SCHOOL_ID:"));
  assert.ok(script.includes("ROOT_FOLDER_ID, TEMPLATE_SHEET_ID].join('|')"));
- assert.ok(edge.includes('const message=[ts,nonce,schoolId,title,rootId,QLPM_TEMPLATE_ID].join("|")'));
+ assert.ok(edge.includes('const messageParts=[ts,nonce,schoolId,title,rootId,QLPM_TEMPLATE_ID]'));
+ assert.ok(edge.includes('const message=messageParts.join(separator)'));;
  assert.ok(edge.includes('crypto.subtle.sign("HMAC"'));
  assert.ok(edge.includes('QLPM_APPS_SCRIPT_SIGNING_KEY'));
  assert.ok(edge.includes('QLPM_APPS_SCRIPT_WEB_APP_URL'));
