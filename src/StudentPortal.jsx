@@ -3,11 +3,13 @@ import {supabase} from './lib/supabase';
 const stateLabel={available:'Sẵn sàng',occupied:'Đang sử dụng',broken:'Hỏng',maintenance:'Bảo trì'};
 const typeLabel={point:'Điểm',reward:'Thưởng',violation:'Vi phạm'};
 const date=s=>s?s.split('-').reverse().join('/'):'';
+const seatKey=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('vi').trim().replace(/\s+/g,' ');
 export function StudentPortal(){
   const [code,setCode]=useState(()=>new URLSearchParams(window.location.search).get('code')||'');
   const [secret,setSecret]=useState('');
   const [payload,setPayload]=useState(null);
   const [violationBadges,setViolationBadges]=useState([]);
+  const [starBoard,setStarBoard]=useState([]);
   const [error,setError]=useState('');
   const [busy,setBusy]=useState(false);
   async function load(nextCode=code,nextSecret=secret){
@@ -21,20 +23,30 @@ export function StudentPortal(){
     }
     normalizedCode=resolved.data;
     setCode(normalizedCode);
-    const [main,badges]=await Promise.all([
+    const [main,badges,stars]=await Promise.all([
       supabase.rpc('get_student_class_portal',{
         p_code:normalizedCode,p_secret:nextSecret.trim()||null}),
-      supabase.rpc('get_class_violation_badges',{p_code:normalizedCode})
+      supabase.rpc('get_class_violation_badges',{p_code:normalizedCode}),
+       supabase.rpc('ic3_class_stars',{p_code:normalizedCode})
     ]);
     setBusy(false);
     if(main.error){setPayload(null);setViolationBadges([]);setError(main.error.message);}
-    else{setPayload(main.data);setViolationBadges(Array.isArray(badges.data)?badges.data:[]);}
+    else{setPayload(main.data);setViolationBadges(Array.isArray(badges.data)?badges.data:[]);
+      setStarBoard(Array.isArray(stars.data)?stars.data:[]);}
 
   }
   useEffect(()=>{if(code)load(code,'');},[]);
   const student=payload?.student;
   const scores=student?.scores?.scores||{};
   const machines=payload?.computers||[];
+  const ranked=[...starBoard].sort((a,b)=>Number(b.earned)-Number(a.earned)||Number(b.available)-Number(a.available));
+  const topStars=Number(ranked[0]?.earned||0);
+  const starForSeat=name=>{
+    const label=seatKey(name);
+    const matches=starBoard.filter(st=>seatKey(st.student_name)===label||
+      seatKey(st.student_name).split(' ').slice(-2).join(' ')===label);
+    return matches.length===1?matches[0]:null;
+  };
   const counts=useMemo(()=>({
     total:machines.length,
     available:machines.filter(m=>m.status==='available'||m.status==='occupied').length,
@@ -79,6 +91,19 @@ export function StudentPortal(){
           <div><small>Máy cần sửa</small><b>{counts.broken}</b><span>🛠️</span></div>
           <div><small>Vị trí lớp mình</small><b>{counts.occupied}</b><span>👨‍🎓</span></div>
         </div>
+        <section className="panel portal-star-leaderboard">
+          <div className="portal-section-title"><div><h2>🏆 Bảng xếp hạng sao lớp {payload.class_name}</h2>
+            <p className="muted">Sao đã kiếm được lưu vĩnh viễn để xếp hạng. Sao còn lại dùng đổi kẹo với giáo viên.</p></div></div>
+          <div className="portal-star-grid">
+            {ranked.filter(st=>Number(st.earned)>0).slice(0,12).map((st,i)=><div key={st.student_id}
+              className={'portal-star-rank '+(i===0&&Number(st.earned)>=5?'star-champion':'')}>
+              <span>{i===0?'🥇':i===1?'🥈':i===2?'🥉':'#'+(i+1)}</span>
+              <b>{st.student_name} {i===0&&Number(st.earned)>=5?<span className="star-flame">🔥</span>:null}</b>
+              <span>⭐ {st.earned} đã kiếm · {st.available} hiện có</span>
+            </div>)}
+            {!ranked.some(st=>Number(st.earned)>0)&&<p className="muted">Chưa có sao thưởng. Cùng cố gắng nhé! ✨</p>}
+          </div>
+        </section>
         <section className="panel">
           <div className="portal-section-title"><div><h2>💻 Sơ đồ máy tính lớp {payload.class_name}</h2><p className="muted">Xem bạn nào đang ngồi máy nào và việc vệ sinh cần làm.</p></div><span className="portal-mini-pill">{counts.waiting} việc vệ sinh chưa xong</span></div>
           <div className="portal-pcs">
@@ -94,7 +119,14 @@ export function StudentPortal(){
                 </div>:null;
               })()}
               <div className="portal-names"><strong>👩‍💻 Bạn ngồi máy:</strong>
-                {(c.students||[]).length?<div>{c.students.map((name,i)=><span key={i}>{name}</span>)}</div>:<small>Chưa có bạn nào</small>}
+                {(c.students||[]).length?<div>{c.students.map((name,i)=>{
+                   const stars=starForSeat(name);
+                   const champion=stars&&Number(stars.earned)>=5&&Number(stars.earned)===topStars;
+                   return <span key={i} className={champion?'star-champion':''}>{name}
+                     {stars&&Number(stars.available)>0&&<b className="student-star-badge"> ⭐{Number(stars.available)>1?' ×'+stars.available:''}</b>}
+                     {champion&&<b className="star-flame"> 🔥</b>}
+                   </span>;
+                 })}</div>:<small>Chưa có bạn nào</small>}
               </div>
               <div className="portal-cleaning">
                 <strong>🧹 Lịch vệ sinh</strong>

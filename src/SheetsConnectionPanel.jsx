@@ -6,6 +6,13 @@ import {fixedDateScript} from './lib/sheetDateScript';
 import {parseDriveFolderUrl} from './lib/driveSchoolFolders';
 
 const labelDate=v=>String(v||'').split('-').reverse().join('/');
+const validSchoolClass=value=>{
+  const label=String(value||'').trim().replaceAll('／','/');
+  if(!/^[\p{L}\p{N}][\p{L}\p{N} ._\/-]{0,59}$/u.test(label)||label==='Gốc')
+    throw Error('Tên lớp không hợp lệ. Ví dụ: 6A1, 6.1, 6-1 hoặc 6/1.');
+  return label;
+};
+const googleTabForClass=value=>String(value).replaceAll('/','／');
 const SHEETS_EDITOR_EMAIL='ic3-sheets-sync@qlpm-ic3.iam.gserviceaccount.com';
 const EMPTY_SCHOOL_TEMPLATE_ID='1zxht2Ft4mr6DEkycI--wXqZJbXLRJ-8iHtVc64horpM';
 // Suggested parent folder provided by the QLPM administrator. Never treat as verified until the Edge Function checks Editor access.
@@ -16,7 +23,7 @@ const getMessage=async error=>{
  }
  return error?.message||'Không thể kết nối Google Sheets.';
 };
-export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=null,logoLabel='',rosterVersion=0,onSynced}){
+export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=null,logoLabel='',rosterVersion=0,refresh=0,onSynced}){
  const [open,setOpen]=useState(false),[link,setLink]=useState(null),
   [url,setUrl]=useState(''),[tabs,setTabs]=useState([]),[bindings,setBindings]=useState([]),
   [busy,setBusy]=useState(''),[error,setError]=useState(''),[message,setMessage]=useState(''),
@@ -57,7 +64,7 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
  }
  useEffect(()=>{let live=true;(async()=>{try{if(live)await load();}catch(e){if(live)setError(e.message);}})();
   return()=>{live=false;};
- },[profile.id,profile.school_id]);
+ },[profile.id,profile.school_id,refresh]);
  useEffect(()=>{setMapping(currentTab?.lesson_columns||{});setPreview(null);},[currentTab?.id,selectedClass]);
  useEffect(()=>{
   if(!tabs.length||tabs.some(t=>t.title===templateTab))return;
@@ -215,15 +222,16 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
   setMessage('Google Sheets đã cấp quyền. Tìm thấy '+d.tabs.length+' tab trong file '+d.title+'.');
  }
  async function bind(){
-  const title=validateSheetTabName(tabName);
-  const res=await api({action:'bind',class_name:title,tab_title:title});
+  const title=tabName.trim();
+  const label=validSchoolClass(title);
+  const res=await api({action:'bind',class_name:label,tab_title:title});
   await load();setSelectedClass(res.tab.class_name);
   setMessage('Đã gắn tab '+title+' và tạo lớp trên web nếu lớp chưa tồn tại.');
   onSynced?.();
  }
  async function clone(){
-  const cl=validateSheetTabName(newClass);
-  if(tabs.some(t=>t.title===cl))throw Error('Tab lớp này đã có. Hãy dùng Gắn tab có sẵn.');
+  const cl=validSchoolClass(newClass);
+  if(tabs.some(t=>t.title===googleTabForClass(cl)))throw Error('Tab lớp này đã có. Hãy dùng Gắn tab có sẵn.');
   if(!window.confirm('Tạo bản sao tab '+templateTab+' thành '+cl+'? Tab mẫu sẽ giữ nguyên; bản sao làm trống tên, điểm và checkbox điểm danh.'))return;
   const d=await api({action:'clone',class_name:cl,source_tab:templateTab});
   await inspect();setSelectedClass(cl);setNewClass('');
@@ -280,7 +288,7 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
   {open&&<div className="sheets-link-content">
    {!profile.school_id?<p className="notice-box">Hãy chọn trường công tác ở menu trái trước khi liên kết.</p>:<>
 
-    <section className="sheets-folder-setup">
+    <section className="sheets-folder-setup" hidden>
      <div className="sheets-folder-head">
       <strong>Thư mục Google Drive chung: QLPM</strong>
       <span className={'sheets-folder-status '+(rootFolder?'ready':'pending')}>
@@ -332,7 +340,7 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
     </div>}
     {error&&<div className="sheets-link-error" role="alert"><strong>Chưa thực hiện được:</strong> {error}</div>}
     {message&&<div className="sheets-link-message" role="status">{message}</div>}
-    {link&&<details className="sheets-fixed-date-guide">
+    {link&&<details className="sheets-fixed-date-guide" hidden>
       <summary>Ghi ngày học cố định trong Google Sheets (B1–B70)</summary>
       <p>File mẫu đang dùng <code>TODAY()</code> nên ngày cũ thay đổi mỗi ngày.
       Cài đoạn Apps Script miễn phí một lần cho file: <b>Tiện ích mở rộng → Apps Script</b> → dán mã → <b>Lưu</b>.
@@ -360,7 +368,7 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
      <div className="sheets-link-grid">
       <label>Gắn tab đã có
        <select value={tabName} onChange={e=>setTabName(e.target.value)}>
-        <option value="">Chọn tab lớp</option>{tabs.filter(t=>/^[\p{L}\p{N} ._-]{1,60}$/u.test(t.title)).map(t=>
+        <option value="">Chọn tab lớp</option>{tabs.filter(t=>t.title!=='Gốc'&&/^[\p{L}\p{N} ._／-]{1,60}$/u.test(t.title)).map(t=>
          <option key={t.gid} value={t.title}>{t.title}</option>)}
        </select>
       </label>

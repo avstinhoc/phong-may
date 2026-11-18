@@ -1,9 +1,11 @@
-import React,{useEffect,useMemo,useRef,useState} from 'react';
+import React,{useEffect,useMemo,useState} from 'react';
 import {Sparkles,BookOpenCheck,UserRound,BarChart3,ShieldCheck,CalendarCheck,
   Award,AlertTriangle,TrendingUp,ClipboardList,CheckCircle2,Loader2,Lightbulb,
   History,FileCheck2,Info,Search,RefreshCw} from 'lucide-react';
 import {supabase} from './lib/supabase';
 import {searchName,compareStudentName} from './lib/students';
+import {exportClassEvaluation} from './lib/evaluationReport';
+import * as XLSX from 'xlsx';
 
 const emptyData={students:[],records:[],attendance:[],sessions:[],results:[],evaluations:[]};
 const niceDate=v=>v?new Date(v).toLocaleDateString('vi-VN'):'—';
@@ -12,7 +14,7 @@ const periods=['Đánh giá thường xuyên','Giữa học kỳ I','Cuối họ
 const periodName=(choice,custom)=>choice==='Khác'?custom.trim():choice;
 const countWords=text=>text.trim().split(/\s+/).filter(Boolean).length;
 
-function makeEvidence(student,data){
+function makeEvidence(student,data,variant=0,periodLabel='giai đoạn hiện tại'){
  const studentRecords=data.records.filter(x=>x.student_id===student.id);
  const pSessions=data.sessions.filter(x=>x.class_name===student.class_name);
  const ids=new Set(pSessions.map(x=>x.id));
@@ -44,13 +46,32 @@ function makeEvidence(student,data){
  if(violations)needs.push('Nhắc lại quy tắc sử dụng phòng máy dựa trên '+violations+' lần ghi nhận');
  if(!scores.length)needs.push('Bổ sung kết quả thực hành và kiểm tra');
  const actions=['Đặt mục tiêu nhỏ cho buổi thực hành kế tiếp','Theo dõi và điều chỉnh nhận xét sau khi có dữ liệu mới'];
- const ruleDraft=!hasEvidence?
-  'Chưa có đủ dữ liệu để viết nhận xét học tập. Giáo viên cần cập nhật điểm, buổi học hoặc ghi nhận trước khi đánh giá.':
-  [
-   'Trong giai đoạn theo dõi, học sinh có '+scores.length+' đầu điểm, '+awards+' lần khen thưởng và '+violations+' lượt ghi nhận cần lưu ý.',
-   pSessions.length?'Trong '+pSessions.length+' buổi học đã ghi nhận, có '+absence+' buổi vắng'+(late?', '+late+' lần đi muộn':'')+'.':'Chưa đủ buổi học để nhận xét chuyên cần.',
-   'Giáo viên khuyến khích học sinh luyện tập đều, chủ động hoàn thành bài thực hành và tiếp tục theo dõi tiến bộ trong thời gian tới.'
-  ].join(' ');
+ const seed=Array.from(String(student.id||student.full_name)).reduce((sum,ch)=>sum+ch.charCodeAt(0),0);
+ const style=(seed+variant)%4;
+ const openings=[
+  'Trong '+periodLabel+', căn cứ vào hồ sơ học tập đang có,',
+  'Qua các buổi học và kết quả được giáo viên ghi nhận trong '+periodLabel+',',
+  'Khi tổng hợp dữ liệu học tập cho '+periodLabel+',',
+  'Ở '+periodLabel+', dựa trên điểm, chuyên cần và ghi nhận trong hệ thống,'
+ ];
+ const attendancePart=pSessions.length
+   ? ' em đã có '+pSessions.length+' buổi học được ghi nhận, trong đó '+absence+' buổi vắng'+(late?', '+late+' lần đi muộn':'')+'.'
+   : ' chưa đủ buổi học để kết luận về mức độ chuyên cần.';
+ const resultsPart=scores.length
+   ? ' Hồ sơ đã có '+scores.length+' đầu điểm để giáo viên tiếp tục theo dõi sự tiến bộ.'
+   : ' Cần bổ sung điểm thực hành hoặc bài kiểm tra để đánh giá năng lực đầy đủ hơn.';
+ const behaviorPart=awards||violations
+   ? ' Em có '+awards+' lần được ghi nhận khen thưởng và '+violations+' lượt cần lưu ý về nội quy.'
+   : ' Chưa có ghi nhận thưởng hoặc vi phạm; không suy diễn từ việc thiếu dữ liệu.';
+ const recommendations=[
+  'Gợi ý: giao một mục tiêu thực hành cụ thể trong buổi tới, kiểm tra lại kết quả và phản hồi ngay sau khi hoàn thành.',
+  'Đề nghị tiếp tục rèn thao tác máy tính, hoàn thành từng nhiệm vụ nhỏ và tự đánh giá kết quả theo hướng dẫn của giáo viên.',
+  'Ở giai đoạn tiếp theo, nên đối chiếu thêm sản phẩm thực hành, dành thời gian củng cố phần còn yếu và ghi nhận nỗ lực đúng lúc.',
+  'Giáo viên có thể thống nhất mục tiêu học tập tuần tới, theo dõi chuyên cần và trao đổi trực tiếp để điều chỉnh hỗ trợ phù hợp.'
+ ];
+ const ruleDraft=!hasEvidence
+  ? 'Chưa đủ dữ liệu để đưa ra đánh giá. Giáo viên cần cập nhật buổi học, đầu điểm hoặc ghi nhận trước khi viết nhận xét.'
+  : openings[style]+attendancePart+resultsPart+behaviorPart+' '+recommendations[style];
  return {points,awards,violations,absence,late,total:pSessions.length,attendanceRate,
   scores,level,evidence,positives,needs,actions,hasEvidence,ruleDraft};
 }
@@ -61,11 +82,9 @@ export function StudentEvaluation({profile,refresh,reload,ping}){
  const [classFilter,setClassFilter]=useState(''),[search,setSearch]=useState(''),[selected,setSelected]=useState('');
  const [period,setPeriod]=useState(periods[0]),[customPeriod,setCustomPeriod]=useState('');
  const [comment,setComment]=useState(''),[source,setSource]=useState('rule');
- const [insights,setInsights]=useState(null),[aiBusy,setAiBusy]=useState(false),[saving,setSaving]=useState(false);
+ const [saving,setSaving]=useState(false),[draftVariant,setDraftVariant]=useState(0);
  const [version,setVersion]=useState(0);
- const currentSelection=useRef('');
- currentSelection.current=selected+'|'+periodName(period,customPeriod);
- useEffect(()=>{
+   useEffect(()=>{
   let active=true;
   if(!profile.school_id){setData(emptyData);setLoading(false);return;}
   setLoading(true);setError('');
@@ -94,30 +113,11 @@ export function StudentEvaluation({profile,refresh,reload,ping}){
    &&searchName(x.full_name).includes(searchName(search))).sort(compareStudentName),
    [data.students,classFilter,search]);
  const student=data.students.find(x=>x.id===selected);
- const summary=useMemo(()=>student?makeEvidence(student,data):null,[student,data]);
+ const summary=useMemo(()=>student?makeEvidence(student,data,draftVariant,periodName(period,customPeriod)):null,
+   [student,data,draftVariant,period,customPeriod]);
  const pastReviews=useMemo(()=>data.evaluations.filter(x=>x.student_id===selected)
   .sort((a,b)=>String(b.created_at).localeCompare(String(a.created_at))).slice(0,5),[data.evaluations,selected]);
- useEffect(()=>{setComment(summary?.ruleDraft||'');setSource('rule');setInsights(null);},[selected,summary?.ruleDraft]);
- async function askAI(){
-  if(!student||!summary?.hasEvidence||aiBusy)return;
-  const requestSelection=student.id+'|'+periodName(period,customPeriod);
-  setAiBusy(true);setError('');
-  try{
-   const {data:{session}}=await supabase.auth.getSession();
-   if(!session?.access_token)throw Error('Phiên đăng nhập hết hạn.');
-   const resp=await fetch('/api/student-evaluation',{
-    method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+session.access_token},
-    body:JSON.stringify({school_id:profile.school_id,student_id:student.id,
-      period_label:periodName(period,customPeriod)})
-   });
-   const result=await resp.json().catch(()=>({}));
-   if(!resp.ok)throw Error(result.error||'AI chưa tạo được nhận xét.');
-   if(currentSelection.current!==requestSelection)return;
-   setComment(result.comment);setInsights(result);setSource('ai');
-   ping?.('AI đã tạo bản nháp. Hãy xem, chỉnh sửa rồi mới lưu hồ sơ.');
-  }catch(e){setError(e.message||'AI chưa phản hồi.');}
-  finally{setAiBusy(false);}
- }
+ useEffect(()=>{setComment(summary?.ruleDraft||'');setSource('rule');},[selected,summary?.ruleDraft]);
  async function save(){
   if(!student||!summary||!summary.hasEvidence||saving)return;
   const label=periodName(period,customPeriod);
@@ -130,10 +130,10 @@ export function StudentEvaluation({profile,refresh,reload,ping}){
    metrics:{points:summary.points,awards:summary.awards,violations:summary.violations,
     lessons:summary.total,absences:summary.absence,lates:summary.late,
     attendance_rate:summary.attendanceRate,scores_count:summary.scores.length,
-    source,ai_confidence:source==='ai'?insights?.confidence:null,
-    strengths:insights?.strengths||summary.positives,
-    improvements:insights?.improvements||summary.needs,
-    actions:insights?.actions||summary.actions},created_by:profile.id
+    source:'rule',ai_confidence:null,
+    strengths:summary.positives,
+    improvements:summary.needs,
+    actions:summary.actions},created_by:profile.id
   });
   setSaving(false);
   if(saveErr){setError(saveErr.message);return;}
@@ -147,7 +147,7 @@ export function StudentEvaluation({profile,refresh,reload,ping}){
    <div className="evaluation-v2-orb"><Sparkles size={30}/></div>
    <div><span className="evaluation-v2-kicker">IC3 GS6 · STUDENT INSIGHTS</span>
      <h2>Đánh giá & phát triển học sinh</h2>
-     <p>Tổng hợp điểm, chuyên cần, khen thưởng và nội quy thành nhận xét có căn cứ. AI hỗ trợ soạn nháp, giáo viên quyết định kết quả cuối cùng.</p>
+     <p>Tổng hợp điểm, chuyên cần, khen thưởng và nội quy thành nhận xét có căn cứ. Bản nháp đa dạng theo bằng chứng, giáo viên xem và quyết định kết quả cuối cùng.</p>
    </div>
    <div className="evaluation-v2-hero-pill"><ShieldCheck size={16}/> Giáo viên kiểm duyệt</div>
   </header>
@@ -166,6 +166,16 @@ export function StudentEvaluation({profile,refresh,reload,ping}){
       <label>Chọn học sinh<select value={selected} onChange={e=>setSelected(e.target.value)}>
        <option value="">Chọn một học sinh</option>{visible.map(x=><option key={x.id} value={x.id}>{x.full_name} · {x.class_name}</option>)}
       </select></label>
+      <div className="evaluation-report-actions">
+        <button type="button" className="btn outline" disabled={loading||!classFilter}
+          onClick={()=>{try{exportClassEvaluation({profile,className:classFilter,period:periodName(period,customPeriod),
+            data,makeEvidence:st=>makeEvidence(st,data,0,periodName(period,customPeriod)),format:'xlsx'});ping?.('Đã xuất Excel đánh giá lớp.');}
+            catch(e){setError(e.message);}}}>📊 Excel theo lớp</button>
+        <button type="button" className="btn outline" disabled={loading||!classFilter}
+          onClick={()=>{try{exportClassEvaluation({profile,className:classFilter,period:periodName(period,customPeriod),
+            data,makeEvidence:st=>makeEvidence(st,data,0,periodName(period,customPeriod)),format:'pdf'});}
+            catch(e){setError(e.message);}}}>🖨 In / PDF theo lớp</button>
+      </div>
      </div>
      {loading&&<p className="evaluation-v2-empty"><Loader2 className="eval-spin" size={19}/> Đang tải số liệu của trường...</p>}
      {error&&<p className="evaluation-v2-error" role="alert">{error}</p>}
@@ -196,7 +206,7 @@ export function StudentEvaluation({profile,refresh,reload,ping}){
     </section>
     {student&&summary&&<section className="evaluation-v2-panel evaluation-v2-editor">
       <div className="evaluation-v2-section-head"><div><h3><Sparkles size={18}/> Soạn nhận xét chuyên sâu</h3>
-       <p>AI chỉ phân tích số liệu ẩn danh; không gửi tên, giới tính, ngày sinh hoặc ghi chú tự do của học sinh.</p></div></div>
+       <p>Các gợi ý sử dụng số buổi học, đầu điểm, khen thưởng và nội quy đã lưu. Không tự suy diễn kết quả khi thiếu dữ liệu.</p></div></div>
       <div className="evaluation-v2-filters">
        <label>Giai đoạn<select value={period} onChange={e=>setPeriod(e.target.value)}>
         {periods.map(p=><option key={p}>{p}</option>)}<option>Khác</option>
@@ -204,12 +214,9 @@ export function StudentEvaluation({profile,refresh,reload,ping}){
        {period==='Khác'&&<label>Tên giai đoạn<input maxLength={90} value={customPeriod} onChange={e=>setCustomPeriod(e.target.value)} placeholder="Ví dụ: Tháng 11/2026"/></label>}
       </div>
       <div className="evaluation-v2-controls">
-       <button type="button" className="btn outline" onClick={()=>{setComment(summary.ruleDraft);setInsights(null);setSource('rule');}} disabled={!evidenceReady||aiBusy}><RefreshCw size={15}/> Theo quy tắc</button>
-       <button type="button" className="btn primary" disabled={!evidenceReady||aiBusy||!periodName(period,customPeriod).trim()} onClick={askAI}>
-        {aiBusy?<Loader2 className="eval-spin" size={16}/>:<Sparkles size={16}/>}
-        {aiBusy?'AI đang phân tích…':'AI đánh giá chi tiết'}
-       </button>
-       <span className="evaluation-v2-source">{source==='ai'?'Bản nháp Gemini AI':'Nhận xét theo quy tắc'}</span>
+       <button type="button" className="btn outline" disabled={!evidenceReady}
+         onClick={()=>setDraftVariant(v=>v+1)}><RefreshCw size={15}/> Gợi ý nhận xét khác</button>
+       <span className="evaluation-v2-source">Nhận xét theo dữ liệu · Có thể chỉnh sửa</span>
       </div>
       <textarea aria-label="Nội dung nhận xét học sinh" rows={6} value={comment} maxLength={1600} onChange={e=>setComment(e.target.value)}/>
       <div className="evaluation-v2-editor-footer"><small>{countWords(comment)} từ · Có thể chỉnh sửa trước khi lưu</small>
@@ -226,11 +233,11 @@ export function StudentEvaluation({profile,refresh,reload,ping}){
      <h3><Lightbulb size={18}/> Gợi ý phát triển</h3>
      {!student?<p className="muted">Chọn một học sinh để xem gợi ý dựa trên dữ liệu.</p>:<>
        <h4>Điểm tích cực</h4>
-       <ul>{(insights?.strengths?.length?insights.strengths:summary?.positives?.length?summary.positives:['Chưa có dữ liệu tích cực cụ thể để kết luận.']).map((x,i)=><li key={i}>{x}</li>)}</ul>
+       <ul>{(summary?.positives?.length?summary.positives:['Chưa có dữ liệu tích cực cụ thể để kết luận.']).map((x,i)=><li key={i}>{x}</li>)}</ul>
        <h4>Điểm cần hỗ trợ</h4>
-       <ul>{(insights?.improvements?.length?insights.improvements:summary?.needs||[]).map((x,i)=><li key={i}>{x}</li>)}</ul>
+       <ul>{(summary?.needs||[]).map((x,i)=><li key={i}>{x}</li>)}</ul>
        <h4>Hướng hành động</h4>
-       <ul>{(insights?.actions?.length?insights.actions:summary?.actions||[]).map((x,i)=><li key={i}>{x}</li>)}</ul>
+       <ul>{(summary?.actions||[]).map((x,i)=><li key={i}>{x}</li>)}</ul>
      </>}
     </section>
     <section className="evaluation-v2-panel">
@@ -241,7 +248,7 @@ export function StudentEvaluation({profile,refresh,reload,ping}){
      </article>)}
     </section>
     <div className="evaluation-v2-privacy"><ShieldCheck size={18}/>
-     <span>AI là công cụ tham khảo, không tự ghi dữ liệu và không thay thế đánh giá của giáo viên. Mỗi lần dùng AI tính vào hạn mức trợ lý hiện có.</span>
+     <span>Nhận xét được soạn từ số liệu thực tế, giáo viên bắt buộc xem lại trước khi lưu. Không tự đánh giá hoặc suy diễn khi thiếu dữ liệu.</span>
     </div>
    </aside>
   </div>

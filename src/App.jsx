@@ -14,6 +14,7 @@ import { ReportsCenter } from "./ReportsCenter";
 import { HelpAssistant } from "./HelpAssistant";
 import { ProfileSettings } from "./ProfileSettings";
 import { properName, searchName, comparePC, compareStudentName } from "./lib/students";
+import {starTotals,starLeaderboard} from "./lib/stars";
 import { normalizeComputerCode,validFullName } from "./lib/registration";
 import {pendingRegistrationsForClass,nextFriendRegistration,canConfirmFlaggedName} from "./lib/studentRegistrationUI";
 import {buildIncidentReportHtml} from "./lib/incidentReportHtml";
@@ -73,16 +74,30 @@ function App() {
   const [schools, setSchools] = useState([]);
   const [workplaces,setWorkplaces] = useState([]);
   const [workplaceSchools,setWorkplaceSchools] = useState([]);
-  const [schoolId, setSchoolId] = useState("");
+  const [schoolId, setSchoolId] = useState(()=>{try{return sessionStorage.getItem('qlpm.schoolId')||'';}catch{return '';}});
   const [profileError, setProfileError] = useState("");
   const school = schools.find(s => s.id === schoolId);
   const profile = account ? {...account, school_id: school?.id || null, school_name: school?.name || "", school_logo:school?.logo_data||null} : null;
-  const [page, setPage] = useState("dashboard");
+  const [page, setPage] = useState(()=>{
+    try{const saved=sessionStorage.getItem('qlpm.page');return nav.some(x=>x[0]===saved)?saved:'dashboard';}
+    catch{return 'dashboard';}
+  });
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState("");
   const [authMode, setAuthMode] = useState("login");
   const [mobileNav, setMobileNav] = useState(false);
   const [refresh, setRefresh] = useState(0);
+  useEffect(()=>{
+    try{sessionStorage.setItem('qlpm.page',page);sessionStorage.setItem('qlpm.schoolId',schoolId);}catch{}
+  },[page,schoolId]);
+  // No reload to dashboard; refresh active data upon focus and once per visible minute.
+  useEffect(()=>{
+    const onFocus=()=>{if(!document.hidden)setRefresh(v=>v+1);};
+    window.addEventListener('focus',onFocus);
+    document.addEventListener('visibilitychange',onFocus);
+    const timer=window.setInterval(()=>{if(!document.hidden)setRefresh(v=>v+1);},60000);
+    return()=>{window.removeEventListener('focus',onFocus);document.removeEventListener('visibilitychange',onFocus);window.clearInterval(timer);};
+  },[]);
 
   useEffect(() => {
     if (!supabase) {
@@ -154,6 +169,7 @@ function App() {
   const reload = () => setRefresh(v => v + 1);
   const signOut = async () => {
     await supabase.auth.signOut();
+    try{sessionStorage.removeItem('qlpm.page');sessionStorage.removeItem('qlpm.schoolId');}catch{}
     setProfile(null);
     setSchools([]);setWorkplaces([]);setWorkplaceSchools([]); setSchoolId(""); setPage("dashboard");
   };
@@ -233,14 +249,14 @@ function App() {
           </div>
           <div className="top-actions"><button className="btn" onClick={signOut}><LogOut size={16}/>Đăng xuất</button>
             <span className="role-pill">{profile.role === "admin" ? "ADMIN" : profile.role === "teacher" ? "GIÁO VIÊN" : "HỌC SINH"}</span>
-            <button className="icon-btn" title="Làm mới" onClick={reload}><RefreshCw size={18} /></button>
+            <button className="icon-btn" title="Làm mới mục hiện tại và giữ nguyên trang" onClick={reload}><RefreshCw size={18} /></button>
             <button type="button" className="avatar avatar-action" onClick={()=>setPage('personal')} title="Cá nhân">{profile.avatar_data?<img src={profile.avatar_data} alt="Ảnh đại diện"/>:(profile.full_name || "U").slice(0, 1).toUpperCase()}</button>
           </div>
         </header>
 
         {notice && <div className="toast"><CheckCircle2 size={17} />{notice}</div>}
 
-        <div className="content" key={["workplaces","schools","settings","finance","reports","accounts","personal"].includes(page)?page:schoolId}>
+        <div className="content" key={(["workplaces","schools","settings","finance","reports","accounts","personal"].includes(page)?page:schoolId)+':'+page}>
           {page === "schools" && <SchoolManager
             schools={schools} workplaces={workplaces} workplaceSchools={workplaceSchools} role={profile.role}
             onCreated={id => {setSchoolId(id); reload();}}
@@ -926,7 +942,10 @@ function Computers({ profile, refresh, reload, ping }) {
   const assigned = useRows("computer_assignments", profile, refresh);
   const records = useRows("student_records", profile, refresh);
   const classNames=[...new Set([...classes.rows.map(c=>c.class_name),...students.rows.map(s=>s.class_name)].filter(Boolean))].sort();
-  const classStudents=students.rows.filter(s=>s.class_name===className);
+  const classStudents=students.rows.filter(s=>s.class_name===className&&s.status==='active');
+  const activeClass=classes.rows.find(c=>c.class_name===className&&!c.archived_at&&c.registration_code);
+  const classStars=starLeaderboard(classStudents,records.rows);
+  const topStarEarned=classStars[0]?.stars.earned||0;
   const classAssignments=assigned.rows.filter(a=>classStudents.some(s=>s.id===a.student_id));
   const [assigning,setAssigning]=useState(null),[chosenId,setChosenId]=useState(""),[assignBusy,setAssignBusy]=useState(false);
   const [show, setShow] = useState(false);
@@ -996,6 +1015,9 @@ function Computers({ profile, refresh, reload, ping }) {
       </>}
     />
     <div className="toolbar"><label className="field-inline">Lớp đang xem <select aria-label="Lớp phòng máy" value={className} onChange={e=>setClassName(e.target.value)}><option value="">Chọn lớp</option>{classNames.map(c=><option key={c}>{c}</option>)}</select></label>
+       <a className="btn outline" href={activeClass?'/student?code='+encodeURIComponent(activeClass.registration_code):undefined}
+         target="_blank" rel="noopener noreferrer" aria-disabled={!activeClass}
+         onClick={e=>{if(!activeClass){e.preventDefault();ping('Lớp này chưa có mã đăng ký. Tạo mã trong Lớp & mã đăng ký.');}}}>🌐 Mở trang lớp</a>
       <div className="field-inline">Số máy muốn khởi tạo <input type="number" min="1" max="500" value={count} onChange={e => setCount(e.target.value)} /></div>
       <span className="muted">{rows.length} máy đã có trong hệ thống</span>
     </div>
@@ -1027,7 +1049,9 @@ function Computers({ profile, refresh, reload, ping }) {
               </div>}
               {users.length ? users.map(a => (
                 <div className="pc-user-row" key={a.id}>
-                  <span>• {(students.rows.find(s => s.id === a.student_id)?.full_name || "Học sinh").trim().split(/\s+/).slice(-2).join(" ")}</span>
+                  <span>• {(students.rows.find(s => s.id === a.student_id)?.full_name || "Học sinh").trim().split(/\s+/).slice(-2).join(" ")}
+                   {starTotals(records.rows,a.student_id).available>0&&<b className="student-star-badge"> ⭐{starTotals(records.rows,a.student_id).available>1?' ×'+starTotals(records.rows,a.student_id).available:''}</b>}
+                   {topStarEarned>=5&&starTotals(records.rows,a.student_id).earned===topStarEarned&&<b className="star-flame" title="Top sao của lớp">🔥</b>}</span>
                   <button className="mini-btn danger" onClick={() => release(a)}>Gỡ</button>
                   {records.rows.filter(r=>r.student_id===a.student_id && r.record_type==="violation").slice(-3).map(r=><small className="negative" key={r.id}>{r.title}</small>)}
                 </div>
@@ -1338,6 +1362,8 @@ function Records({ profile, refresh, reload, ping }) {
   const records=useRows("student_records",profile,refresh);
   const [selectedClass,setSelectedClass]=useState("");
   const [selectedStudent,setSelectedStudent]=useState("");
+  const [nameQuery,setNameQuery]=useState("");
+  const [redeemBusy,setRedeemBusy]=useState("");
   const [threshold,setThreshold]=useState(3);
   const [reports,setReports]=useState([]);
   const [reportNote,setReportNote]=useState({});
@@ -1346,10 +1372,13 @@ function Records({ profile, refresh, reload, ping }) {
     student_id:"",record_type:"violation",title:"Nhắc 1",points:0,note:"",record_date:today()
   });
   const classes=[...new Set(students.rows.map(x=>x.class_name).filter(Boolean))].sort();
-  const allowedStudents=students.rows.filter(st=>(!selectedClass||st.class_name===selectedClass) && st.status==="active");
+  const allowedStudents=students.rows.filter(st=>(!selectedClass||st.class_name===selectedClass)&&st.status==="active" &&
+    searchName(st.full_name).includes(searchName(nameQuery)));
+  const leaderboard=starLeaderboard(allowedStudents,records.rows);
   const filteredRecords=records.rows.filter(r=>{
     const st=students.rows.find(x=>x.id===r.student_id);
-    return st&&(!selectedClass||st.class_name===selectedClass)&&(!selectedStudent||st.id===selectedStudent);
+    return st&&(!selectedClass||st.class_name===selectedClass)&&(!selectedStudent||st.id===selectedStudent) &&
+      searchName(st.full_name).includes(searchName(nameQuery));
   }).sort((a,b)=>String(b.record_date).localeCompare(String(a.record_date))||String(b.created_at).localeCompare(String(a.created_at)));
   const violationCounts=new Map();
   records.rows.filter(r=>r.record_type==="violation").forEach(r=>{
@@ -1374,7 +1403,8 @@ function Records({ profile, refresh, reload, ping }) {
     if(!form.student_id)return ping("Chọn học sinh trước khi lưu.");
     setBusy(true);
     const {error}=await supabase.from("student_records").insert({
-      ...form,school_id:profile.school_id,created_by:profile.id,points:Number(form.points)
+      ...form,school_id:profile.school_id,created_by:profile.id,
+       points:form.record_type==='reward'?1:Number(form.points)
     });
     setBusy(false);
     if(error)ping(error.message);
@@ -1382,6 +1412,17 @@ function Records({ profile, refresh, reload, ping }) {
       ping(form.record_type==="violation"?"Đã ghi nhận một lần vi phạm. Nếu đủ ngưỡng sẽ có biên bản nháp.":"Đã lưu ghi nhận");
       setForm(old=>({...old,note:"",record_date:today()}));reload();
     }
+  }
+  async function redeemOneStar(st){
+    if(redeemBusy||starTotals(records.rows,st.id).available<1)return;
+    if(!window.confirm('Xác nhận '+st.full_name+' đã đổi 1 ⭐ lấy kẹo? Sao hiện có sẽ giảm 1, tổng sao kiếm được vẫn lưu vào bảng xếp hạng.'))return;
+    setRedeemBusy(st.id);
+    const {error}=await supabase.rpc('ic3_redeem_student_stars',{
+      p_student_id:st.id,p_stars:1,p_note:'Giáo viên đã xác nhận đổi kẹo'
+    });
+    setRedeemBusy('');
+    if(error)ping('Chưa đổi thưởng: '+error.message);
+    else{ping('Đã xác nhận đổi 1 ⭐ cho '+st.full_name);reload();}
   }
   async function changeThreshold(value){
     setBusy(true);
@@ -1428,6 +1469,10 @@ function Records({ profile, refresh, reload, ping }) {
   return <>
     <SectionHead title="Điểm, lỗi & thưởng" desc="Ghi nhận theo lớp, tổng số lần vi phạm và biên bản xác nhận của giáo viên"/>
     <div className="toolbar record-filter-bar">
+      <label className="field-inline record-name-search">🔎 Tìm nhanh học sinh
+        <input aria-label="Tìm tên học sinh trong Điểm lỗi và thưởng" value={nameQuery}
+         onChange={e=>setNameQuery(e.target.value)} placeholder="Nhập tên để tìm nhanh..." />
+      </label>
       <label className="field-inline">Lọc theo lớp
         <select aria-label="Lọc lớp ghi nhận" value={selectedClass} onChange={e=>{setSelectedClass(e.target.value);setSelectedStudent("");setForm(v=>({...v,student_id:""}));}}>
           <option value="">Tất cả lớp</option>{classes.map(c=><option key={c}>{c}</option>)}
@@ -1456,7 +1501,7 @@ function Records({ profile, refresh, reload, ping }) {
             ...form,record_type:e.target.value,title:e.target.value==="violation"?"Nhắc 1":e.target.value==="reward"?"Điểm thưởng":"Điểm thực hành",
             points:e.target.value==="violation"?0:1
           })}>
-            <option value="violation">Lỗi / vi phạm</option><option value="reward">Thưởng</option><option value="point">Điểm học tập</option>
+            <option value="violation">Lỗi / vi phạm</option><option value="reward">Thưởng 1 ⭐</option><option value="point">Điểm học tập</option>
           </select></label>
           {form.record_type==="violation"&&<label>Ghi nhận nhanh
             <select value={["Nhắc 1","1 Lỗi","Không làm bài","Mất trật tự","Không tuân thủ nội quy"].includes(form.title)?form.title:"other"}
@@ -1467,7 +1512,8 @@ function Records({ profile, refresh, reload, ping }) {
             </select>
           </label>}
           <label>Nội dung<input required maxLength={200} value={form.title} onChange={e=>setForm({...form,title:e.target.value})}/></label>
-          {form.record_type!=="violation"&&<label>Điểm (+/-)<input type="number" value={form.points} onChange={e=>setForm({...form,points:e.target.value})}/></label>}
+          {form.record_type==="reward"?<p className="star-award-hint">⭐ Mỗi lần ghi nhận sẽ tặng 1 sao. Sao dùng được để đổi kẹo; tổng sao đã kiếm vẫn lưu lại.</p>:
+           form.record_type==="point"&&<label>Điểm (+/-)<input type="number" value={form.points} onChange={e=>setForm({...form,points:e.target.value})}/></label>}
           <label>Ngày<input required type="date" value={form.record_date} onChange={e=>setForm({...form,record_date:e.target.value})}/></label>
           <label>Ghi chú<textarea maxLength={1500} value={form.note} onChange={e=>setForm({...form,note:e.target.value})}/></label>
           {form.student_id&&<p className="notice-box">Học sinh này có <b>{violationCounts.get(form.student_id)||0} lỗi</b>. Đến mốc {threshold} lỗi sẽ có biên bản nháp, giáo viên kiểm tra trước khi xác nhận.</p>}
@@ -1489,6 +1535,22 @@ function Records({ profile, refresh, reload, ping }) {
         {!filteredRecords.length&&<Empty text="Chưa có ghi nhận cho bộ lọc này."/>}
       </div>
     </div>
+    <section className="panel star-leaderboard-panel">
+      <div className="panel-head"><div><h3>🏆 Bảng xếp hạng sao & đổi kẹo</h3>
+        <p>⭐ Sao hiện có được dùng để đổi thưởng; sao đã kiếm vẫn được giữ để xếp hạng theo lớp.</p></div>
+        <span className="status active">{leaderboard.length} học sinh</span></div>
+      <div className="star-wallet-grid">
+        {leaderboard.filter(st=>st.stars.earned>0).slice(0,20).map((st,i)=><article className={'star-wallet '+(i===0&&st.stars.earned>=5?'star-champion':'')} key={st.id}>
+          <span className="star-place">{i===0?'🥇':i===1?'🥈':i===2?'🥉':'#'+(i+1)}</span>
+          <div className="star-wallet-label"><b>{st.full_name} {i===0&&st.stars.earned>=5?'🔥':''}</b><small>Lớp {st.class_name} · Đã kiếm {st.stars.earned} ⭐</small></div>
+          <strong>⭐ {st.stars.available}</strong>
+          <button type="button" className="mini-btn success" disabled={!!redeemBusy||st.stars.available<1} onClick={()=>redeemOneStar(st)}>
+            {redeemBusy===st.id?'Đang đổi…':'Xác nhận đổi 1 ⭐'}
+          </button>
+        </article>)}
+        {!leaderboard.some(st=>st.stars.earned>0)&&<p className="muted">Chưa có sao thưởng. Chọn loại Thưởng 1 ⭐ để ghi nhận thành tích.</p>}
+      </div>
+    </section>
     <section className="panel incident-reports-panel">
       <h3>Biên bản vi phạm</h3>
       <p className="muted">Đủ {threshold} lần vi phạm sẽ tạo biên bản nháp. Bản in kết hợp mẫu học sinh tường trình, bảng lỗi đã ghi nhận và phần ký xác nhận; học sinh tự điền phần giải trình. Giáo viên kiểm tra rồi xác nhận, không tự áp dụng hình thức kỷ luật.</p>
