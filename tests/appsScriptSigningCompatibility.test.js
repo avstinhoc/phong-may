@@ -45,3 +45,18 @@ test('server never logs signing secret or silently accepts an incorrectly copied
  assert.ok(!edge.includes('respond(200,{key'));
  assert.ok(!edge.includes('signature:signature'));
 });
+
+test('the diagnostic HMAC fingerprint is deterministic and never shares key material',()=>{
+ const secret='c'.repeat(128);
+ const probe='QLPM-KEY-CHECK-V1';
+ const expected=createHmac('sha256',secret).update(probe).digest('base64url').slice(0,16);
+ assert.equal(expected.length,16);
+ assert.notEqual(expected,secret.slice(0,16));
+ assert.ok(edge.includes('QLPM_KEY_FINGERPRINT_V1='));
+ assert.ok(script.includes('function diagnoseQlpmKey()'));
+ assert.ok(script.includes("sign_('QLPM-KEY-CHECK-V1', secret).slice(0, 16)"));
+ assert.ok(edge.includes('new TextEncoder().encode("QLPM-KEY-CHECK-V1")'));
+ assert.ok(edge.includes('.split("+").join("-").split("/").join("_")'));
+ assert.ok(!edge.includes('console.warn(key)'));
+ assert.ok(!script.includes('Logger.log(secret)'));
+});

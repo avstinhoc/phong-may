@@ -108,3 +108,16 @@ function doPost(e) {
     if (lock) try { lock.releaseLock(); } catch (e) {}
   }
 }
+
+/**
+ * Optional one-time diagnostic. Run manually in the Apps Script editor;
+ * do NOT send the real QLPM_COPY_SIGNING_KEY anywhere.
+ * The output is a short HMAC fingerprint that cannot authorize any request.
+ * This helper does not change the existing key or create Google Sheets files.
+ */
+function diagnoseQlpmKey() {
+  const secret = PropertiesService.getScriptProperties().getProperty('QLPM_COPY_SIGNING_KEY');
+  if (!secret || !/^[a-f0-9]{128}$/i.test(secret))
+    throw new Error('QLPM_COPY_SIGNING_KEY chưa đúng định dạng.');
+  Logger.log('QLPM_KEY_FINGERPRINT_V1=' + sign_('QLPM-KEY-CHECK-V1', secret).slice(0, 16));
+}

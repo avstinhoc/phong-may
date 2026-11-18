@@ -157,8 +157,17 @@ async function callOwnerCopyScript(schoolId:string,title:string,rootId:string){
  }
  if(result?.ok!==true){
   const message=clean(result?.error||"Chưa tạo được bản sao.").slice(0,220);
-  if(message.includes("Chữ ký xác thực không hợp lệ"))
-   throw fail("Apps Script và Supabase không dùng cùng signing key (hoặc Web app đang chạy phiên bản cũ). Hãy chạy setupQlpmCopy trong ĐÚNG dự án Apps Script, lấy đúng giá trị sau dấu = và cập nhật QLPM_APPS_SCRIPT_SIGNING_KEY trong Supabase. Nếu đã chỉnh mã, vào Deploy → Manage deployments → Edit → New version → Deploy. Không gửi khóa vào chat.",502);
+  if(message.includes("Chữ ký xác thực không hợp lệ")){
+   // Privacy-preserving diagnostic: truncated, domain-separated HMAC with a
+   // public fixed message. This is NOT the key, the request signature, nor
+   // a value that can authorize any operation. Keep it in server-side logs.
+   const check=new Uint8Array(await crypto.subtle.sign(
+     "HMAC",hashKey,new TextEncoder().encode("QLPM-KEY-CHECK-V1")));
+   const fingerprint=btoa(String.fromCharCode(...check))
+     .split("+").join("-").split("/").join("_").replace(/=+$/g,"").slice(0,16);
+   console.warn("QLPM_KEY_FINGERPRINT_V1="+fingerprint+"; reason=apps_script_signature_rejected");
+   throw fail("Apps Script không xác thực được yêu cầu. Mã máy chủ đã lưu dấu vân tay khóa để đối chiếu an toàn với Script Properties. Không gửi khóa vào chat.",502);
+  }
   throw fail("Apps Script: "+message,502);
  }
  if(!idSafe(clean(result.spreadsheet_id)))
