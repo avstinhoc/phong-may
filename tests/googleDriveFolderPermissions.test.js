@@ -64,3 +64,15 @@ test('root registry admin-only, browser never receives signing key',()=>{
  assert.ok(ui.includes('Hạn chế'));
  assert.ok(!ui.includes("from('school_drive_folders')"));
 });
+
+test('blank template Gốc tab is the source for new class tabs',()=>{
+ assert.ok(edge.includes('t.title==="Gốc"'));
+ assert.ok(edge.includes('template_tab:detectedTemplate'));
+ assert.ok(ui.includes("tabs.find(t=>t.title==='Gốc')"));
+});
+test('block publicly shared Drive roots when permission metadata is returned',()=>{
+ assert.ok(edge.includes('function ensurePrivateRoot(info:Dict)'));
+ assert.ok(edge.includes('p.type==="anyone"'));
+ assert.ok(edge.includes('Quyền truy cập chung → Hạn chế'));
+ assert.ok(edge.includes('ensurePrivateRoot(rootInfo)'));
+});
