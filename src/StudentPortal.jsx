@@ -91,8 +91,7 @@ export function StudentPortal(){
           <div><small>Máy cần sửa</small><b>{counts.broken}</b><span>🛠️</span></div>
           <div><small>Vị trí lớp mình</small><b>{counts.occupied}</b><span>👨‍🎓</span></div>
         </div>
-        <section className="panel">
-          <section className="panel portal-star-leaderboard">
+        <section className="panel portal-star-leaderboard">
           <div className="portal-section-title"><div><h2>🏆 Bảng xếp hạng sao lớp {payload.class_name}</h2>
             <p className="muted">Sao đã kiếm được lưu vĩnh viễn để xếp hạng. Sao còn lại dùng đổi kẹo với giáo viên.</p></div></div>
           <div className="portal-star-grid">
