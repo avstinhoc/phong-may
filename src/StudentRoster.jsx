@@ -66,7 +66,20 @@ export function StudentRoster({profile,refresh,ping}){
    : old
      ? await supabase.from('attendance').update({status:'absent'}).eq('id',old.id).eq('school_id',profile.school_id)
      : await supabase.from('attendance').insert({school_id:profile.school_id,session_id:lesson.id,student_id:student.id,status:'absent'});
-  setMarkBusy('');if(result.error)ping(result.error.message);else setVersion(v=>v+1);
+  setMarkBusy('');
+   if(result.error){ping(result.error.message);return;}
+   try{
+     const {data:link,error:linkError}=await supabase.from('school_sheet_links')
+       .select('id,status,auto_sync').eq('school_id',profile.school_id).maybeSingle();
+     if(linkError)throw linkError;
+     if(link?.id&&link.status==='verified'&&link.auto_sync){
+       const {error:syncError}=await supabase.functions.invoke('google-sheets-sync',{
+         body:{action:'sync_attendance_cell',link_id:link.id,student_id:student.id,session_id:lesson.id}
+       });
+       if(syncError)throw syncError;
+     }
+   }catch(e){ping('Web đã lưu điểm danh nhưng Sheets chưa cập nhật: '+e.message);}
+   setVersion(v=>v+1);
  }
  async function saveLesson(e){
   e.preventDefault();if(!className||!lessonEdit)return;
@@ -96,7 +109,14 @@ export function StudentRoster({profile,refresh,ping}){
   if(error)ping(error.message);
   else{setNameEditing(null);setVersion(v=>v+1);ping('Đã sửa tên học sinh.');}
  }
- async function issueToken(s){
+ async function removeStudent(student){
+   if(!window.confirm('Xóa '+student.full_name+' khỏi danh sách học sinh lớp '+student.class_name+'? Hồ sơ sẽ được lưu ở trạng thái ngừng học để không mất điểm và lịch sử.'))return;
+   const {error:deleteError}=await supabase.from('students').update({status:'inactive'})
+     .eq('id',student.id).eq('school_id',profile.school_id);
+   if(deleteError)ping('Không thể xóa khỏi danh sách: '+deleteError.message);
+   else{setVersion(v=>v+1);ping('Đã đưa '+student.full_name+' khỏi danh sách, giữ nguyên lịch sử.');}
+  }
+  async function issueToken(s){
   const {data,error}=await supabase.rpc('issue_student_portal_token',{p_student_id:s.id});
   if(error)ping(error.message);else{
     navigator.clipboard?.writeText(data).catch(()=>{});
@@ -139,7 +159,7 @@ export function StudentRoster({profile,refresh,ping}){
  </div>
  <div className="actions"><button className={`btn ${view==='attendance'?'primary':''}`} onClick={()=>setView('attendance')}>Hồ sơ & điểm danh</button><button className={`btn ${view==='scores'?'primary':''}`} onClick={()=>setView('scores')}>Điểm & nhận xét</button></div>
  <div className="toolbar roster-toolbar"><label>Lớp <select value={className} onChange={e=>setClassName(e.target.value)}><option value="">Chọn lớp</option>{classes.map(c=><option key={c}>{c}</option>)}</select></label><input aria-label="Tìm tên trong danh sách" placeholder="Tìm họ tên…" value={query} onChange={e=>setQuery(e.target.value)}/><button className="btn" disabled={!className||loading} onClick={exportFile}>{exporting?"Đang tạo file...":"Xuất Excel nhanh (theo mẫu)"}</button>{className&&<button className="btn primary" onClick={()=>setLessonEdit({session_date:new Date().toLocaleDateString('en-CA'),start_time:'07:30',end_time:'08:15',period_count:1})}>+ Thêm buổi học</button>}</div>
- {error&&<p role="alert" className="notice-box">{error}</p>}{loading&&<p>Đang tải…</p>}{!className?<p className="notice-box">Chọn lớp để xem danh sách và các buổi học tương ứng.</p>:<div className="table-wrap"><table><thead><tr><th>STT</th><th>Mã HS</th><th className="sticky-name">Họ & tên</th>{view==='attendance'?<><th>Ngày sinh</th><th>Giới tính</th><th>Máy</th>{sessions.map((l,i)=><th key={l.id}>B{i+1}<small>{date(l.session_date)} · {l.start_time.slice(0,5)}</small><small>{l.period_count} tiết</small><div className="lesson-header-actions"><button type="button" title="Sửa buổi" onClick={()=>setLessonEdit({...l,start_time:l.start_time.slice(0,5),end_time:l.end_time.slice(0,5)})}>Sửa</button><button type="button" title="Xóa buổi" onClick={()=>deleteLesson(l)}>Xóa</button></div></th>)}<th>Có mặt</th><th>Vắng</th><th>TL vắng</th></>:<><th>Xếp loại</th>{scoreKeys.map(k=><th key={k}>{k}</th>)}<th>Nhận xét</th><th>Đạt chuẩn</th><th>KQ thi</th></>}<th>Cập nhật</th></tr></thead><tbody>{pupils.map((s,i)=>{const r=result(s),sum=summary(s);return <tr key={s.id}><td>{i+1}</td><td>{s.student_code}</td><td className="sticky-name"><b>{s.full_name}</b></td>{view==='attendance'?<><td>{date(s.date_of_birth)}</td><td>{r.gender}</td><td>{pc(s)}</td>{sessions.map(l=><td key={l.id}><button type="button" disabled={!!markBusy} className={'roster-mark '+(mark(s,l)?.status==='absent'?'absent':'present')} title="Bấm để đổi giữa có mặt và vắng" onClick={()=>toggleAbsence(s,l)}>{markBusy===s.id+l.id?'…':mark(s,l)?.status==='absent'?'☑ Vắng':'☐'}</button></td>)}<td>{sum.present}</td><td>{sum.absent}</td><td>{sum.rate||'—'}</td></>:<><td>{r.classification}</td>{scoreKeys.map(k=><td key={k}>{r.scores?.[k]??'—'}</td>)}<td>{r.comment}</td><td>{r.standard_met?'Đạt':'—'}</td><td>{r.exam_result}</td></>}<td><button className="mini-btn" onClick={()=>setNameEditing({id:s.id,full_name:s.full_name})}>Sửa tên</button><button className="mini-btn" onClick={()=>setEditing({...r,student_id:s.id,name:s.full_name,scores:{...r.scores}})}>Sửa điểm</button><button className="mini-btn" onClick={()=>issueToken(s)}>Mã xem điểm</button></td></tr>;})}</tbody></table></div>}
+ {error&&<p role="alert" className="notice-box">{error}</p>}{loading&&<p>Đang tải…</p>}{!className?<p className="notice-box">Chọn lớp để xem danh sách và các buổi học tương ứng.</p>:<div className="table-wrap"><table><thead><tr><th>STT</th><th>Mã HS</th><th className="sticky-name">Họ & tên</th>{view==='attendance'?<><th>Ngày sinh</th><th>Giới tính</th><th>Máy</th>{sessions.map((l,i)=><th key={l.id}>B{i+1}<small>{date(l.session_date)} · {l.start_time.slice(0,5)}</small><small>{l.period_count} tiết</small><div className="lesson-header-actions"><button type="button" title="Sửa buổi" onClick={()=>setLessonEdit({...l,start_time:l.start_time.slice(0,5),end_time:l.end_time.slice(0,5)})}>Sửa</button><button type="button" title="Xóa buổi" onClick={()=>deleteLesson(l)}>Xóa</button></div></th>)}<th>Có mặt</th><th>Vắng</th><th>TL vắng</th></>:<><th>Xếp loại</th>{scoreKeys.map(k=><th key={k}>{k}</th>)}<th>Nhận xét</th><th>Đạt chuẩn</th><th>KQ thi</th></>}<th>Cập nhật</th></tr></thead><tbody>{pupils.map((s,i)=>{const r=result(s),sum=summary(s);return <tr key={s.id}><td>{i+1}</td><td>{s.student_code}</td><td className="sticky-name"><b>{s.full_name}</b></td>{view==='attendance'?<><td>{date(s.date_of_birth)}</td><td>{r.gender}</td><td>{pc(s)}</td>{sessions.map(l=><td key={l.id}><button type="button" disabled={!!markBusy} className={'roster-mark '+(mark(s,l)?.status==='absent'?'absent':'present')} title="Bấm để đổi giữa có mặt và vắng" onClick={()=>toggleAbsence(s,l)}>{markBusy===s.id+l.id?'…':mark(s,l)?.status==='absent'?'☑ Vắng':'☐'}</button></td>)}<td>{sum.present}</td><td>{sum.absent}</td><td>{sum.rate||'—'}</td></>:<><td>{r.classification}</td>{scoreKeys.map(k=><td key={k}>{r.scores?.[k]??'—'}</td>)}<td>{r.comment}</td><td>{r.standard_met?'Đạt':'—'}</td><td>{r.exam_result}</td></>}<td><button className="mini-btn" onClick={()=>setNameEditing({id:s.id,full_name:s.full_name})}>Sửa tên</button><button className="mini-btn" onClick={()=>setEditing({...r,student_id:s.id,name:s.full_name,scores:{...r.scores}})}>Sửa điểm</button><button className="mini-btn" onClick={()=>issueToken(s)}>Mã xem điểm</button><button type="button" className="mini-btn danger" title="Xóa khỏi danh sách, lưu lịch sử" onClick={()=>removeStudent(s)}>Xóa</button></td></tr>;})}</tbody></table></div>}
  {nameEditing&&<div className="modal-backdrop"><div className="modal"><div className="modal-head">
    <h3>Sửa tên học sinh</h3><button className="btn" onClick={()=>setNameEditing(null)}>Đóng</button></div>
    <form className="form-stack" onSubmit={saveStudentName}>
