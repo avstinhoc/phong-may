@@ -27,6 +27,9 @@ test('two-way attendance can write false or true and never blindly resolves unkn
  assert.ok(edge.includes('mode==="reconcile"'));
  assert.ok(edge.includes('attendance_snapshot:attendanceSnapshot'));
  assert.ok(edge.includes('mode==="pull_names"'));
+ assert.ok(edge.includes('mode==="reconcile"'));
+ assert.ok(edge.includes('fresh?"push":"reconcile"'));
+ assert.ok(edge.includes('attendanceSnapshot[k]=onWeb'));
 });
 
 test('star history remains after spending while spendable balance decreases',()=>{
