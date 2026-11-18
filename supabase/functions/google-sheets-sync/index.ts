@@ -481,6 +481,11 @@ async function syncClass(db:any,link:Dict,map:Dict,token:string,actorId:string,m
 
 
 const classroomName=(v:string)=>validClass(v)&&v.length<=60;
+// Only class-like tabs are imported from Sheets. Template and summary tabs stay intact.
+const classFromSheetTab=(v:string)=>{
+ const label=clean(v).replaceAll("／","/");
+ return /^\d{1,2}(?:[A-Za-z]\d{1,3}|[.\/-]\d{1,3})$/.test(label)?label:null;
+};
 const classCompare=(a:string,b:string)=>a.localeCompare(b,"vi",{numeric:true,sensitivity:"base"});
 const serialDate=(iso:string)=>Math.round((Date.parse(iso+"T00:00:00Z")-Date.UTC(1899,11,30))/86400000);
 async function sheetBatch(id:string,requests:Dict[],token:string){
@@ -535,7 +540,7 @@ async function writeScheduleFromWeb(db:any,link:Dict,map:Dict,token:string){
  if(error)throw fail("Không lưu được ánh xạ tiết vừa tạo.",500);
  return {...map,lesson_columns:mapping};
 }
-async function syncSchool(db:any,link:Dict,token:string,ownerId:string,offset=0){
+async function syncSchool(db:any,link:Dict,token:string,ownerId:string,offset=0,onlyClass=""){
  const {data:school,error:schoolError}=await db.from("schools").select("id,name").eq("id",link.school_id).maybeSingle();
  if(schoolError||!school)throw fail("Không có quyền đọc trường.",403);
  const {data:classes,error:classErr}=await db.from("classes").select("class_name")
@@ -547,10 +552,16 @@ async function syncSchool(db:any,link:Dict,token:string,ownerId:string,offset=0)
   if(error)throw fail("Không đọc được lớp từ "+table,500);
   for(const row of rows||[])if(classroomName(clean(row.class_name)))seen.add(clean(row.class_name));
  }
- const allClasses=[...seen].sort(classCompare).slice(0,60);
- const classNames=allClasses.slice(offset,offset+3);
  const meta=await metadata(link.spreadsheet_id,token);
  const tabs=(meta.sheets||[]).map((x:Dict)=>({id:x.properties.sheetId,title:x.properties.title}));
+ // Sheets -> Web: detect teacher-created class tabs. Slash is fullwidth only in Google tab title.
+ for(const t of tabs){
+  const label=classFromSheetTab(t.title);
+  if(label)seen.add(label);
+ }
+ if(onlyClass&&!seen.has(onlyClass))throw fail("Lớp chưa tồn tại trong trường đang chọn.",404);
+ const allClasses=onlyClass?[onlyClass]:[...seen].sort(classCompare).slice(0,60);
+ const classNames=allClasses.slice(offset,offset+3);
  const created:string[]=[],linked:string[]=[],errors:string[]=[],report:Dict[]=[];
  for(const name of classNames){
   try{
@@ -768,6 +779,18 @@ Deno.serve(async(req:Request)=>{
   if(action==="auto_sync_school"){
    const offset=Math.max(0,Math.min(60,Number(payload.offset)||0));
    const result=await syncSchool(db,link,token,ownerId,offset);
+   return respond(200,{success:true,...result},origin);
+  }
+  if(action==="auto_sync_class"){
+   if(link.status!=="verified"||!link.auto_sync)
+     throw fail("Liên kết Google Sheets chưa bật đồng bộ tự động.",409);
+   const className=clean(payload.class_name);
+   if(!classroomName(className))throw fail("Tên lớp không hợp lệ.",400);
+   const {data:known,error:classError}=await db.from("classes").select("id")
+     .eq("school_id",link.school_id).eq("class_name",className).is("archived_at",null).limit(1);
+   if(classError||!known?.length)throw fail("Lớp chưa tồn tại tại trường của bạn.",404);
+   const result=await syncSchool(db,link,token,ownerId,0,className);
+   if(result.errors.length)throw fail("Lớp đã tạo trên Web nhưng tab Sheets chưa xong: "+result.errors.join(" | "),502);
    return respond(200,{success:true,...result},origin);
   }
   if(action==="sync_attendance_cell"){
