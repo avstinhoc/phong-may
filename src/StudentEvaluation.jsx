@@ -1,4 +1,4 @@
-import React,{useEffect,useMemo,useState} from 'react';
+import React,{useEffect,useMemo,useRef,useState} from 'react';
 import {Sparkles,BookOpenCheck,UserRound,BarChart3,ShieldCheck,CalendarCheck,
   Award,AlertTriangle,TrendingUp,ClipboardList,CheckCircle2,Loader2,Lightbulb,
   History,FileCheck2,Info,Search,RefreshCw} from 'lucide-react';
@@ -63,6 +63,8 @@ export function StudentEvaluation({profile,refresh,reload,ping}){
  const [comment,setComment]=useState(''),[source,setSource]=useState('rule');
  const [insights,setInsights]=useState(null),[aiBusy,setAiBusy]=useState(false),[saving,setSaving]=useState(false);
  const [version,setVersion]=useState(0);
+ const currentSelection=useRef('');
+ currentSelection.current=selected+'|'+periodName(period,customPeriod);
  useEffect(()=>{
   let active=true;
   if(!profile.school_id){setData(emptyData);setLoading(false);return;}
@@ -98,6 +100,7 @@ export function StudentEvaluation({profile,refresh,reload,ping}){
  useEffect(()=>{setComment(summary?.ruleDraft||'');setSource('rule');setInsights(null);},[selected,summary?.ruleDraft]);
  async function askAI(){
   if(!student||!summary?.hasEvidence||aiBusy)return;
+  const requestSelection=student.id+'|'+periodName(period,customPeriod);
   setAiBusy(true);setError('');
   try{
    const {data:{session}}=await supabase.auth.getSession();
@@ -109,7 +112,7 @@ export function StudentEvaluation({profile,refresh,reload,ping}){
    });
    const result=await resp.json().catch(()=>({}));
    if(!resp.ok)throw Error(result.error||'AI chưa tạo được nhận xét.');
-   if(selected!==student.id)return;
+   if(currentSelection.current!==requestSelection)return;
    setComment(result.comment);setInsights(result);setSource('ai');
    ping?.('AI đã tạo bản nháp. Hãy xem, chỉnh sửa rồi mới lưu hồ sơ.');
   }catch(e){setError(e.message||'AI chưa phản hồi.');}
