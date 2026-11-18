@@ -1,4 +1,5 @@
 import React,{useEffect,useMemo,useState} from 'react';
+import {fireStyle} from './lib/stars';
 import {supabase} from './lib/supabase';
 const stateLabel={available:'Sẵn sàng',occupied:'Đang sử dụng',broken:'Hỏng',maintenance:'Bảo trì'};
 const typeLabel={point:'Điểm',reward:'Thưởng',violation:'Vi phạm'};
@@ -6,6 +7,9 @@ const date=s=>s?s.split('-').reverse().join('/'):'';
 const seatKey=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('vi').trim().replace(/\s+/g,' ');
 export function StudentPortal(){
   const [code,setCode]=useState(()=>new URLSearchParams(window.location.search).get('code')||'');
+  const [seat,setSeat]=useState('');
+  const [highlight,setHighlight]=useState('');
+  const [seatMessage,setSeatMessage]=useState('');
   const [secret,setSecret]=useState('');
   const [payload,setPayload]=useState(null);
   const [violationBadges,setViolationBadges]=useState([]);
@@ -40,13 +44,19 @@ export function StudentPortal(){
   const scores=student?.scores?.scores||{};
   const machines=payload?.computers||[];
   const ranked=[...starBoard].sort((a,b)=>Number(b.earned)-Number(a.earned)||Number(b.available)-Number(a.available));
-  const topStars=Number(ranked[0]?.earned||0);
-  const starForSeat=name=>{
-    const label=seatKey(name);
-    const matches=starBoard.filter(st=>seatKey(st.student_name)===label||
-      seatKey(st.student_name).split(' ').slice(-2).join(' ')===label);
-    return matches.length===1?matches[0]:null;
-  };
+  function locateSeat(e){
+    e.preventDefault();
+    const key=value=>seatKey(value).replace(/^(pc|máy|may)\s*/,'').replace(/^0+(?=\d)/,'');
+    const matches=machines.filter(m=>key(m.computer)===key(seat));
+    const machine=matches.length===1?matches[0]:null;
+    setHighlight(machine?.computer||'');
+    setSeatMessage(machine?(machine.students||[]).join(', ')||'Máy đang trống.':'Chưa tìm thấy máy trong lớp.');
+    if(machine){
+      const card=document.getElementById('seat-'+machine.computer);
+      card?.focus({preventScroll:true});
+      card?.scrollIntoView({behavior:'smooth',block:'center'});
+    }
+  }
   const counts=useMemo(()=>({
     total:machines.length,
     available:machines.filter(m=>m.status==='available'||m.status==='occupied').length,
@@ -58,7 +68,7 @@ export function StudentPortal(){
     <header className="portal-header">
       {payload?.logo?<img className="portal-logo" src={payload.logo} alt="Logo trường"/>:<div className="brand-mark">IC3</div>}
       <div><b>IC3 GS6 · Lớp học của chúng mình</b><small>Máy tính • Lịch dạy • Vệ sinh • Điểm & phần thưởng</small></div>
-      <span className="portal-header-hint">Lớp học · Thông tin & kết quả</span>
+      {code&&<button type="button" className="btn outline" disabled={busy} onClick={()=>load()}>{busy?'Đang tải…':'↻ Tải lại lớp'}</button>}
     </header>
     <main className="portal-content">
       <section className="portal-hero">
@@ -74,11 +84,12 @@ export function StudentPortal(){
         <div className="portal-hero-art" aria-hidden="true">💻<span>🌟</span></div>
       </section>
       <section className="panel portal-search">
-        <h3>Tra cứu lớp và kết quả</h3>
+        <h3>{payload?'Tìm vị trí trong phòng máy':'Mở lớp học'}</h3>
+        {payload&&<form className="seat-search" onSubmit={locateSeat}><label>Số máy / vị trí<input required value={seat} onChange={e=>setSeat(e.target.value)} placeholder="Ví dụ: PC01"/></label><button className="btn primary">Tìm máy</button><output>{seatMessage}</output></form>}
         <form className="portal-form" onSubmit={e=>{e.preventDefault();load();}}>
-          <label>Mã lớp<input required value={code} onChange={e=>setCode(e.target.value.toUpperCase())} placeholder="Nhập mã lớp" autoComplete="off"/></label>
+          {!payload&&<label>Mã lớp<input required value={code} onChange={e=>setCode(e.target.value.toUpperCase())} placeholder="Nhập mã lớp" autoComplete="off"/></label>}
           <label>Mã xem điểm cá nhân (nếu có)<input type="text" inputMode="text" maxLength={48} autoComplete="off" value={secret} onChange={e=>setSecret(e.target.value.toUpperCase())} placeholder="Ví dụ: ABCD-EFGH-JKLM"/></label>
-          <button className="btn primary" disabled={busy}>{busy?'Đang tra cứu…':'Xem lớp của mình'}</button>
+          <button className="btn primary" disabled={busy}>{busy?'Đang tra cứu…':payload?'Xem kết quả cá nhân':'Mở lớp'}</button>
         </form>
         {error&&<p role="alert" className="notice-box">{error}</p>}
         {payload&&secret.trim()&&!student&&<p className="notice-box">Mã cá nhân chưa đúng hoặc chưa được giáo viên cấp. Bạn vẫn xem được thông tin chung của lớp.</p>}
@@ -93,13 +104,13 @@ export function StudentPortal(){
         </div>
         <section className="panel portal-star-leaderboard">
           <div className="portal-section-title"><div><h2>🏆 Bảng xếp hạng sao lớp {payload.class_name}</h2>
-            <p className="muted">Sao đã kiếm được lưu vĩnh viễn để xếp hạng. Sao còn lại dùng đổi kẹo với giáo viên.</p></div></div>
+            <p className="muted">Sao đã kiếm được lưu vĩnh viễn để xếp hạng. Sao còn lại dùng đổi quà với giáo viên.</p></div></div>
           <div className="portal-star-grid">
             {ranked.filter(st=>Number(st.earned)>0).slice(0,12).map((st,i)=><div key={st.student_id}
-              className={'portal-star-rank '+(i===0&&Number(st.earned)>=5?'star-champion':'')}>
+              style={fireStyle(st.effect_score)} className={'portal-star-rank '+(fireStyle(st.effect_score)?'fire-frame':'')}>
               <span>{i===0?'🥇':i===1?'🥈':i===2?'🥉':'#'+(i+1)}</span>
-              <b>{st.student_name} {i===0&&Number(st.earned)>=5?<span className="star-flame">🔥</span>:null}</b>
-              <span>⭐ {st.earned} đã kiếm · {st.available} hiện có</span>
+              <b>{st.student_name}</b>
+              <span>⭐ {st.earned} {fireStyle(st.effect_score)&&<span className="star-flame">🔥</span>} đã kiếm · {st.available} hiện có</span>
             </div>)}
             {!ranked.some(st=>Number(st.earned)>0)&&<p className="muted">Chưa có sao thưởng. Cùng cố gắng nhé! ✨</p>}
           </div>
@@ -107,7 +118,7 @@ export function StudentPortal(){
         <section className="panel">
           <div className="portal-section-title"><div><h2>💻 Sơ đồ máy tính lớp {payload.class_name}</h2><p className="muted">Xem bạn nào đang ngồi máy nào và việc vệ sinh cần làm.</p></div><span className="portal-mini-pill">{counts.waiting} việc vệ sinh chưa xong</span></div>
           <div className="portal-pcs">
-            {machines.map(c=><article className={'portal-pc '+((c.status==='broken'||c.status==='maintenance')?'pc-broken':'')} key={c.computer}>
+            {machines.map(c=><article id={'seat-'+c.computer} tabIndex={-1} className={'portal-pc '+(highlight===c.computer?'seat-found ':'')+((c.status==='broken'||c.status==='maintenance')?'pc-broken':'')} key={c.computer}>
               <div className="portal-pc-head"><b>🖥 {c.computer}</b><span className={c.status==='broken'||c.status==='maintenance'?'portal-bad':'portal-good'}>{stateLabel[c.status]||c.status}</span></div>
               <p>{c.occupied}/{c.capacity} học sinh lớp mình</p>
               {(() => {
@@ -119,14 +130,13 @@ export function StudentPortal(){
                 </div>:null;
               })()}
               <div className="portal-names"><strong>👩‍💻 Bạn ngồi máy:</strong>
-                {(c.students||[]).length?<div>{c.students.map((name,i)=>{
-                   const stars=starForSeat(name);
-                   const champion=stars&&Number(stars.earned)>=5&&Number(stars.earned)===topStars;
-                   return <span key={i} className={champion?'star-champion':''}>{name}
-                     {stars&&Number(stars.available)>0&&<b className="student-star-badge"> ⭐{Number(stars.available)>1?' ×'+stars.available:''}</b>}
-                     {champion&&<b className="star-flame"> 🔥</b>}
-                   </span>;
-                 })}</div>:<small>Chưa có bạn nào</small>}
+                {(c.students||[]).length?<div>{(()=>{
+                  const seated=starBoard.filter(st=>st.computer===c.computer);
+                  if(seated.length!==(c.students||[]).length)return c.students.map((name,i)=><span key={i}>{name}</span>);
+                  return seated.map(st=><span key={st.student_id} style={fireStyle(st.effect_score)} className={fireStyle(st.effect_score)?'fire-frame':''}>
+                    {st.student_name} · ⭐ {st.available} {fireStyle(st.effect_score)&&<span className="star-flame">🔥</span>}
+                  </span>);
+                })()}</div>:<small>Chưa có bạn nào</small>}
               </div>
               <div className="portal-cleaning">
                 <strong>🧹 Lịch vệ sinh</strong>
@@ -160,6 +170,7 @@ export function StudentPortal(){
           </section>
         </>}
       </>}
+      <button className="portal-top" aria-label="Về đầu trang" onClick={()=>window.scrollTo({top:0,behavior:'smooth'})}>↑</button>
       <footer className="portal-footer">IC3 GS6 · Học Tin học thật vui 🌟</footer>
     </main>
   </div>;

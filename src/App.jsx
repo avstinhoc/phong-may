@@ -14,7 +14,7 @@ import { ReportsCenter } from "./ReportsCenter";
 import { HelpAssistant } from "./HelpAssistant";
 import { ProfileSettings } from "./ProfileSettings";
 import { properName, searchName, comparePC, compareStudentName } from "./lib/students";
-import {starTotals,starLeaderboard} from "./lib/stars";
+import {fireStyle,groupedHistory,isFormalViolation} from "./lib/stars";
 import { normalizeComputerCode,validFullName } from "./lib/registration";
 import {pendingRegistrationsForClass,nextFriendRegistration,canConfirmFlaggedName} from "./lib/studentRegistrationUI";
 import {buildIncidentReportHtml} from "./lib/incidentReportHtml";
@@ -264,9 +264,9 @@ function App() {
           {page==="workplaces"&&<WorkplaceManager profile={profile} schools={schools} workplaces={workplaces}
             links={workplaceSchools} onChanged={reload} ping={ping}
             onGoSchools={()=>setPage("schools")}/>}
-          {page === "accounts" && profile.role === "admin" && <Accounts profile={profile} />}
-          {page === "personal" && <ProfileSettings key={profile.id} profile={profile} email={session.user.email} reload={reload} ping={ping}/>}
-          {page === "settings" && <ClassSettings profile={profile} ping={ping} schools={schools} onChanged={reload} />}
+          {page === "accounts" && profile.role === "admin" && <Accounts refresh={refresh} profile={profile} />}
+          {page === "personal" && <ProfileSettings refresh={refresh} key={profile.id} profile={profile} email={session.user.email} reload={reload} ping={ping}/>}
+          {page === "settings" && <ClassSettings refresh={refresh} profile={profile} ping={ping} schools={schools} onChanged={reload} />}
           {page === "finance" && <TeacherPayroll profile={profile} refresh={refresh} ping={ping} schools={schools} workplaces={workplaces} workplaceLinks={workplaceSchools} />}
           {page === "reports" && <ReportsCenter profile={profile} refresh={refresh} ping={ping} schools={schools} />}
           {!schoolId && !["workplaces","schools","settings","finance","reports","accounts","personal"].includes(page) && <div className="notice-box">Thêm trường đầu tiên để bắt đầu quản lý học sinh và lịch dạy.</div>}
@@ -548,14 +548,21 @@ function useRows(table, profile, refresh, extra = {}) {
     let live = true;
     (async () => {
       setBusy(true);
-      let q = supabase.from(table).select("*");
-      if (profile?.school_id && table !== "student_registrations") q = q.eq("school_id", profile.school_id);
-      Object.entries(extra).forEach(([k, v]) => {
-        if (v !== undefined && v !== null) q = q.eq(k, v);
-      });
-      const { data, error } = await q.limit(500);
+      let data=[],error=null;
+      const paged=["student_records","ic3_star_wallets","students"].includes(table);
+      for(let offset=0;live;offset+=500){
+        let q = supabase.from(table).select("*");
+        if (profile?.school_id && table !== "student_registrations") q = q.eq("school_id", profile.school_id);
+        Object.entries(extra).forEach(([k, v]) => {
+          if (v !== undefined && v !== null) q = q.eq(k, v);
+        });
+        const batch=await (paged?q.order(table==="ic3_star_wallets"?"student_id":"id",{ascending:true}).range(offset,offset+499):q.limit(500));
+        if(batch.error){error=batch.error;break;}
+        data.push(...batch.data);
+        if(!paged||batch.data.length<500)break;
+      }
       if (live) {
-        setRows(data || []);
+        if(!error)setRows(data);
         setError(error?.message || "");
         setBusy(false);
       }
@@ -944,8 +951,7 @@ function Computers({ profile, refresh, reload, ping }) {
   const classNames=[...new Set([...classes.rows.map(c=>c.class_name),...students.rows.map(s=>s.class_name)].filter(Boolean))].sort();
   const classStudents=students.rows.filter(s=>s.class_name===className&&s.status==='active');
   const activeClass=classes.rows.find(c=>c.class_name===className&&!c.archived_at&&c.registration_code);
-  const classStars=starLeaderboard(classStudents,records.rows);
-  const topStarEarned=classStars[0]?.stars.earned||0;
+  const wallets=useRows("ic3_star_wallets",profile,refresh);
   const classAssignments=assigned.rows.filter(a=>classStudents.some(s=>s.id===a.student_id));
   const [assigning,setAssigning]=useState(null),[chosenId,setChosenId]=useState(""),[assignBusy,setAssignBusy]=useState(false);
   const [show, setShow] = useState(false);
@@ -1026,7 +1032,7 @@ function Computers({ profile, refresh, reload, ping }) {
       {[...rows].sort((a,b)=>comparePC(a.computer_code,b.computer_code)).map(c => {
         const users = classAssignments.filter(a => a.computer_id === c.id && a.active);
         const machineViolationCount=users.reduce((total,a)=>
-          total+records.rows.filter(r=>r.student_id===a.student_id&&r.record_type==="violation").length,0);
+          total+records.rows.filter(r=>r.student_id===a.student_id&&isFormalViolation(r)).length,0);
         return (
           <div className={`computer-card ${["maintenance","broken"].includes(c.status) ? "maintenance" : users.length ? "occupied" : ""}`} key={c.id}>
             <div className="pc-top">
@@ -1042,20 +1048,19 @@ function Computers({ profile, refresh, reload, ping }) {
               {className&&machineViolationCount>0&&<div className="pc-violation-summary">
                 <span className="pc-violation-badge">{machineViolationCount} lỗi</span>
                 {users.map(a=>{
-                  const count=records.rows.filter(r=>r.student_id===a.student_id&&r.record_type==="violation").length;
+                  const count=records.rows.filter(r=>r.student_id===a.student_id&&isFormalViolation(r)).length;
                   const full=students.rows.find(st=>st.id===a.student_id)?.full_name||"Học sinh";
                   return count?<small key={a.student_id}>{full.trim().split(/\s+/).slice(-2).join(" ")}: {count} lỗi</small>:null;
                 })}
               </div>}
-              {users.length ? users.map(a => (
+              {users.length ? users.map(a => { const wallet=wallets.rows.find(w=>w.student_id===a.student_id); const effect=fireStyle(wallet?.effect_score); return (
                 <div className="pc-user-row" key={a.id}>
-                  <span>• {(students.rows.find(s => s.id === a.student_id)?.full_name || "Học sinh").trim().split(/\s+/).slice(-2).join(" ")}
-                   {starTotals(records.rows,a.student_id).available>0&&<b className="student-star-badge"> ⭐{starTotals(records.rows,a.student_id).available>1?' ×'+starTotals(records.rows,a.student_id).available:''}</b>}
-                   {topStarEarned>=5&&starTotals(records.rows,a.student_id).earned===topStarEarned&&<b className="star-flame" title="Top sao của lớp">🔥</b>}</span>
+                  <span className={effect?'fire-frame':''} style={effect}>• {(students.rows.find(s => s.id === a.student_id)?.full_name || "Học sinh").trim().split(/\s+/).slice(-2).join(" ")}
+                   {wallet&&<b> ⭐ {wallet.available}{effect&&<span className="star-flame">🔥</span>}</b>}</span>
                   <button className="mini-btn danger" onClick={() => release(a)}>Gỡ</button>
-                  {records.rows.filter(r=>r.student_id===a.student_id && r.record_type==="violation").slice(-3).map(r=><small className="negative" key={r.id}>{r.title}</small>)}
+                  {records.rows.filter(r=>r.student_id===a.student_id && isFormalViolation(r)).slice(-3).map(r=><small className="negative" key={r.id}>{r.title}</small>)}
                 </div>
-              )) : <span>Chưa có học sinh</span>}
+              )}) : <span>Chưa có học sinh</span>}
             </div>
             <button className="mini-btn" disabled={!className || users.length >= Number(c.capacity || 2) || ["maintenance","broken"].includes(c.status)} onClick={() => {setAssigning(c);setChosenId("");}}>+ Gán học sinh</button>
             <select value={c.status || "available"} onChange={e => changeStatus(c, e.target.value)}>
@@ -1374,14 +1379,19 @@ function Records({ profile, refresh, reload, ping }) {
   const classes=[...new Set(students.rows.map(x=>x.class_name).filter(Boolean))].sort();
   const allowedStudents=students.rows.filter(st=>(!selectedClass||st.class_name===selectedClass)&&st.status==="active" &&
     searchName(st.full_name).includes(searchName(nameQuery)));
-  const leaderboard=starLeaderboard(allowedStudents,records.rows);
+  const wallets=useRows("ic3_star_wallets",profile,refresh);
+  const leaderboard=allowedStudents.map(st=>({...st,stars:wallets.rows.find(w=>w.student_id===st.id)}))
+    .filter(st=>st.stars).sort((a,b)=>b.stars.earned-a.stars.earned||b.stars.available-a.stars.available);
+  const [amounts,setAmounts]=useState({});
+  const [penalty,setPenalty]=useState(2);
+  const disorder=form.record_type==='violation'&&['mất trật tự','lỗi mất trật tự'].includes(form.title.trim().toLowerCase());
   const filteredRecords=records.rows.filter(r=>{
     const st=students.rows.find(x=>x.id===r.student_id);
     return st&&(!selectedClass||st.class_name===selectedClass)&&(!selectedStudent||st.id===selectedStudent) &&
       searchName(st.full_name).includes(searchName(nameQuery));
   }).sort((a,b)=>String(b.record_date).localeCompare(String(a.record_date))||String(b.created_at).localeCompare(String(a.created_at)));
   const violationCounts=new Map();
-  records.rows.filter(r=>r.record_type==="violation").forEach(r=>{
+  records.rows.filter(isFormalViolation).forEach(r=>{
     violationCounts.set(r.student_id,(violationCounts.get(r.student_id)||0)+1);
   });
   useEffect(()=>{
@@ -1404,25 +1414,34 @@ function Records({ profile, refresh, reload, ping }) {
     setBusy(true);
     const {error}=await supabase.from("student_records").insert({
       ...form,school_id:profile.school_id,created_by:profile.id,
-       points:form.record_type==='reward'?1:Number(form.points)
+       ...(form.record_type==='break'?{record_type:'reward',star_event:'penalty'}:{}),
+       points:form.record_type==='break'?-2:disorder?-Number(penalty):form.record_type==='reward'?1:Number(form.points)
     });
     setBusy(false);
     if(error)ping(error.message);
     else{
-      ping(form.record_type==="violation"?"Đã ghi nhận một lần vi phạm. Nếu đủ ngưỡng sẽ có biên bản nháp.":"Đã lưu ghi nhận");
+      ping(disorder?"Đã trừ sao do mất trật tự.":form.record_type==="violation"?"Đã ghi nhận một lần vi phạm. Nếu đủ ngưỡng sẽ có biên bản nháp.":"Đã lưu ghi nhận");
       setForm(old=>({...old,note:"",record_date:today()}));reload();
     }
   }
   async function redeemOneStar(st){
-    if(redeemBusy||starTotals(records.rows,st.id).available<1)return;
-    if(!window.confirm('Xác nhận '+st.full_name+' đã đổi 1 ⭐ lấy kẹo? Sao hiện có sẽ giảm 1, tổng sao kiếm được vẫn lưu vào bảng xếp hạng.'))return;
+    const amount=Number(amounts[st.id]??1);
+    if(redeemBusy||!Number.isSafeInteger(amount)||amount<1||amount>st.stars.available)return ping('Kiểm tra số sao muốn đổi.');
+    if(!window.confirm('Đổi '+amount+' sao của '+st.full_name+' lấy quà?'))return;
     setRedeemBusy(st.id);
     const {error}=await supabase.rpc('ic3_redeem_student_stars',{
-      p_student_id:st.id,p_stars:1,p_note:'Giáo viên đã xác nhận đổi kẹo'
+      p_student_id:st.id,p_stars:amount,p_note:'Giáo viên đã xác nhận đổi quà'
     });
     setRedeemBusy('');
     if(error)ping('Chưa đổi thưởng: '+error.message);
-    else{ping('Đã xác nhận đổi 1 ⭐ cho '+st.full_name);reload();}
+    else{ping('Đã đổi '+amount+' ⭐ cho '+st.full_name);reload();}
+  }
+  async function restore(st){
+    setRedeemBusy(st.id);
+    const {error}=await supabase.from('student_records').insert({school_id:profile.school_id,student_id:st.id,created_by:profile.id,
+      record_type:'reward',star_event:'recovery',points:0,title:'Phục hồi chuỗi sao',record_date:today()});
+    setRedeemBusy('');
+    if(error)ping(error.message);else{ping('Đã phục hồi hiệu ứng');reload();}
   }
   async function changeThreshold(value){
     setBusy(true);
@@ -1447,7 +1466,7 @@ function Records({ profile, refresh, reload, ping }) {
     const student=students.rows.find(s=>s.id===r.student_id);
     if(!student){ping('Không tìm thấy học sinh để lập biên bản.');return;}
     const count=Number(r.violation_count)||0;
-    const violations=records.rows.filter(x=>x.student_id===r.student_id&&x.record_type==='violation')
+    const violations=records.rows.filter(x=>x.student_id===r.student_id&&isFormalViolation(x))
       .sort((a,b)=>String(a.record_date).localeCompare(String(b.record_date))||
         String(a.created_at).localeCompare(String(b.created_at)))
       .slice(0,count||undefined);
@@ -1498,10 +1517,10 @@ function Records({ profile, refresh, reload, ping }) {
             {allowedStudents.map(st=><option key={st.id} value={st.id}>{st.full_name} – {st.class_name} ({violationCounts.get(st.id)||0} lỗi)</option>)}
           </select></label>
           <label>Loại ghi nhận<select value={form.record_type} onChange={e=>setForm({
-            ...form,record_type:e.target.value,title:e.target.value==="violation"?"Nhắc 1":e.target.value==="reward"?"Điểm thưởng":"Điểm thực hành",
+            ...form,record_type:e.target.value,title:e.target.value==="violation"?"Nhắc 1":e.target.value==="reward"?"Điểm thưởng":e.target.value==="break"?"Ngắt chuỗi sao":"Điểm thực hành",
             points:e.target.value==="violation"?0:1
           })}>
-            <option value="violation">Lỗi / vi phạm</option><option value="reward">Thưởng 1 ⭐</option><option value="point">Điểm học tập</option>
+            <option value="violation">Lỗi / vi phạm</option><option value="reward">Thưởng 1 ⭐</option><option value="break">Ngắt chuỗi (−2 sao)</option><option value="point">Điểm học tập</option>
           </select></label>
           {form.record_type==="violation"&&<label>Ghi nhận nhanh
             <select value={["Nhắc 1","1 Lỗi","Không làm bài","Mất trật tự","Không tuân thủ nội quy"].includes(form.title)?form.title:"other"}
@@ -1512,8 +1531,9 @@ function Records({ profile, refresh, reload, ping }) {
             </select>
           </label>}
           <label>Nội dung<input required maxLength={200} value={form.title} onChange={e=>setForm({...form,title:e.target.value})}/></label>
-          {form.record_type==="reward"?<p className="star-award-hint">⭐ Mỗi lần ghi nhận sẽ tặng 1 sao. Sao dùng được để đổi kẹo; tổng sao đã kiếm vẫn lưu lại.</p>:
+          {form.record_type==="reward"?<p className="star-award-hint">Sao được dùng để đổi quà, số sao đổi 1 phần quà tùy vào giáo viên.</p>:
            form.record_type==="point"&&<label>Điểm (+/-)<input type="number" value={form.points} onChange={e=>setForm({...form,points:e.target.value})}/></label>}
+          {disorder&&<label>Số sao bị trừ<input required type="number" min="2" step="1" value={penalty} onChange={e=>setPenalty(e.target.value)}/></label>}
           <label>Ngày<input required type="date" value={form.record_date} onChange={e=>setForm({...form,record_date:e.target.value})}/></label>
           <label>Ghi chú<textarea maxLength={1500} value={form.note} onChange={e=>setForm({...form,note:e.target.value})}/></label>
           {form.student_id&&<p className="notice-box">Học sinh này có <b>{violationCounts.get(form.student_id)||0} lỗi</b>. Đến mốc {threshold} lỗi sẽ có biên bản nháp, giáo viên kiểm tra trước khi xác nhận.</p>}
@@ -1522,33 +1542,36 @@ function Records({ profile, refresh, reload, ping }) {
       </div>
       <div className="panel">
         <h3>Lịch sử theo lớp</h3>
-        {filteredRecords.slice(0,70).map(r=><div className="record-row" key={r.id}>
+        <div className="history-scroll">{groupedHistory(filteredRecords).map(r=><div className="record-row" key={r.id}>
           <div className={"record-dot "+r.record_type}/>
           <div><b>{r.title}</b><small>
             {students.rows.find(s=>s.id===r.student_id)?.full_name||"Học sinh"}
-            {" · "}{r.record_type==="violation"?"Vi phạm":r.record_type==="reward"?"Khen thưởng":"Điểm"}
+            {" · "}{r.record_type==="violation"?"Vi phạm":r.kind==="penalty"?"Trừ sao":r.kind==="recovery"?"Phục hồi":r.kind==="redeem"?"Đổi quà":r.record_type==="reward"?"Khen thưởng":"Điểm"}
             {" · "}{dateText(r.record_date)}
           </small></div>
-          {r.record_type==="violation"?<span className="pc-violation-badge">1 lỗi</span>:
+          {isFormalViolation(r)?<span className="pc-violation-badge">1 lỗi</span>:
            <strong className={r.points<0?"negative":"positive"}>{r.points>0?"+":""}{r.points}</strong>}
         </div>)}
-        {!filteredRecords.length&&<Empty text="Chưa có ghi nhận cho bộ lọc này."/>}
+        </div>{!filteredRecords.length&&<Empty text="Chưa có ghi nhận cho bộ lọc này."/>}
       </div>
     </div>
     <section className="panel star-leaderboard-panel">
-      <div className="panel-head"><div><h3>🏆 Bảng xếp hạng sao & đổi kẹo</h3>
+      <div className="panel-head"><div><h3>🏆 Bảng xếp hạng sao & đổi quà</h3>
         <p>⭐ Sao hiện có được dùng để đổi thưởng; sao đã kiếm vẫn được giữ để xếp hạng theo lớp.</p></div>
         <span className="status active">{leaderboard.length} học sinh</span></div>
       <div className="star-wallet-grid">
-        {leaderboard.filter(st=>st.stars.earned>0).slice(0,20).map((st,i)=><article className={'star-wallet '+(i===0&&st.stars.earned>=5?'star-champion':'')} key={st.id}>
+        {leaderboard.map((st,i)=><article className={'star-wallet '+(fireStyle(st.stars.effect_score)?'fire-frame':'')} style={fireStyle(st.stars.effect_score)} key={st.id}>
           <span className="star-place">{i===0?'🥇':i===1?'🥈':i===2?'🥉':'#'+(i+1)}</span>
-          <div className="star-wallet-label"><b>{st.full_name} {i===0&&st.stars.earned>=5?'🔥':''}</b><small>Lớp {st.class_name} · Đã kiếm {st.stars.earned} ⭐</small></div>
-          <strong>⭐ {st.stars.available}</strong>
+          <div className="star-wallet-label"><b>{st.full_name} </b><small>Lớp {st.class_name} · Đã kiếm {st.stars.earned} ⭐</small></div>
+          <strong>⭐ {st.stars.available} {fireStyle(st.stars.effect_score)&&<span className="star-flame">🔥</span>}</strong>
+          <label>Số sao muốn đổi<input type="number" min="1" step="1" max={st.stars.available} value={amounts[st.id]??1}
+            onChange={e=>setAmounts(old=>({...old,[st.id]:e.target.value}))}/></label>
+          {st.stars.can_restore&&<button disabled={!!redeemBusy} onClick={()=>restore(st)}>Phục hồi lửa ({st.stars.chances} lượt)</button>}
           <button type="button" className="mini-btn success" disabled={!!redeemBusy||st.stars.available<1} onClick={()=>redeemOneStar(st)}>
-            {redeemBusy===st.id?'Đang đổi…':'Xác nhận đổi 1 ⭐'}
+            {redeemBusy===st.id?'Đang đổi…':'Xác nhận đổi quà'}
           </button>
         </article>)}
-        {!leaderboard.some(st=>st.stars.earned>0)&&<p className="muted">Chưa có sao thưởng. Chọn loại Thưởng 1 ⭐ để ghi nhận thành tích.</p>}
+        {!leaderboard.length&&<p className="muted">Chưa có sao thưởng. Chọn loại Thưởng 1 ⭐ để ghi nhận thành tích.</p>}
       </div>
     </section>
     <section className="panel incident-reports-panel">

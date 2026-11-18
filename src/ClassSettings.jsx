@@ -2,7 +2,7 @@ import React,{useEffect,useMemo,useState} from 'react';
 import {supabase} from './lib/supabase';
 import {shortCodePreview} from './lib/registration';
 
-export function ClassSettings({profile,ping,schools=[],onChanged}){
+export function ClassSettings({refresh,profile,ping,schools=[],onChanged}){
  const [managedSchool,setManagedSchool]=useState('');
  const [ownedSchoolIds,setOwnedSchoolIds]=useState([]);
  const schoolChoices=useMemo(()=>{
@@ -38,7 +38,7 @@ export function ClassSettings({profile,ping,schools=[],onChanged}){
    setLoading(false);
    if(error)ping(error.message);else setRows(data||[]);
  }
- useEffect(()=>{load();},[activeSchool,profile.id]);
+ useEffect(()=>{load();},[activeSchool,profile.id,refresh]);
  async function create(e){
    e.preventDefault();
    if(busy||!activeSchool)return;

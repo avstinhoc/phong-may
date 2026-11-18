@@ -25,7 +25,7 @@ function resizeAvatar(file){
  });
 }
 
-export function ProfileSettings({profile,email,reload,ping}){
+export function ProfileSettings({profile,refresh,email,reload,ping}){
  const [name,setName]=useState(profile.full_name||'');
  const [avatar,setAvatar]=useState(profile.avatar_data||null);
  const [editing,setEditing]=useState(false);
@@ -45,7 +45,7 @@ export function ProfileSettings({profile,email,reload,ping}){
    if(live){setIdentityError(err.message||String(err));setIdentityProviders([]);}
   });
   return()=>{live=false;};
- },[profile.id]);
+ },[profile.id,refresh]);
  async function linkGoogle(){
   if(linkingGoogle)return;
   setLinkingGoogle(true);setIdentityError('');
