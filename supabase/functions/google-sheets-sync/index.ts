@@ -19,7 +19,9 @@ const clean=(v:unknown)=>String(v??"").trim();
 const normalize=(s:unknown)=>clean(s).normalize("NFC").replace(/\s+/g," ").toLocaleLowerCase("vi");
 const sheetName=(s:string)=>"'"+s.replaceAll("'","''")+"'";
 const a1=(title:string,range:string)=>encodeURIComponent(sheetName(title)+"!"+range);
-const validClass=(v:string)=>/^[\p{L}\p{N}][\p{L}\p{N} ._-]{0,59}$/u.test(v)&&!/[\[\]*?/\\]/.test(v);
+// Keep exact classroom identifiers; a Google tab cannot contain ASCII slash.
+const validClass=(v:string)=>/^[\p{L}\p{N}][\p{L}\p{N} ._\/-]{0,59}$/u.test(v)&&v!=="Gốc";
+const classTabTitle=(v:string)=>v.replaceAll("/","／");
 const asDate=(s:unknown)=>{
  // Google Sheets date formatted cells may return serial day numbers.
  if(typeof s==="number"&&Number.isFinite(s)&&s>20000&&s<100000){
@@ -228,11 +230,11 @@ async function ensureClass(db:any,schoolId:string,className:string,ownerId:strin
  if(res.error)throw fail("Không tạo được lớp trên web: "+res.error.message,409);
  return res.data.id;
 }
-async function upsertMapping(db:any,link:Dict,title:string,gid:number,ownerId:string,schoolName:string){
+async function upsertMapping(db:any,link:Dict,title:string,gid:number,ownerId:string,schoolName:string,tabTitle=classTabTitle(title)){
  if(!validClass(title))throw fail("Tên tab lớp không hợp lệ.");
  await ensureClass(db,link.school_id,title,ownerId,schoolName);
  const {data,error}=await db.from("school_sheet_tabs").upsert({
-   link_id:link.id,class_name:title,sheet_title:title,sheet_gid:gid
+   link_id:link.id,class_name:title,sheet_title:tabTitle,sheet_gid:gid
  },{onConflict:"link_id,class_name"}).select("id,link_id,class_name,sheet_title,sheet_gid,lesson_columns,student_rows").single();
  if(error)throw fail("Không lưu được liên kết tab lớp: "+error.message,409);
  return data;
@@ -284,7 +286,9 @@ async function syncClass(db:any,link:Dict,map:Dict,token:string,actorId:string,m
  const conflicts:string[]=[];
  const newRows:Dict[]=[];
  const newStudentRows={...(map.student_rows||{})};
- if(mode==="pull"){
+ if(mode==="pull"||mode==="pull_names"){
+  const {data:sourceSchool}=await db.from("schools").select("name").eq("id",link.school_id).maybeSingle();
+  const schoolDisplayName=sourceSchool?.name||"";
   const klass=await db.from("classes").select("id").eq("school_id",link.school_id).eq("class_name",map.class_name).limit(1);
   const classId=klass.data?.[0]?.id||null;
   for(const p of pairs){
@@ -294,7 +298,7 @@ async function syncClass(db:any,link:Dict,map:Dict,token:string,actorId:string,m
     const dob=asDate(p.raw[3]);
     const {data:created,error}=await db.from("students").insert({
       school_id:link.school_id,class_id:classId,class_name:map.class_name,
-      full_name:p.name,school_name:link.school_name||null,
+      full_name:p.name,school_name:schoolDisplayName||null,
       date_of_birth:dob,phone:nonblank(p.raw[4])?clean(p.raw[4]):null,
       created_by:actorId,status:"active"
     }).select("id,full_name").single();
@@ -302,6 +306,11 @@ async function syncClass(db:any,link:Dict,map:Dict,token:string,actorId:string,m
     s=created;newRows.push({id:s.id,full_name:s.full_name});
    }
    newStudentRows[s.id]=p.rowNo;
+   if(!p.student?.school_name&&schoolDisplayName){
+     const {error:schoolUpdateError}=await db.from("students").update({school_name:schoolDisplayName})
+       .eq("id",s.id).eq("school_id",link.school_id);
+     if(schoolUpdateError)conflicts.push("Chưa cập nhật trường cho "+p.name+": "+schoolUpdateError.message);
+   }
    const {data:prior,error:priorError}=await db.from("student_results").select("id,scores,classification,comment,gender,standard_met,exam_result")
        .eq("student_id",s.id).maybeSingle();
    if(priorError){conflicts.push("Không đọc điểm của "+p.name);continue;}
@@ -323,7 +332,7 @@ async function syncClass(db:any,link:Dict,map:Dict,token:string,actorId:string,m
     const {error:e}=await db.from("student_results").upsert(up,{onConflict:"student_id"});
     if(e)conflicts.push("Không lưu được điểm "+p.name+": "+e.message);
    }
-   const ids=checkedSessionIds(p.raw,map.lesson_columns||{});
+   const ids=mode==="pull"?checkedSessionIds(p.raw,map.lesson_columns||{}):[];
    for(const sessionId of ids){
     const {data:session}=await db.from("class_sessions").select("id").eq("id",sessionId)
       .eq("school_id",link.school_id).eq("class_name",map.class_name).maybeSingle();
@@ -418,7 +427,7 @@ async function syncClass(db:any,link:Dict,map:Dict,token:string,actorId:string,m
 }
 
 
-const classroomName=(v:string)=>/^\d{1,2}\.\d{1,2}$/.test(v)&&v.length<=12;
+const classroomName=(v:string)=>validClass(v)&&v.length<=60;
 const classCompare=(a:string,b:string)=>a.localeCompare(b,"vi",{numeric:true,sensitivity:"base"});
 const serialDate=(iso:string)=>Math.round((Date.parse(iso+"T00:00:00Z")-Date.UTC(1899,11,30))/86400000);
 async function sheetBatch(id:string,requests:Dict[],token:string){
@@ -445,12 +454,12 @@ function freshTabRequests(newId:number,title:string,schoolName:string):Dict[]{
 async function cleanClonedTab(id:string,newId:number,title:string,schoolName:string,token:string){
  await sheetBatch(id,freshTabRequests(newId,title,schoolName),token);
 }
-async function cloneClassTab(id:string,template:Dict,className:string,schoolName:string,token:string){
+async function cloneClassTab(id:string,template:Dict,className:string,schoolName:string,token:string,tabTitle=classTabTitle(className)){
  // Atomic duplicate + clearing: a failed cleanup must not leave a visible tab
  // containing another classroom's pupil data.
  const newId=Math.floor(100000000+Math.random()*1900000000);
  await sheetBatch(id,[{duplicateSheet:{
-   sourceSheetId:template.id,newSheetId:newId,newSheetName:className
+   sourceSheetId:template.id,newSheetId:newId,newSheetName:tabTitle
  }},...freshTabRequests(newId,className,schoolName)],token);
  return newId;
 }
@@ -492,18 +501,19 @@ async function syncSchool(db:any,link:Dict,token:string,ownerId:string,offset=0)
  const created:string[]=[],linked:string[]=[],errors:string[]=[],report:Dict[]=[];
  for(const name of classNames){
   try{
-   let sheet=tabs.find(t=>t.title===name);
    const existing=await getMap(db,link.id,name);
+   const tabTitle=existing?.sheet_title||classTabTitle(name);
+   let sheet=tabs.find(t=>t.title===tabTitle);
    let fresh=false;
    if(!sheet){
     const template=tabs.find(t=>t.title===link.template_tab)||tabs.find(t=>t.title==="Gốc")||tabs.find(t=>classroomName(t.title));
     if(!template){errors.push("Thiếu tab mẫu để tạo "+name);continue;}
-    const id=await cloneClassTab(link.spreadsheet_id,template,name,school.name,token);
-    sheet={id,title:name};tabs.push(sheet);fresh=true;created.push(name);
+    const id=await cloneClassTab(link.spreadsheet_id,template,name,school.name,token,tabTitle);
+    sheet={id,title:tabTitle};tabs.push(sheet);fresh=true;created.push(name);
    }
    let map:Dict=existing||{};
    if(!existing||existing.sheet_gid!==sheet.id){
-    map=await upsertMapping(db,link,name,sheet.id,ownerId,school.name);
+    map=await upsertMapping(db,link,name,sheet.id,ownerId,school.name,tabTitle);
     if(!fresh&& !existing)linked.push(name);
     if(fresh&&existing) {
       const {error}=await db.from("school_sheet_tabs").update({lesson_columns:{},student_rows:{}})
@@ -516,8 +526,8 @@ async function syncSchool(db:any,link:Dict,token:string,ownerId:string,offset=0)
     map=await writeScheduleFromWeb(db,link,map,token);
    }
    // Existing data is preserved. No date-based automatic mapping on older tabs.
-   const pulled=await syncClass(db,link,map,token,ownerId,"pull");
-   const pushed=await syncClass(db,link,map,token,ownerId,"push");
+   const pulled=await syncClass(db,link,map,token,ownerId,"pull_names");
+   const pushed=await syncClass(db,link,map,token,ownerId,"reconcile");
    report.push({class_name:name,
      addedStudents:pulled.createdStudents||0,cellsWritten:pushed.counts?.cellsWritten||0,
      conflicts:[...(pulled.conflicts||[]),...(pushed.conflicts||[])].slice(0,8)});
@@ -741,10 +751,10 @@ Deno.serve(async(req:Request)=>{
    const source=clean(payload.source_tab||"6.1");
    const template=tabs.find((s:Dict)=>s.title===source);
    if(!template)throw fail("Không tìm thấy tab mẫu "+source+".");
-   if(tabs.some((s:Dict)=>s.title===className))throw fail("Tab đã tồn tại; chọn Gắn tab có sẵn.",409);
+   if(tabs.some((s:Dict)=>s.title===classTabTitle(className)))throw fail("Tab đã tồn tại; chọn Gắn tab có sẵn.",409);
    const newId=Math.floor(100000000+Math.random()*1900000000);
    const requests:Dict[]=[
-    {duplicateSheet:{sourceSheetId:template.id,newSheetId:newId,newSheetName:className}},
+    {duplicateSheet:{sourceSheetId:template.id,newSheetId:newId,newSheetName:classTabTitle(className)}},
     {repeatCell:{range:{sheetId:newId,startRowIndex:7,endRowIndex:70,startColumnIndex:2,endColumnIndex:9},
       cell:{},fields:"userEnteredValue"}},
     {repeatCell:{range:{sheetId:newId,startRowIndex:7,endRowIndex:70,startColumnIndex:79,endColumnIndex:98},
@@ -765,7 +775,7 @@ Deno.serve(async(req:Request)=>{
   if(action==="bind"){
    const existing=tabs.find((s:Dict)=>s.title===clean(payload.tab_title));
    if(!existing)throw fail("Tab không tồn tại trong file Google Sheets.");
-   if(existing.title!==className)throw fail("Để tránh nhầm lớp, tên tab phải trùng tên lớp.");
+   if(existing.title!==classTabTitle(className))throw fail("Tên tab phải tương ứng với lớp (dấu / của lớp hiển thị thành ／ trên Google Sheets).");
    const {data:school}=await db.from("schools").select("name").eq("id",link.school_id).maybeSingle();
    const mapped=await upsertMapping(db,link,className,existing.id,ownerId,school?.name||"");
    return respond(200,{success:true,tab:mapped},origin);
