@@ -78,6 +78,19 @@ async function assertExclusiveWorkbook(url:string,link:Dict){
  if(data?.length&&data[0].school_id!==link.school_id)throw fail(
    "File Google Sheets này đã được xác minh cho trường khác. Hãy dùng mẫu trống tạo bản sao mới cho trường này.",409);
 }
+const FOLDER_MIME="application/vnd.google-apps.folder";
+const SHEET_MIME="application/vnd.google-apps.spreadsheet";
+async function driveFileInfo(id:string,token:string){
+ const fields="id,name,mimeType,parents,trashed,capabilities(canEdit,canAddChildren)";
+ const response=await api("https://www.googleapis.com/drive/v3/files/"+encodeURIComponent(id)+
+  "?fields="+encodeURIComponent(fields)+"&supportsAllDrives=true",token);
+ return await response.json();
+}
+function ensureDriveFolder(info:Dict){
+ if(info.mimeType!==FOLDER_MIME||info.trashed)throw fail("Liên kết không phải thư mục Google Drive hợp lệ.",400);
+ if(info.capabilities?.canEdit!==true && info.capabilities?.canAddChildren!==true)
+  throw fail("Service Account chưa có quyền Editor với thư mục. Chia sẻ thư mục cho ic3-sheets-sync@qlpm-ic3.iam.gserviceaccount.com ở quyền Người chỉnh sửa rồi thử lại.",403);
+}
 async function metadata(id:string,token:string){
  const url="https://sheets.googleapis.com/v4/spreadsheets/"+id+"?fields=spreadsheetId,properties(title),sheets(properties(sheetId,title,gridProperties))";
  return await (await api(url,token)).json();
@@ -481,6 +494,85 @@ Deno.serve(async(req:Request)=>{
    // A standalone service account cannot create teacher-owned files in personal My Drive.
     throw fail("Mở nút Tạo file Google Sheets của trường để sao chép mẫu trống vào Drive, cấp quyền Editor cho Service Account và gắn link bản sao. Không cần OAuth cho Sheets.",409);
   }
+  if(action==="register_school_folder"||action==="link_school_workbook"){
+   const schoolId=clean(payload.school_id);
+   if(!/^[0-9a-f-]{36}$/i.test(schoolId))throw fail("Mã trường không hợp lệ.",400);
+   const {data:school,error:schoolError}=await db.from("schools").select("id,name")
+     .eq("id",schoolId).maybeSingle();
+   if(schoolError||!school)throw fail("Không tìm thấy trường hoặc tài khoản không có quyền với trường này.",403);
+   if(profile.role!=="admin"){
+    const {data:member,error:memberError}=await db.from("school_members")
+      .select("school_id").eq("school_id",schoolId).eq("user_id",ownerId).maybeSingle();
+    if(memberError||!member)throw fail("Chỉ giáo viên thuộc trường mới được cấu hình thư mục.",403);
+   }
+   const serviceRoleKey=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+   if(!serviceRoleKey)throw fail("Thiếu cấu hình Supabase để kiểm tra thư mục.",503);
+   const admin=createClient(url,serviceRoleKey,{auth:{persistSession:false,autoRefreshToken:false}});
+   const {data:existingFolder,error:folderReadError}=await admin.from("school_drive_folders")
+      .select("*").eq("school_id",schoolId).maybeSingle();
+   if(folderReadError)throw fail("Không đọc được cấu hình thư mục trường.",503);
+   const token=await googleToken();
+   if(action==="register_school_folder"){
+    const folderId=clean(payload.folder_id);
+    if(!/^[A-Za-z0-9_-]{20,160}$/.test(folderId))throw fail("Link thư mục Google Drive không hợp lệ.",400);
+    if(existingFolder&&existingFolder.folder_id!==folderId&&
+      existingFolder.configured_by!==ownerId&&profile.role!=="admin")
+      throw fail("Thư mục trường đã có người quản lý; hãy nhờ người cấu hình hoặc Admin đổi thư mục.",403);
+    const info=await driveFileInfo(folderId,token);
+    ensureDriveFolder(info);
+    const {data:existingLink}=await admin.from("school_sheet_links").select("id,spreadsheet_id")
+      .eq("school_id",schoolId).maybeSingle();
+    if(existingLink&&(!existingFolder||existingFolder.folder_id!==folderId)){
+      const existingWorkbook=await driveFileInfo(existingLink.spreadsheet_id,token);
+      if(!existingWorkbook.parents?.includes(folderId))
+       throw fail("Trường đã dùng file Sheets nằm ngoài thư mục. Hãy chuyển file hiện tại vào thư mục rồi kiểm tra lại.",409);
+    }
+    const {data:other,error:dupeError}=await admin.from("school_drive_folders")
+      .select("school_id").eq("folder_id",folderId).neq("school_id",schoolId).limit(1);
+    if(dupeError)throw fail("Không kiểm tra được thư mục khác trường.",503);
+    if(other?.length)throw fail("Thư mục đã dùng cho trường khác. Mỗi trường phải có thư mục riêng.",409);
+    const {data:folder,error:saveFolderError}=await admin.from("school_drive_folders")
+      .upsert({school_id:schoolId,folder_id:folderId,folder_name:clean(info.name).slice(0,180),
+       configured_by:existingFolder?.configured_by||ownerId,verified_at:new Date().toISOString()},
+       {onConflict:"school_id"}).select("*").single();
+    if(saveFolderError)throw fail("Không lưu được thư mục: "+saveFolderError.message,409);
+    return respond(200,{success:true,folder:{folder_id:folder.folder_id,
+      folder_name:folder.folder_name,verified_at:folder.verified_at}},origin);
+   }
+   if(!existingFolder)throw fail("Hãy tạo và kiểm tra thư mục Drive của trường trước khi liên kết Sheets.",409);
+   const folderInfo=await driveFileInfo(existingFolder.folder_id,token);
+   ensureDriveFolder(folderInfo);
+   const spreadsheetId=clean(payload.spreadsheet_id);
+   if(!idSafe(spreadsheetId))throw fail("Link Sheets bản sao không hợp lệ.",400);
+   if(spreadsheetId==="1zxht2Ft4mr6DEkycI--wXqZJbXLRJ-8iHtVc64horpM")
+     throw fail("Không được dùng file mẫu trống. Hãy tạo bản sao của trường.",409);
+   const file=await driveFileInfo(spreadsheetId,token);
+   if(file.mimeType!==SHEET_MIME||file.trashed)
+     throw fail("Đây không phải bảng tính Google Sheets hợp lệ.",400);
+   if(!file.parents?.includes(existingFolder.folder_id))
+     throw fail("File chưa nằm trong thư mục Drive của trường. Vào Google Sheets → biểu tượng Di chuyển → chọn thư mục "+existingFolder.folder_name+" rồi thử lại.",409);
+   if(file.capabilities?.canEdit!==true)
+     throw fail("Service Account chưa có quyền Editor với file Sheets này.",403);
+   const sheetMeta=await metadata(spreadsheetId,token);
+   const {data:linked,error:linkedError}=await admin.from("school_sheet_links")
+      .select("id,spreadsheet_id").eq("school_id",schoolId).maybeSingle();
+   if(linkedError)throw fail("Không kiểm tra được Sheets của trường.",503);
+   if(linked){
+    if(linked.spreadsheet_id===spreadsheetId)
+      return respond(200,{success:true,alreadyLinked:true,spreadsheetId,link_id:linked.id},origin);
+    throw fail("Trường đã có một file Sheets chung. Không tạo file trùng để tránh lẫn dữ liệu.",409);
+   }
+   const {data:inserted,error:insertError}=await admin.from("school_sheet_links")
+      .insert({school_id:schoolId,owner_id:ownerId,spreadsheet_id:spreadsheetId,
+       spreadsheet_title:clean(sheetMeta.properties?.title).slice(0,180),
+       template_tab:"6.1",status:"verified",auto_sync:true,
+       last_checked_at:new Date().toISOString()})
+      .select("id,spreadsheet_id").single();
+   if(insertError)throw fail(insertError.code==="23505"?
+     "Trường đã được liên kết. Hãy tải lại trang để xem file chung.":"Không gắn được Sheets: "+insertError.message,409);
+   return respond(200,{success:true,spreadsheetId,link_id:inserted.id,
+     title:sheetMeta.properties?.title||"",tabs:(sheetMeta.sheets||[]).length},origin);
+  }
   const linkId=clean(payload.link_id);
   if(!/^[a-f0-9-]{36}$/i.test(linkId))throw fail("Thiếu ID liên kết trường.");
   const {data:link,error:linkErr}=await db.from("school_sheet_links").select("*")
@@ -489,6 +581,17 @@ Deno.serve(async(req:Request)=>{
   if(!idSafe(link.spreadsheet_id))throw fail("Mã Google Sheets không hợp lệ.");
   await assertExclusiveWorkbook(url,link);
   const token=await googleToken();
+  // New folder-managed schools stay inside the assigned private school folder.
+  // Legacy schools without a configured folder continue to work unchanged.
+  const {data:folderGuard,error:folderGuardError}=await db.from("school_drive_folders")
+    .select("folder_id").eq("school_id",link.school_id).maybeSingle();
+  if(folderGuardError)throw fail("Không xác minh được thư mục Drive của trường.",503);
+  if(folderGuard){
+    const activeFile=await driveFileInfo(link.spreadsheet_id,token);
+    if(activeFile.mimeType!==SHEET_MIME||activeFile.trashed||
+       !activeFile.parents?.includes(folderGuard.folder_id)||activeFile.capabilities?.canEdit!==true)
+      throw fail("File Google Sheets không còn ở đúng thư mục Drive của trường hoặc đã mất quyền Editor. Hãy kiểm tra trong Google Drive.",409);
+  }
   if(action==="auto_sync_school"){
    const offset=Math.max(0,Math.min(60,Number(payload.offset)||0));
    const result=await syncSchool(db,link,token,ownerId,offset);
