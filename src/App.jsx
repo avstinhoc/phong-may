@@ -6,6 +6,7 @@ import { WorkplaceManager } from "./WorkplaceManager";
 import { StudentRoster } from "./StudentRoster";
 import { StudentEvaluation } from "./StudentEvaluation";
 import { StudentPortal } from "./StudentPortal";
+import { SchoolPortal } from "./SchoolPortal";
 import { AuthCallback, emailCallbackUrl } from "./AuthCallback";
 import { startGoogleAuth, googleOAuthError } from "./lib/googleAuth";
 import { TeacherPayroll } from "./TeacherPayroll";
@@ -179,6 +180,9 @@ function App() {
   if (window.location.pathname === "/auth/callback") return <AuthCallback />;
   if (window.location.pathname === "/student") {
     return <StudentPortal />;
+  }
+  if (window.location.pathname === "/school") {
+    return <SchoolPortal />;
   }
   if (window.location.pathname === "/register") {
     return <><PublicStudentRegister ping={ping} />{notice && <div role="status" className="toast">{notice}</div>}</>;
@@ -1385,7 +1389,7 @@ function Records({ profile, refresh, reload, ping }) {
     searchName(st.full_name).includes(searchName(nameQuery)));
   const wallets=useRows("ic3_star_wallets",profile,refresh);
   const leaderboard=allowedStudents.map(st=>({...st,stars:wallets.rows.find(w=>w.student_id===st.id)}))
-    .filter(st=>st.stars).sort((a,b)=>b.stars.earned-a.stars.earned||b.stars.available-a.stars.available);
+    .filter(st=>st.stars).sort((a,b)=>b.stars.earned-a.stars.earned||b.stars.available-a.stars.available).slice(0,5);
   const [amounts,setAmounts]=useState({});
   const [penalty,setPenalty]=useState(2);
   const disorder=form.record_type==='violation'&&['mất trật tự','lỗi mất trật tự'].includes(form.title.trim().toLowerCase());
@@ -1561,7 +1565,7 @@ function Records({ profile, refresh, reload, ping }) {
       </div>
     </div>
     <section className="panel star-leaderboard-panel">
-      <div className="panel-head"><div><h3>🏆 Bảng xếp hạng sao & đổi quà</h3>
+      <div className="panel-head"><div><h3>🏆 TOP 5 sao & đổi quà</h3>
         <p>⭐ Sao hiện có được dùng để đổi thưởng; sao đã kiếm vẫn được giữ để xếp hạng theo lớp.</p></div>
         <span className="status active">{leaderboard.length} học sinh</span></div>
       <div className="star-wallet-grid">
