@@ -514,7 +514,7 @@ Deno.serve(async(req:Request)=>{
    const token=await googleToken();
    if(action==="register_school_folder"){
     const folderId=clean(payload.folder_id);
-    if(!idSafe(folderId))throw fail("Link thư mục Google Drive không hợp lệ.",400);
+    if(!/^[A-Za-z0-9_-]{20,160}$/.test(folderId))throw fail("Link thư mục Google Drive không hợp lệ.",400);
     if(existingFolder&&existingFolder.folder_id!==folderId&&
       existingFolder.configured_by!==ownerId&&profile.role!=="admin")
       throw fail("Thư mục trường đã có người quản lý; hãy nhờ người cấu hình hoặc Admin đổi thư mục.",403);
@@ -581,6 +581,17 @@ Deno.serve(async(req:Request)=>{
   if(!idSafe(link.spreadsheet_id))throw fail("Mã Google Sheets không hợp lệ.");
   await assertExclusiveWorkbook(url,link);
   const token=await googleToken();
+  // New folder-managed schools stay inside the assigned private school folder.
+  // Legacy schools without a configured folder continue to work unchanged.
+  const {data:folderGuard,error:folderGuardError}=await db.from("school_drive_folders")
+    .select("folder_id").eq("school_id",link.school_id).maybeSingle();
+  if(folderGuardError)throw fail("Không xác minh được thư mục Drive của trường.",503);
+  if(folderGuard){
+    const activeFile=await driveFileInfo(link.spreadsheet_id,token);
+    if(activeFile.mimeType!==SHEET_MIME||activeFile.trashed||
+       !activeFile.parents?.includes(folderGuard.folder_id)||activeFile.capabilities?.canEdit!==true)
+      throw fail("File Google Sheets không còn ở đúng thư mục Drive của trường hoặc đã mất quyền Editor. Hãy kiểm tra trong Google Drive.",409);
+  }
   if(action==="auto_sync_school"){
    const offset=Math.max(0,Math.min(60,Number(payload.offset)||0));
    const result=await syncSchool(db,link,token,ownerId,offset);
