@@ -1060,7 +1060,7 @@ function Computers({ profile, refresh, reload, ping }) {
               {users.length ? users.map(a => { const wallet=wallets.rows.find(w=>w.student_id===a.student_id); return (
                 <div className="pc-user-row" key={a.id}>
                   <span>• {(students.rows.find(s => s.id === a.student_id)?.full_name || "Học sinh").trim().split(/\s+/).slice(-2).join(" ")}
-                   {wallet&&<b> ⭐ {wallet.available} <FlameBadge wallet={wallet} compact/></b>}</span>}</b>}</span>
+                   {wallet&&<b> ⭐ {wallet.available} <FlameBadge wallet={wallet} compact/></b>}</span>
                   <button className="mini-btn danger" onClick={() => release(a)}>Gỡ</button>
                   {records.rows.filter(r=>r.student_id===a.student_id && isFormalViolation(r)).slice(-3).map(r=><small className="negative" key={r.id}>{r.title}</small>)}
                 </div>
