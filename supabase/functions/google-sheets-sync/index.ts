@@ -316,7 +316,7 @@ async function syncClass(db:any,link:Dict,map:Dict,token:string,actorId:string,m
     s=created;newRows.push({id:s.id,full_name:s.full_name});
    }
    newStudentRows[s.id]=p.rowNo;
-   if(!p.student?.school_name&&schoolDisplayName){
+   if(p.student&&!p.student.school_name&&schoolDisplayName){
      const {error:schoolUpdateError}=await db.from("students").update({school_name:schoolDisplayName})
        .eq("id",s.id).eq("school_id",link.school_id);
      if(schoolUpdateError)conflicts.push("Chưa cập nhật trường cho "+p.name+": "+schoolUpdateError.message);
@@ -579,7 +579,7 @@ async function syncSchool(db:any,link:Dict,token:string,ownerId:string,offset=0)
    }
    // Existing data is preserved. No date-based automatic mapping on older tabs.
    const pulled=await syncClass(db,link,map,token,ownerId,"pull_names");
-   const pushed=await syncClass(db,link,map,token,ownerId,"reconcile");
+   const pushed=await syncClass(db,link,map,token,ownerId,fresh?"push":"reconcile");
    report.push({class_name:name,
      addedStudents:pulled.createdStudents||0,cellsWritten:pushed.counts?.cellsWritten||0,
      conflicts:[...(pulled.conflicts||[]),...(pushed.conflicts||[])].slice(0,8)});
