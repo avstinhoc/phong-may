@@ -5,6 +5,7 @@ import {PGlite} from '@electric-sql/pglite';
 import {SCHOOL_TOP_LIMIT,schoolPodiumOrder,gradeFromClassName,gradeClassRows} from '../src/lib/schoolLeaderboard.js';
 
 const migration=readFileSync(new URL('../supabase/migrations/20261119031000_school_public_leaderboards.sql',import.meta.url),'utf8');
+const includeActive=readFileSync(new URL('../supabase/migrations/20261119032000_school_include_active_students.sql',import.meta.url),'utf8');
 const app=readFileSync(new URL('../src/App.jsx',import.meta.url),'utf8');
 const school=readFileSync(new URL('../src/SchoolPortal.jsx',import.meta.url),'utf8');
 const vercel=JSON.parse(readFileSync(new URL('../vercel.json',import.meta.url),'utf8'));
@@ -64,24 +65,27 @@ test('SQL school portal collects multiple teachers but isolates same-name school
    ['205',schoolA,'104','8/2','Em',55],
    ['206',schoolA,'101','6A1','Giang',30],
    ['207',schoolA,'102','7/1','Hà',10],
+   ['209',schoolA,null,'6A5','Huy',15],
    ['208',schoolB,'105','6A1','Khác Trường',999]
   ];
   for(const [suffix,schoolId,clsId,clsName,name,stars] of pupils){
    await db.query('insert into students values($1,$2,$3,$4,$5,$6)',
-    [id(suffix),schoolId,id(clsId),clsName,name,'active']);
+    [id(suffix),schoolId,clsId?id(clsId):null,clsName,name,'active']);
    await db.query('insert into student_records values($1,$2,$3,$4)',
     [schoolId,id(suffix),'reward',stars]);
   }
   await db.exec(migration);
+  await db.exec(includeActive);
   const get=async code=>(await db.query('select public.ic3_school_public_portal($1) as payload',[code])).rows[0].payload;
   const first=await get('CLASS6A1');
   assert.equal(first.school_name,'THCS Trùng Tên');
   assert.equal(first.class_count,4);
-  assert.equal(first.student_count,7);
+  assert.equal(first.student_count,8);
   assert.deepEqual(first.top_school.map(x=>x.name),['An','Bình','Chi','Dũng','Em']);
   assert.deepEqual(first.top_8.map(x=>x.name),['Chi','Dũng','Em']);
   assert.deepEqual(first.top_7.map(x=>x.name),['Bình','Hà']);
-  assert.deepEqual(first.top_6.map(x=>x.name),['An','Giang']);
+  assert.deepEqual(first.top_6.map(x=>x.name),['An','Giang','Huy']);
+  assert.ok(!first.classes.some(x=>x.class_name==='6A5'),'Student without registered class can rank, but must not publish a nonexistent code');
   assert.equal(first.top_school.length,5);
   assert.ok(first.classes.some(x=>x.class_name==='7/1'&&x.registration_code==='CLASS7-1'));
   assert.ok(!first.top_school.some(x=>x.name==='Khác Trường'));
