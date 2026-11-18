@@ -44,6 +44,7 @@ test('same-school name duplicate profiles may share a file, different school may
      'create table public.profiles(school_id uuid,school_name text)'
    ].join(';\n')+';');
    await db.exec(migration);
+   await db.exec('create trigger protect_shared_school_sheet_link before insert or update on public.school_sheet_links for each row execute function public.protect_shared_school_sheet_link()');
    const make=async(id,name)=>db.query('insert into public.schools(id,name) values($1,$2)',[id,name]);
    await make(school1,'THCS Khương Ninh');
    await make(school2,'  thcs  khương   ninh  ');
