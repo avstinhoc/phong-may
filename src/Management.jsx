@@ -96,7 +96,7 @@ export function SchoolManager({ schools, workplaces=[],workplaceSchools=[], onCr
   </section>;
 }
 
-export function Accounts({ profile }) {
+export function Accounts({ profile,refresh }) {
   const [rows, setRows] = useState([]),
     [message, setMessage] = useState(""),
     [busy, setBusy] = useState(false),
@@ -122,7 +122,7 @@ export function Accounts({ profile }) {
   }
   useEffect(() => {
     load();
-  }, [offset]);
+  }, [offset,refresh]);
   async function save(row) {
     setBusy(true);
     setMessage("");

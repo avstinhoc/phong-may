@@ -1,3 +1,4 @@
+import {isFormalViolation} from './lib/stars';
 import React,{useEffect,useMemo,useState} from 'react';
 import {Sparkles,BookOpenCheck,UserRound,BarChart3,ShieldCheck,CalendarCheck,
   Award,AlertTriangle,TrendingUp,ClipboardList,CheckCircle2,Loader2,Lightbulb,
@@ -27,7 +28,7 @@ function makeEvidence(student,data,variant=0,periodLabel='giai đoạn hiện t�
  const points=studentRecords.filter(x=>['point','reward'].includes(x.record_type))
   .reduce((sum,x)=>sum+(Number(x.points)||0),0);
  const awards=studentRecords.filter(x=>x.record_type==='reward').length;
- const violations=studentRecords.filter(x=>x.record_type==='violation').length;
+ const violations=studentRecords.filter(isFormalViolation).length;
  const attendanceRate=pSessions.length?Math.max(0,Math.round((pSessions.length-absence)/pSessions.length*100)):null;
  const hasEvidence=!!(studentRecords.length||pSessions.length||scores.length);
  const level=!hasEvidence?'Chưa đủ dữ liệu':violations>0||absence>=2?'Cần hỗ trợ thêm':

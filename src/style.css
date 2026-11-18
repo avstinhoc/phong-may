@@ -1242,3 +1242,18 @@
 @media(prefers-reduced-motion:reduce){.star-flame{animation:none}}
 
 .sheets-folder-setup[hidden],.sheets-fixed-date-guide[hidden]{display:none!important}
+
+.star-award-hint{font-size:.83rem;padding:.4rem .65rem;margin:.2rem 0}
+.history-scroll{max-height:29rem;overflow-y:auto;overscroll-behavior:contain}
+.star-wallet{flex-wrap:wrap}
+.star-wallet label{font-size:.8rem;display:grid;gap:.2rem}
+.star-wallet input{max-width:8rem}
+.fire-frame{border-radius:.65rem;outline:1px solid var(--fire-color);box-shadow:0 0 var(--fire-size) color-mix(in srgb,var(--fire-color) 65%,transparent);padding:.2em .45em}
+.portal-pc.seat-found{outline:3px solid #077a72;background:#e4fff6;scroll-margin:5rem}
+.seat-search{display:flex;align-items:end;gap:.75rem;flex-wrap:wrap;margin-bottom:1rem}
+.seat-search label{display:grid;gap:.3rem}
+.portal-top{position:fixed;bottom:1rem;right:1rem;border:0;border-radius:50%;width:3rem;height:3rem;background:#096961;color:white;font-size:1.4rem;cursor:pointer}
+.student-portal .portal-hero{background:linear-gradient(115deg,#124653,#08746e 72%,#196b96);color:white}
+.student-portal .portal-pc{border-radius:1rem;border-top:4px solid #149787}
+.student-portal .pc-broken{border-top-color:#d97544}
+.fire-frame .star-flame{filter:hue-rotate(var(--fire-hue));padding:0;background:transparent}
