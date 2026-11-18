@@ -9,11 +9,23 @@ const previous=readFileSync(new URL('../supabase/migrations/20261119235000_class
 const app=readFileSync(new URL('../src/App.jsx',import.meta.url),'utf8');
 const portal=readFileSync(new URL('../src/StudentPortal.jsx',import.meta.url),'utf8');
 
-test('fire unlocks at 20, has 9 colors and a gray cooldown',()=>{
+test('fire unlocks at 20, has 27 short-step colors and a gray cooldown',()=>{
  assert.equal(flameEffect({earned:19,effect_score:19,flame_state:'active'}).visible,false);
  assert.equal(flameEffect({earned:20,effect_score:20,flame_state:'active'}).tier,1);
- assert.equal(FIRE_TIERS.length,9);
- assert.equal(flameEffect({earned:100,effect_score:100,flame_state:'active'}).tier,6);
+ assert.equal(FIRE_TIERS.length,27);
+ for(let min=20;min<=100;min+=4)assert.ok(FIRE_TIERS.some(t=>t.min===min),'Missing 4-star milestone '+min);
+ for(let i=1;i<FIRE_TIERS.length;i++){
+   assert.ok(FIRE_TIERS[i].min>FIRE_TIERS[i-1].min);
+   assert.ok(FIRE_TIERS[i].glow>FIRE_TIERS[i-1].glow);
+   assert.ok(FIRE_TIERS[i].size>FIRE_TIERS[i-1].size);
+   assert.notEqual(FIRE_TIERS[i].color,FIRE_TIERS[i-1].color);
+ }
+ assert.equal(flameEffect({earned:20,effect_score:23}).tier,1);
+ assert.equal(flameEffect({earned:24,effect_score:24}).tier,2);
+ assert.equal(flameEffect({earned:27,effect_score:27}).remaining,1);
+ assert.equal(flameEffect({earned:28,effect_score:28}).tier,3);
+ assert.equal(flameEffect({earned:100,effect_score:100,flame_state:'active'}).tier,21);
+ assert.equal(flameEffect({earned:200,effect_score:200,flame_state:'active'}).tier,27);
  assert.equal(flameEffect({earned:50,effect_score:44,flame_state:'cooling'}).state,'cooling');
  assert.equal(flameEffect({earned:50,effect_score:42,flame_state:'gray'}).style['--flame-color'],'#939da8');
  assert.equal(flameEffect({earned:50,effect_score:42,flame_state:'off'}).visible,false);

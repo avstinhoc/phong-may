@@ -1279,7 +1279,7 @@
 /* Applied to the WHOLE teacher PC, public class PC, and reward podium tile. */
 .flame-pc{
  position:relative;isolation:isolate;overflow:visible;
- border:2px solid var(--flame-color,#ff922b)!important;
+ border:var(--flame-frame-width,2px) solid var(--flame-color,#ff922b)!important;
  border-radius:16px!important;
  background:linear-gradient(145deg,#fff 50%,color-mix(in srgb,var(--flame-color) 7%,white))!important;
  box-shadow:0 0 var(--flame-glow,9px) color-mix(in srgb,var(--flame-color) 44%,transparent),
@@ -1293,12 +1293,10 @@
  background-size:280% 280%;
  -webkit-mask:linear-gradient(#fff 0 0) padding-box,linear-gradient(#fff 0 0);
  -webkit-mask-composite:xor;mask-composite:exclude;
- animation:qlpmFrameGlide 3.7s ease-in-out infinite;
+ animation:qlpmFrameGlide var(--flame-ring-speed,3.7s) ease-in-out infinite;
 }
 .flame-pc>*{position:relative;z-index:1}
-.flame-pc--tier-5::before,.flame-pc--tier-6::before,
-.flame-pc--tier-7::before,.flame-pc--tier-8::before,.flame-pc--tier-9::before{animation-duration:2.6s}
-.flame-pc--tier-7,.flame-pc--tier-8,.flame-pc--tier-9{border-width:3px!important}
+/* Frame width and ring speed now scale smoothly for all 27 levels. */
 .flame-pc--gray{
  background:linear-gradient(145deg,#fff,#f2f4f6)!important;
  border-color:#a3acb6!important;box-shadow:0 0 6px #96a1ac44!important;
