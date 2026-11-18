@@ -6,6 +6,13 @@ import {fixedDateScript} from './lib/sheetDateScript';
 import {parseDriveFolderUrl} from './lib/driveSchoolFolders';
 
 const labelDate=v=>String(v||'').split('-').reverse().join('/');
+const validSchoolClass=value=>{
+  const label=String(value||'').trim().replaceAll('／','/');
+  if(!/^[\p{L}\p{N}][\p{L}\p{N} ._\/-]{0,59}$/u.test(label)||label==='Gốc')
+    throw Error('Tên lớp không hợp lệ. Ví dụ: 6A1, 6.1, 6-1 hoặc 6/1.');
+  return label;
+};
+const googleTabForClass=value=>String(value).replaceAll('/','／');
 const SHEETS_EDITOR_EMAIL='ic3-sheets-sync@qlpm-ic3.iam.gserviceaccount.com';
 const EMPTY_SCHOOL_TEMPLATE_ID='1zxht2Ft4mr6DEkycI--wXqZJbXLRJ-8iHtVc64horpM';
 // Suggested parent folder provided by the QLPM administrator. Never treat as verified until the Edge Function checks Editor access.
@@ -215,15 +222,16 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
   setMessage('Google Sheets đã cấp quyền. Tìm thấy '+d.tabs.length+' tab trong file '+d.title+'.');
  }
  async function bind(){
-  const title=validateSheetTabName(tabName);
-  const res=await api({action:'bind',class_name:title,tab_title:title});
+  const title=tabName.trim();
+  const label=validSchoolClass(title);
+  const res=await api({action:'bind',class_name:label,tab_title:title});
   await load();setSelectedClass(res.tab.class_name);
   setMessage('Đã gắn tab '+title+' và tạo lớp trên web nếu lớp chưa tồn tại.');
   onSynced?.();
  }
  async function clone(){
-  const cl=validateSheetTabName(newClass);
-  if(tabs.some(t=>t.title===cl))throw Error('Tab lớp này đã có. Hãy dùng Gắn tab có sẵn.');
+  const cl=validSchoolClass(newClass);
+  if(tabs.some(t=>t.title===googleTabForClass(cl)))throw Error('Tab lớp này đã có. Hãy dùng Gắn tab có sẵn.');
   if(!window.confirm('Tạo bản sao tab '+templateTab+' thành '+cl+'? Tab mẫu sẽ giữ nguyên; bản sao làm trống tên, điểm và checkbox điểm danh.'))return;
   const d=await api({action:'clone',class_name:cl,source_tab:templateTab});
   await inspect();setSelectedClass(cl);setNewClass('');
@@ -360,7 +368,7 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
      <div className="sheets-link-grid">
       <label>Gắn tab đã có
        <select value={tabName} onChange={e=>setTabName(e.target.value)}>
-        <option value="">Chọn tab lớp</option>{tabs.filter(t=>/^[\p{L}\p{N} ._-]{1,60}$/u.test(t.title)).map(t=>
+        <option value="">Chọn tab lớp</option>{tabs.filter(t=>t.title!=='Gốc'&&/^[\p{L}\p{N} ._／-]{1,60}$/u.test(t.title)).map(t=>
          <option key={t.gid} value={t.title}>{t.title}</option>)}
        </select>
       </label>
