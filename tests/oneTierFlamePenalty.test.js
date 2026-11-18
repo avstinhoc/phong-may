@@ -26,7 +26,7 @@ test('high-tier flame colors remain bold and grow gradually',()=>{
   assert.equal(fx.style['--flame-core'],tier.core);
   // Deep, saturated outer palette: avoid formerly washed-out light blue/lilac.
   const channels=tier.color.slice(1).match(/.{2}/g).map(c=>parseInt(c,16));
-  assert.ok(Math.min(...channels)<=22,'light outer color '+tier.color);
+  assert.ok(Math.max(...channels)-Math.min(...channels)>=100,'insufficient color saturation '+tier.color);
  }
  assert.equal(flameEffect({earned:72,effect_score:72,flame_state:'active'}).tier,14);
  assert.equal(flameEffect({earned:72,effect_score:68,flame_state:'active'}).tier,13);
