@@ -81,10 +81,16 @@ async function assertExclusiveWorkbook(url:string,link:Dict){
 const FOLDER_MIME="application/vnd.google-apps.folder";
 const SHEET_MIME="application/vnd.google-apps.spreadsheet";
 async function driveFileInfo(id:string,token:string){
- const fields="id,name,mimeType,parents,trashed,capabilities(canEdit,canAddChildren)";
+ const fields="id,name,mimeType,parents,trashed,capabilities(canEdit,canAddChildren),permissions(type,role)";
  const response=await api("https://www.googleapis.com/drive/v3/files/"+encodeURIComponent(id)+
   "?fields="+encodeURIComponent(fields)+"&supportsAllDrives=true",token);
  return await response.json();
+}
+function ensurePrivateRoot(info:Dict){
+ // Permission metadata may be omitted by Drive when the caller cannot list ACLs.
+ // When permissions are visible, reject public links before making new copies.
+ if(Array.isArray(info.permissions)&&info.permissions.some((p:Dict)=>p.type==="anyone"))
+  throw fail("Thư mục QLPM đang được chia sẻ công khai. Hãy đặt Quyền truy cập chung → Hạn chế trước khi tạo Sheets để bảo vệ dữ liệu học sinh.",409);
 }
 function ensureDriveFolder(info:Dict){
  if(info.mimeType!==FOLDER_MIME||info.trashed)throw fail("Liên kết không phải thư mục Google Drive hợp lệ.",400);
@@ -544,6 +550,7 @@ Deno.serve(async(req:Request)=>{
    const token=await googleToken();
    const info=await driveFileInfo(rootId,token);
    ensureDriveFolder(info);
+   ensurePrivateRoot(info);
    const {data:stored,error:storeErr}=await admin.from("qlpm_drive_root")
       .upsert({id:1,folder_id:rootId,folder_name:clean(info.name).slice(0,180),
        configured_by:ownerId,verified_at:new Date().toISOString()},{onConflict:"id"})
@@ -590,6 +597,7 @@ Deno.serve(async(req:Request)=>{
     const token=await googleToken();
     const rootInfo=await driveFileInfo(root.folder_id,token);
     ensureDriveFolder(rootInfo);
+    ensurePrivateRoot(rootInfo);
     const {data:already,error:existingError}=await admin.from("school_sheet_links")
       .select("id,spreadsheet_id").eq("school_id",schoolId).maybeSingle();
     if(existingError)throw fail("Không kiểm tra được liên kết Sheets hiện tại.",503);
