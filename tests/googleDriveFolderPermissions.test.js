@@ -40,14 +40,15 @@ test('owner Apps Script copies only signed requests and never creates duplicate 
  assert.ok(!ui.includes('QLPM_COPY_SIGNING_KEY'));
 });
 
-test('file link and creation are school-scoped and reject other school workbooks',()=>{
+test('file links are school-scoped and only same-name school profiles may share a workbook',()=>{
  assert.ok(edge.includes('action==="create_school_workbook"||action==="link_school_workbook"'));
  assert.ok(edge.includes('.eq("school_id",schoolId).eq("user_id",ownerId)'));
  assert.ok(edge.includes('if(already){'));
  assert.ok(edge.includes('duplicates.length>1'));
  assert.ok(edge.includes('if(spreadsheetId===QLPM_TEMPLATE_ID)'));
  assert.ok(edge.includes('!file.parents?.includes(root.folder_id)||file.capabilities?.canEdit!==true'));
- assert.ok(edge.includes('.neq("school_id",schoolId).limit(1)'));
+ assert.ok(edge.includes('await assertSameSchoolWorkbook(admin,schoolId,(usedBy||[])'));
+ assert.ok(edge.includes('.neq("school_id",schoolId).limit(200)'));
  assert.ok(edge.includes("status:\"verified\",auto_sync:true"));
  assert.ok(ui.includes("callSchoolDrive('create_school_workbook'"));
  assert.ok(ui.includes("callSchoolDrive('link_school_workbook'"));

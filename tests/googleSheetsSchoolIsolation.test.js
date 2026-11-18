@@ -6,12 +6,15 @@ const server=readFileSync(new URL('../supabase/functions/google-sheets-sync/inde
 const ui=readFileSync(new URL('../src/SheetsConnectionPanel.jsx',import.meta.url),'utf8');
 const migration=readFileSync(new URL('../supabase/migrations/20261118093000_shared_google_sheets_per_school.sql',import.meta.url),'utf8');
 
-test('shared Google Sheets requires the same real school UUID, never just matching school names',()=>{
+test('shared Google Sheets allows only the same normalized school name across teacher-specific school UUIDs',()=>{
  assert.ok(server.includes('async function assertExclusiveWorkbook(url:string,link:Dict)'));
+ assert.ok(server.includes('async function assertSameSchoolWorkbook(admin:any,schoolId:string,otherSchoolIds:string[])'));
+ assert.ok(server.includes('toLocaleUpperCase("vi")'));
  assert.ok(server.includes('SUPABASE_SERVICE_ROLE_KEY'));
- assert.ok(server.includes('.eq("status","verified")'));
- assert.ok(server.includes('data[0].school_id!==link.school_id'));
- assert.ok(server.includes('order("created_at"'));
+ assert.ok(server.includes('.select("id,name").in("id",unique)'));
+ assert.ok(server.includes('workbookSchoolKey(s.name)!==key'));
+ assert.ok(server.includes('await assertSameSchoolWorkbook(admin,schoolId,(usedBy||[])'));
+ assert.ok(server.includes('await assertSameSchoolWorkbook(admin,link.school_id,(data||[])'));
  assert.ok(server.indexOf('await assertExclusiveWorkbook(url,link)')<server.indexOf('const token=await googleToken();',server.indexOf('await assertExclusiveWorkbook(url,link)')));
  assert.ok(server.includes('.eq("id",linkId).maybeSingle()'));
  assert.ok(!server.includes('.eq("id",linkId).eq("owner_id",ownerId)'));

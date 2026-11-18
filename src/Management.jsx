@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "./lib/supabase";
 import {provisionSchoolWorkbook} from "./lib/sheetProvision";
+import {uppercaseSchoolName} from "./lib/schoolNames";
 
 export function SchoolManager({ schools, workplaces=[],workplaceSchools=[], onCreated, onChanged, ping, role }) {
   const [name, setName] = useState("");
@@ -11,7 +12,7 @@ export function SchoolManager({ schools, workplaces=[],workplaceSchools=[], onCr
   async function add(e) {
     e.preventDefault();
     setBusy(true);
-    const {data,error}=await supabase.rpc("create_my_school",{school_name:name.trim()});
+    const {data,error}=await supabase.rpc("create_my_school",{school_name:uppercaseSchoolName(name)});
     if(error){setBusy(false);ping(error.message);return;}
     setName("");onCreated(data);
     const linked=await provisionSchoolWorkbook(supabase,data);
@@ -23,7 +24,7 @@ export function SchoolManager({ schools, workplaces=[],workplaceSchools=[], onCr
     e.preventDefault();
     if(!editing)return;
     setBusy(true);
-    const {error}=await supabase.rpc("rename_my_school",{p_school_id:editing.id,p_new_name:editing.name.trim()});
+    const {error}=await supabase.rpc("rename_my_school",{p_school_id:editing.id,p_new_name:uppercaseSchoolName(editing.name)});
     setBusy(false);
     if(error)ping(error.message);else{setEditing(null);ping("Đã đổi tên trường");onChanged?.();}
   }
@@ -65,7 +66,7 @@ export function SchoolManager({ schools, workplaces=[],workplaceSchools=[], onCr
   }
   return <section className="panel school-manager">
     <h2>Trường công tác</h2>
-    <p className="muted">Chỉ xem các trường thuộc tài khoản của bạn, không hiển thị hồ sơ giáo viên khác. Bạn có thể thêm, sửa, đổi logo hoặc xóa trường; xóa trường sẽ xóa dữ liệu liên quan.</p>
+    <p className="muted">Tên trường được tự động chuyển thành CHỮ IN HOA. Chỉ xem các trường thuộc tài khoản của bạn, không hiển thị hồ sơ giáo viên khác. Bạn có thể thêm, sửa, đổi logo hoặc xóa trường; xóa trường sẽ xóa dữ liệu liên quan.</p>
     <div className="table-wrap"><table><thead><tr><th>Tên trường</th><th>Công ty / Trung tâm</th><th>Logo báo cáo & Excel</th><th>Thao tác</th></tr></thead>
       <tbody>{schools.map(s=><tr key={s.id}><td><b>{s.name}</b></td>
         <td><div className="school-workplace-tags">
@@ -81,12 +82,12 @@ export function SchoolManager({ schools, workplaces=[],workplaceSchools=[], onCr
         {['admin','teacher','staff'].includes(role)&&<div className="actions"><button className="btn outline" onClick={()=>setEditing({...s})}>Sửa</button><button className="btn outline" onClick={()=>{setDeleteTarget(s);setConfirmation("");}}>Xóa</button></div>}
       </td></tr>)}</tbody></table></div>
     <form className="form-row" onSubmit={add}>
-      <label>Tên trường mới<input required maxLength={200} value={name} onChange={e=>setName(e.target.value)} placeholder="Ví dụ: THCS Nguyễn Du" /></label>
+      <label>Tên trường mới<input required maxLength={200} value={name} onChange={e=>setName(uppercaseSchoolName(e.target.value,false))} placeholder="Ví dụ: THCS NGUYỄN DU" /></label>
       <button className="btn primary" disabled={busy}>{busy?"Đang lưu...":"Thêm trường"}</button>
     </form>
     {editing&&<div className="modal-backdrop"><div className="modal">
       <div className="modal-head"><h3>Sửa tên trường</h3><button className="btn" onClick={()=>setEditing(null)}>Đóng</button></div>
-      <form className="form-stack" onSubmit={rename}><label>Tên trường<input required maxLength={200} value={editing.name} onChange={e=>setEditing({...editing,name:e.target.value})}/></label><button className="btn primary" disabled={busy}>Lưu thay đổi</button></form>
+      <form className="form-stack" onSubmit={rename}><label>Tên trường<input required maxLength={200} value={editing.name} onChange={e=>setEditing({...editing,name:uppercaseSchoolName(e.target.value,false)})}/></label><button className="btn primary" disabled={busy}>Lưu thay đổi</button></form>
     </div></div>}
     {deleteTarget&&<div className="modal-backdrop"><div className="modal">
       <div className="modal-head"><h3>Xác minh xóa trường</h3><button className="btn" onClick={()=>setDeleteTarget(null)}>Đóng</button></div>

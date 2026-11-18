@@ -67,18 +67,29 @@ async function googleToken(){
  return cache.token;
 }
 const idSafe=(id:string)=>/^[A-Za-z0-9_-]{25,160}$/.test(id);
-// Workbook security is scoped to the actual school UUID, not the teacher account.
-// Different schools must not reuse the same sheet, even if the names match.
+// School UUIDs belong to teacher-specific school profiles, so two different
+// UUIDs can legitimately describe the same physical school. Verify names on
+// the server, never by a browser-provided string. Different school names remain isolated.
+const workbookSchoolKey=(v:unknown)=>clean(v).normalize("NFC").replace(/\s+/g," ").toLocaleUpperCase("vi");
+async function assertSameSchoolWorkbook(admin:any,schoolId:string,otherSchoolIds:string[]){
+ const unique=[...new Set([schoolId,...otherSchoolIds])];
+ if(unique.length===1)return;
+ const {data:schools,error}=await admin.from("schools").select("id,name").in("id",unique);
+ if(error||!schools||schools.length!==unique.length)
+   throw fail("Không xác minh được các trường đang dùng chung file Google Sheets.",503);
+ const current=schools.find((s:Dict)=>s.id===schoolId);
+ const key=workbookSchoolKey(current?.name);
+ if(!key||schools.some((s:Dict)=>workbookSchoolKey(s.name)!==key))
+   throw fail("File Sheets đã liên kết cho trường KHÁC tên. Chỉ hồ sơ cùng trường mới được dùng chung file.",409);
+}
 async function assertExclusiveWorkbook(url:string,link:Dict){
  const secret=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
  if(!secret)throw fail("Thiếu cấu hình xác thực Google Sheets trên máy chủ.",503);
  const admin=createClient(url,secret,{auth:{persistSession:false,autoRefreshToken:false}});
- const {data,error}=await admin.from("school_sheet_links").select("id,school_id,created_at")
-   .eq("spreadsheet_id",link.spreadsheet_id).eq("status","verified")
-   .order("created_at",{ascending:true}).order("id",{ascending:true}).limit(1);
+ const {data,error}=await admin.from("school_sheet_links").select("school_id")
+   .eq("spreadsheet_id",link.spreadsheet_id).neq("school_id",link.school_id).limit(200);
  if(error)throw fail("Không kiểm tra được quyền liên kết Google Sheets.",503);
- if(data?.length&&data[0].school_id!==link.school_id)throw fail(
-   "File Google Sheets này đã được xác minh cho trường khác. Hãy dùng mẫu trống tạo bản sao mới cho trường này.",409);
+ await assertSameSchoolWorkbook(admin,link.school_id,(data||[]).map((row:Dict)=>row.school_id));
 }
 const FOLDER_MIME="application/vnd.google-apps.folder";
 const SHEET_MIME="application/vnd.google-apps.spreadsheet";
@@ -540,6 +551,39 @@ async function writeScheduleFromWeb(db:any,link:Dict,map:Dict,token:string){
  if(error)throw fail("Không lưu được ánh xạ tiết vừa tạo.",500);
  return {...map,lesson_columns:mapping};
 }
+// A school workbook can be reused by teacher-specific school profiles. Never
+// auto-import another teacher's tabs or write over a class owned by a peer.
+async function workbookPeerLinks(link:Dict){
+ const secret=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"),url=Deno.env.get("SUPABASE_URL");
+ if(!secret||!url)throw fail("Thiếu khóa kiểm tra Sheets trên máy chủ.",503);
+ const admin=createClient(url,secret,{auth:{persistSession:false,autoRefreshToken:false}});
+ const {data:peers,error}=await admin.from("school_sheet_links").select("id,school_id")
+   .eq("spreadsheet_id",link.spreadsheet_id).neq("school_id",link.school_id).limit(200);
+ if(error)throw fail("Không kiểm tra được hồ sơ dùng chung Sheets.",503);
+ return {admin,peers:peers||[]};
+}
+async function sharedClassWriteAllowed(admin:any,link:Dict,peers:Dict[],name:string){
+ if(!peers.length)return true;
+ const {data:claims,error}=await admin.from("school_sheet_tabs").select("link_id")
+   .in("link_id",peers.map((p:Dict)=>p.id)).eq("class_name",name).limit(200);
+ if(error)throw fail("Không kiểm tra được tab lớp dùng chung.",503);
+ if(!claims?.length)return true;
+ const ids=new Set(claims.map((c:Dict)=>c.link_id)),others=peers.filter((p:Dict)=>ids.has(p.id));
+ const countActive=async(id:string)=>{
+  const {count,error:e}=await admin.from("students").select("id",{count:"exact",head:true})
+    .eq("school_id",id).eq("class_name",name).eq("status","active");
+  if(e)throw fail("Không kiểm tra được dữ liệu học sinh lớp trùng.",503);
+  return count||0;
+ };
+ const mine=await countActive(link.school_id);
+ const counts=await Promise.all(others.map((p:Dict)=>countActive(p.school_id)));
+ if(mine>0&&counts.some((n:number)=>n>0))
+  throw fail("Lớp "+name+" có học sinh tại nhiều hồ sơ trường cùng tên. Không được ghi đè dữ liệu; hãy thống nhất một hồ sơ lớp.",409);
+ if(counts.some((n:number)=>n>0))return false;
+ if(mine>0)return true;
+ return [link.id,...others.map((p:Dict)=>p.id)].sort()[0]===link.id;
+}
+
 async function syncSchool(db:any,link:Dict,token:string,ownerId:string,offset=0,onlyClass=""){
  const {data:school,error:schoolError}=await db.from("schools").select("id,name").eq("id",link.school_id).maybeSingle();
  if(schoolError||!school)throw fail("Không có quyền đọc trường.",403);
@@ -552,12 +596,16 @@ async function syncSchool(db:any,link:Dict,token:string,ownerId:string,offset=0,
   if(error)throw fail("Không đọc được lớp từ "+table,500);
   for(const row of rows||[])if(classroomName(clean(row.class_name)))seen.add(clean(row.class_name));
  }
+ const shared=await workbookPeerLinks(link);
  const meta=await metadata(link.spreadsheet_id,token);
  const tabs=(meta.sheets||[]).map((x:Dict)=>({id:x.properties.sheetId,title:x.properties.title}));
- // Sheets -> Web: detect teacher-created class tabs. Slash is fullwidth only in Google tab title.
- for(const t of tabs){
-  const label=classFromSheetTab(t.title);
-  if(label)seen.add(label);
+ // When multiple school IDs use one workbook, a tab cannot identify its owner.
+ // Only auto-discover every Sheets tab in the single-school-ID case.
+ if(!shared.peers.length){
+  for(const t of tabs){
+   const label=classFromSheetTab(t.title);
+   if(label)seen.add(label);
+  }
  }
  if(onlyClass&&!seen.has(onlyClass))throw fail("Lớp chưa tồn tại trong trường đang chọn.",404);
  const allClasses=onlyClass?[onlyClass]:[...seen].sort(classCompare).slice(0,60);
@@ -565,6 +613,12 @@ async function syncSchool(db:any,link:Dict,token:string,ownerId:string,offset=0,
  const created:string[]=[],linked:string[]=[],errors:string[]=[],report:Dict[]=[];
  for(const name of classNames){
   try{
+   const canWrite=await sharedClassWriteAllowed(shared.admin,link,shared.peers,name);
+   if(!canWrite){
+    if(onlyClass)throw fail("Lớp "+name+" do hồ sơ trường khác cùng tên đồng bộ; không được ghi đè.",409);
+    report.push({class_name:name,skipped:true,reason:"Lớp đã do hồ sơ khác quản lý, bỏ qua để tránh ghi đè."});
+    continue;
+   }
    const existing=await getMap(db,link.id,name);
    const tabTitle=existing?.sheet_title||classTabTitle(name);
    let sheet=tabs.find(t=>t.title===tabTitle);
@@ -744,9 +798,11 @@ Deno.serve(async(req:Request)=>{
     if(action==="create_school_workbook"&&file.name!==title)
       throw fail("Tên file bản sao không trùng tên trường. Kiểm tra Apps Script hoặc file trùng.",409);
     const {data:usedBy,error:usedErr}=await admin.from("school_sheet_links")
-      .select("school_id").eq("spreadsheet_id",spreadsheetId).neq("school_id",schoolId).limit(1);
+      .select("school_id").eq("spreadsheet_id",spreadsheetId).neq("school_id",schoolId).limit(200);
     if(usedErr)throw fail("Không kiểm tra được trùng file giữa các trường.",503);
-    if(usedBy?.length)throw fail("File Sheets đã được liên kết cho một trường khác. Không được dùng chung giữa các trường.",409);
+    // Allow same-name school profiles to reuse the existing workbook in QLPM.
+    // Its Drive parent and Service Account Editor role were verified above.
+    await assertSameSchoolWorkbook(admin,schoolId,(usedBy||[]).map((row:Dict)=>row.school_id));
     const sheetMeta=await metadata(spreadsheetId,token);
     const detectedTemplate=(sheetMeta.sheets||[]).some((s:Dict)=>s.properties?.title==="Gốc")?
       "Gốc":(sheetMeta.sheets||[]).some((s:Dict)=>s.properties?.title==="6.1")?"6.1":
@@ -812,6 +868,9 @@ Deno.serve(async(req:Request)=>{
    const ordinal=Number((map.lesson_columns||{})[sessionId]);
    if(!Number.isInteger(rowNo)||rowNo<8||rowNo>70||!Number.isInteger(ordinal)||ordinal<1||ordinal>70)
      throw fail("Chưa ghép dòng học sinh hoặc buổi học với Sheets.",409);
+   const shared=await workbookPeerLinks(link);
+   if(!await sharedClassWriteAllowed(shared.admin,link,shared.peers,student.class_name))
+    throw fail("Lớp do hồ sơ trường khác cùng tên quản lý; không được ghi đè điểm danh.",409);
    const rows=await readTab(link.spreadsheet_id,map.sheet_title,token);
    if(normalize((rows[rowNo-5]||[])[2])!==normalize(student.full_name))
      throw fail("Dòng học sinh trong Sheets đã đổi, cần kiểm tra lại trước khi ghi.",409);
@@ -857,6 +916,9 @@ Deno.serve(async(req:Request)=>{
   }
   const className=clean(payload.class_name);
   if(!validClass(className))throw fail("Tên lớp không hợp lệ.");
+  const shared=await workbookPeerLinks(link);
+  if(!await sharedClassWriteAllowed(shared.admin,link,shared.peers,className))
+   throw fail("Lớp do hồ sơ khác cùng trường quản lý, không được ghi đè Google Sheets.",409);
   const meta=await metadata(link.spreadsheet_id,token);
   const tabs=(meta.sheets||[]).map((s:Dict)=>({id:s.properties.sheetId,title:s.properties.title}));
   if(action==="clone"){
