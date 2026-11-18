@@ -1424,7 +1424,7 @@ function Records({ profile, refresh, reload, ping }) {
     setBusy(false);
     if(error)ping(error.message);
     else{
-      ping(disorder?"Đã trừ sao do mất trật tự.":form.record_type==="violation"?"Đã ghi nhận một lần vi phạm. Nếu đủ ngưỡng sẽ có biên bản nháp.":"Đã lưu ghi nhận");
+      ping((disorder||form.record_type==="break")?"Đã trừ sao do mất trật tự, lửa giảm 1 cấp.":form.record_type==="violation"?"Đã ghi nhận một lần vi phạm. Nếu đủ ngưỡng sẽ có biên bản nháp.":"Đã lưu ghi nhận");
       setForm(old=>({...old,note:"",record_date:today()}));reload();
     }
   }
@@ -1522,10 +1522,10 @@ function Records({ profile, refresh, reload, ping }) {
             {allowedStudents.map(st=><option key={st.id} value={st.id}>{st.full_name} – {st.class_name} ({violationCounts.get(st.id)||0} lỗi)</option>)}
           </select></label>
           <label>Loại ghi nhận<select value={form.record_type} onChange={e=>setForm({
-            ...form,record_type:e.target.value,title:e.target.value==="violation"?"Nhắc 1":e.target.value==="reward"?"Điểm thưởng":e.target.value==="break"?"Ngắt chuỗi sao":"Điểm thực hành",
+            ...form,record_type:e.target.value,title:e.target.value==="violation"?"Nhắc 1":e.target.value==="reward"?"Điểm thưởng":e.target.value==="break"?"Mất trật tự":"Điểm thực hành",
             points:e.target.value==="violation"?0:1
           })}>
-            <option value="violation">Lỗi / vi phạm</option><option value="reward">Thưởng 1 ⭐</option><option value="break">Ngắt chuỗi (−2 sao)</option><option value="point">Điểm học tập</option>
+            <option value="violation">Lỗi / vi phạm</option><option value="reward">Thưởng 1 ⭐</option><option value="break">Mất trật tự (−2 sao)</option><option value="point">Điểm học tập</option>
           </select></label>
           {form.record_type==="violation"&&<label>Ghi nhận nhanh
             <select value={["Nhắc 1","1 Lỗi","Không làm bài","Mất trật tự","Không tuân thủ nội quy"].includes(form.title)?form.title:"other"}
