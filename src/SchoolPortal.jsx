@@ -7,7 +7,6 @@ import './schoolPortal.css';
 
 const medal={1:'🥇',2:'🥈',3:'🥉',4:'✦',5:'✦'};
 const codeLink=value=>'/student?code='+encodeURIComponent(value);
-const registerLink=value=>'/register?code='+encodeURIComponent(value);
 
 function StarFace({student,large=false}){
  const effect=flameEffect(student);
@@ -56,7 +55,7 @@ function GradeLeaderboard({grade,items}){
    </ol>:<div className="school-grade-empty"><span>✨</span><p>Khối {grade} chưa có sao thưởng.</p><small>Hãy cùng cố gắng để lên bảng vàng!</small></div>}
  </section>;
 }
-function GradeClassSection({grade,rows,onCopy}){
+function GradeClassSection({grade,rows}){
  return <section className="school-class-section" id={'school-grade-'+grade}>
    <div className="school-class-heading">
      <div className="school-class-heading-icon" aria-hidden="true">{grade==='8'?'🎓':grade==='7'?'📘':'🚀'}</div>
@@ -68,22 +67,18 @@ function GradeClassSection({grade,rows,onCopy}){
        <div className="school-class-card-top"><span>IC3 GS6</span><span>KHỐI {grade}</span></div>
        <h3>Lớp {item.class_name}</h3>
        <p>{item.student_count} học sinh đang học</p>
-       <div className="school-class-code"><span>MÃ LỚP</span><code>{item.registration_code}</code></div>
-       <div className="school-class-buttons">
-         <a href={codeLink(item.registration_code)} className="school-class-open">Vào trang lớp <span aria-hidden="true">↗</span></a>
-         <button type="button" onClick={()=>onCopy(item.registration_code)} title="Sao chép mã lớp">Sao chép</button>
-       </div>
-       <a className="school-class-register" href={registerLink(item.registration_code)}>✍️ Đăng ký vào lớp</a>
+       <a href={codeLink(item.registration_code)} className="school-class-open school-class-open--solo">
+         Vào trang lớp <span aria-hidden="true">↗</span>
+       </a>
      </article>
    )}</div>:<p className="school-empty-classes">Chưa có lớp khối {grade} tại trường này. Lớp sẽ xuất hiện tự động sau khi giáo viên tạo mã.</p>}
  </section>;
 }
-export function SchoolPortal(){
- const [code,setCode]=useState(()=>new URLSearchParams(window.location.search).get('code')||'');
+export function SchoolPortal({initialCode='',embedded=false}){
+ const [code,setCode]=useState(()=>initialCode||new URLSearchParams(window.location.search).get('code')||'');
  const [data,setData]=useState(null);
  const [busy,setBusy]=useState(false),[error,setError]=useState('');
  const [updatedAt,setUpdatedAt]=useState(null),[search,setSearch]=useState('');
- const [copied,setCopied]=useState('');
  async function reload(nextCode=code){
    if(!nextCode.trim()){setError('Nhập mã của một lớp trong trường để xem bảng xếp hạng.');return;}
    setBusy(true);setError('');
@@ -93,27 +88,23 @@ export function SchoolPortal(){
      if(apiError)throw apiError;
      if(!result?.school_name){setData(null);throw Error('Không tìm thấy trường từ mã lớp này. Hãy sử dụng mã lớp đang hoạt động.');}
      setData(result);setCode(normalized);setUpdatedAt(new Date());
-     window.history.replaceState(null,'','/school?code='+encodeURIComponent(normalized));
+     if(!embedded)window.history.replaceState(null,'','/school?code='+encodeURIComponent(normalized));
    }catch(e){setError('Không tải được BXH: '+(e.message||String(e)));}
    finally{setBusy(false);}
  }
  useEffect(()=>{
-   const initial=new URLSearchParams(window.location.search).get('code');
+   const initial=initialCode||new URLSearchParams(window.location.search).get('code');
    if(initial)reload(initial);
- },[]);
- async function copy(value){
-   try{await navigator.clipboard.writeText(value);setCopied(value);}
-   catch{setError('Không sao chép được, hãy chọn mã lớp và sao chép thủ công.');}
- }
+ },[initialCode]);
  const classes=Array.isArray(data?.classes)?data.classes:[];
- return <div className="school-public-page">
+ return <div className={'school-public-page '+(embedded?'school-public-page--embedded':'')}>
    <header className="school-public-header">
      <a href="#school-top" className="school-public-brand"><span>IC3</span><b>IC3 GS6 <small>ĐẤU TRƯỜNG NGÔI SAO</small></b></a>
      <nav aria-label="Đi nhanh đến mục" className="school-public-nav">
-       <a href="#school-standings">🏆 BXH</a>
-       <a href="#school-grade-8">Khối 8</a>
-       <a href="#school-grade-7">Khối 7</a>
-       <a href="#school-grade-6">Khối 6</a>
+       <a className="school-nav-rank" href="#school-standings">🏆 Bảng xếp hạng</a>
+       <a className="school-nav-grade8" href="#school-grade-8">🎓 Khối 8</a>
+       <a className="school-nav-grade7" href="#school-grade-7">📘 Khối 7</a>
+       <a className="school-nav-grade6" href="#school-grade-6">🚀 Khối 6</a>
      </nav>
      <button className="school-header-refresh" type="button" onClick={()=>reload()} disabled={busy} title="Làm mới tất cả BXH và mã lớp">{busy?'Đang tải…':'↻ Làm mới'}</button>
    </header>
@@ -161,7 +152,7 @@ export function SchoolPortal(){
            <p>Mã lớp tự động xuất hiện khi giáo viên tạo lớp mới tại đúng trường này.</p></div>
          <label>🔎 Tìm nhanh lớp<input value={search} onChange={e=>setSearch(e.target.value)} placeholder="6A1, 7/2, 8-3…"/></label>
        </section>
-       {['8','7','6'].map(grade=><GradeClassSection grade={grade} key={grade} rows={gradeClassRows(classes,grade,search)} onCopy={copy}/>)}
+       {['8','7','6'].map(grade=><GradeClassSection grade={grade} key={grade} rows={gradeClassRows(classes,grade,search)}/>)}
        {classes.some(c=>!['6','7','8'].includes(String(c.grade)))&&<div className="school-other-classes">
          <h3>Những lớp khác trong trường</h3>
          <div>{classes.filter(c=>!['6','7','8'].includes(String(c.grade))).map(c=>
@@ -173,7 +164,6 @@ export function SchoolPortal(){
        </footer>
      </>}
    </main>
-   {copied&&<div className="school-copy-notice" role="status">✓ Đã sao chép mã lớp: {copied}<button type="button" onClick={()=>setCopied('')}>×</button></div>}
    <button className="school-go-top" aria-label="Lên đầu trang" title="Lên đầu trang" type="button"
      onClick={()=>window.scrollTo({top:0,behavior:'smooth'})}>↑</button>
  </div>;

@@ -7,6 +7,8 @@ import { StudentRoster } from "./StudentRoster";
 import { StudentEvaluation } from "./StudentEvaluation";
 import { StudentPortal } from "./StudentPortal";
 import { SchoolPortal } from "./SchoolPortal";
+import { TeacherSchoolLeaderboard } from "./TeacherSchoolLeaderboard";
+import { StudentRewardManagement } from "./StudentRewardManagement";
 import { AuthCallback, emailCallbackUrl } from "./AuthCallback";
 import { startGoogleAuth, googleOAuthError } from "./lib/googleAuth";
 import { TeacherPayroll } from "./TeacherPayroll";
@@ -33,7 +35,7 @@ import {
   Award, Sparkles, Settings, LogOut, Plus, Search, Download, RefreshCw,
   CheckCircle2, Clock3, AlertTriangle, School, Menu, X, UserPlus,
   ShieldCheck, Trash2, FileSpreadsheet, ClipboardCheck, FileText,
-  ChevronLeft, ChevronRight, Printer, UserCheck, UserRound, Building2
+  ChevronLeft, ChevronRight, Printer, UserCheck, UserRound, Building2, Trophy, Star
 } from "lucide-react";
 
 const nav = [
@@ -44,6 +46,8 @@ const nav = [
   ["attendance", "Lịch dạy giáo viên", CalendarDays],
   ["rollcall", "Điểm danh học sinh", UserCheck],
   ["records", "Điểm, lỗi & thưởng", ClipboardList],
+  ["student_rewards", "Quản lý sao & vi phạm", Star],
+  ["leaderboard", "Bảng xếp hạng", Trophy],
   ["cleaning", "Vệ sinh máy", ClipboardCheck],
   ["finance", "Chấm công & tiền công", Clock3],
   ["evaluation", "Đánh giá học sinh", Sparkles],
@@ -225,8 +229,8 @@ function App() {
            </select>
         </div>
         <nav className="nav-scroll" aria-label="Menu chính">
-          {[["GIẢNG DẠY", ["dashboard", "attendance", "rollcall", "roster", "records", "evaluation"]],
-            ["PHÒNG MÁY", ["computers", "students", "cleaning", "settings"]],
+          {[["GIẢNG DẠY", ["dashboard", "attendance", "rollcall", "roster", "records", "student_rewards", "evaluation"]],
+            ["PHÒNG MÁY", ["computers", "leaderboard", "students", "cleaning", "settings"]],
             ["QUẢN LÝ", ["workplaces", "schools", "finance", "reports", "accounts"]]].map(([group, ids]) => <React.Fragment key={group}>
             <div className="nav-label">{group}</div>
             <ChevronRight size={17} className="profile-chevron"/>
@@ -283,6 +287,8 @@ function App() {
           {page === "rollcall" && isTeacher && <RollCallView profile={profile} refresh={refresh} reload={reload} ping={ping} focusDate={calendarDate} setFocusDate={setCalendarDate} />}
           {page === "attendance" && isTeacher && <Attendance profile={profile} refresh={refresh} reload={reload} ping={ping} focusDate={calendarDate} setFocusDate={setCalendarDate} onImported={async(date,name)=>{setCalendarDate(date);const {data,error}=await supabase.rpc("create_my_school",{school_name:name});if(!error)setSchoolId(data);reload();}} />}
           {page === "records" && isTeacher && <Records profile={profile} refresh={refresh} reload={reload} ping={ping} />}
+          {page === "student_rewards" && isTeacher && <StudentRewardManagement profile={profile} refresh={refresh} onNavigate={setPage} />}
+          {page === "leaderboard" && <TeacherSchoolLeaderboard profile={profile} refresh={refresh} onNavigate={setPage} />}
           {page === "cleaning" && isTeacher && <Cleaning profile={profile} refresh={refresh} reload={reload} ping={ping} />}
           {page === "evaluation" && <StudentEvaluation profile={profile} refresh={refresh} reload={reload} ping={ping} />}
           </>}
