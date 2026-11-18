@@ -118,28 +118,51 @@ async function callOwnerCopyScript(schoolId:string,title:string,rootId:string){
  const endpoint=clean(Deno.env.get("QLPM_APPS_SCRIPT_WEB_APP_URL"));
  const key=clean(Deno.env.get("QLPM_APPS_SCRIPT_SIGNING_KEY"));
  if(!endpoint||!key)throw fail(
-  "Chưa thiết lập Apps Script tạo Google Sheets tự động. Admin cần triển khai script QLPM một lần và thêm URL + signing key vào Supabase Edge Secrets.",503);
+  "Chưa thiết lập Apps Script tạo Google Sheets tự động. Kiểm tra 2 Secrets trong Supabase Edge Functions.",503);
  if(!/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]{20,}\/exec$/.test(endpoint))
   throw fail("QLPM_APPS_SCRIPT_WEB_APP_URL chưa đúng dạng URL /exec của Google Apps Script.",503);
- if(key.length<60)throw fail("QLPM_APPS_SCRIPT_SIGNING_KEY phải là khóa bí mật đủ dài.",503);
+ // setupQlpmCopy() creates four 32-character UUID fragments, always 128 hex characters.
+ // Catch copied labels, quotes, or a different secret early without disclosing key material.
+ if(!/^[0-9a-f]{128}$/i.test(key))
+  throw fail("QLPM_APPS_SCRIPT_SIGNING_KEY sai định dạng. Secret phải có đúng 128 ký tự 0–9/a–f, chỉ lấy phần SAU dấu = từ Execution log của setupQlpmCopy (không dán cả tên Secret).",503);
  const ts=Date.now(),nonce=crypto.randomUUID().replaceAll("-","");
- const message=[ts,nonce,schoolId,title,rootId,QLPM_TEMPLATE_ID].join("|");
+ const messageParts=[ts,nonce,schoolId,title,rootId,QLPM_TEMPLATE_ID];
  const hashKey=await crypto.subtle.importKey("raw",new TextEncoder().encode(key),
    {name:"HMAC",hash:"SHA-256"},false,["sign"]);
- const signed=new Uint8Array(await crypto.subtle.sign("HMAC",hashKey,new TextEncoder().encode(message)));
- const signature=btoa(String.fromCharCode(...signed)).split("+").join("-").split("/").join("_").replace(/=+$/g,"");
- let response:Response;
- try{
-  response=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},
-   body:JSON.stringify({action:"copy_school_template",school_id:schoolId,
-    root_id:rootId,template_id:QLPM_TEMPLATE_ID,filename:title,ts,nonce,signature}),
-   redirect:"follow",signal:AbortSignal.timeout(45000)});
- }catch{throw fail("Không kết nối được Google Apps Script tạo bản sao. Kiểm tra URL triển khai, quyền truy cập Anyone và thử lại.",502);}
- if(!response.ok)throw fail("Apps Script không phản hồi thành công: HTTP "+response.status,502);
- let result:Dict;
- try{result=await response.json();}catch{throw fail("Apps Script chưa trả về JSON hợp lệ. Kiểm tra phiên bản triển khai /exec.",502);}
- if(result?.ok!==true||!idSafe(clean(result.spreadsheet_id)))
-  throw fail("Apps Script: "+clean(result?.error||"Chưa tạo được bản sao.").slice(0,220),502);
+ const signatureFor=async(separator:string)=>{
+  const message=messageParts.join(separator);
+  const signed=new Uint8Array(await crypto.subtle.sign("HMAC",hashKey,new TextEncoder().encode(message)));
+  return btoa(String.fromCharCode(...signed)).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"");
+ };
+ const send=async(signature:string):Promise<Dict>=>{
+  let response:Response;
+  try{
+   response=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},
+    body:JSON.stringify({action:"copy_school_template",school_id:schoolId,
+     root_id:rootId,template_id:QLPM_TEMPLATE_ID,filename:title,ts,nonce,signature}),
+    redirect:"follow",signal:AbortSignal.timeout(45000)});
+  }catch{throw fail("Không kết nối được Google Apps Script. Kiểm tra URL /exec và quyền triển khai Web app.",502);}
+  if(!response.ok)throw fail("Apps Script không phản hồi thành công: HTTP "+response.status,502);
+  try{return await response.json();}catch{
+   throw fail("Apps Script chưa trả về JSON. Kiểm tra URL /exec và phiên bản triển khai Web app.",502);
+  }
+ };
+ // First try the current canonical HMAC message (fields separated by '|').
+ // A previously deployed Apps Script can still use the legacy newline-separated
+ // message even after the code in its editor was updated. Retry ONLY after a
+ // signature rejection (which never creates a file), with the same signed fields.
+ let result=await send(await signatureFor("|"));
+ if(result?.ok!==true && clean(result?.error).includes("Chữ ký xác thực không hợp lệ")){
+  result=await send(await signatureFor("\n"));
+ }
+ if(result?.ok!==true){
+  const message=clean(result?.error||"Chưa tạo được bản sao.").slice(0,220);
+  if(message.includes("Chữ ký xác thực không hợp lệ"))
+   throw fail("Apps Script và Supabase không dùng cùng signing key (hoặc Web app đang chạy phiên bản cũ). Hãy chạy setupQlpmCopy trong ĐÚNG dự án Apps Script, lấy đúng giá trị sau dấu = và cập nhật QLPM_APPS_SCRIPT_SIGNING_KEY trong Supabase. Nếu đã chỉnh mã, vào Deploy → Manage deployments → Edit → New version → Deploy. Không gửi khóa vào chat.",502);
+  throw fail("Apps Script: "+message,502);
+ }
+ if(!idSafe(clean(result.spreadsheet_id)))
+  throw fail("Apps Script trả về mã Google Sheets không hợp lệ.",502);
  return result;
 }
 async function metadata(id:string,token:string){
