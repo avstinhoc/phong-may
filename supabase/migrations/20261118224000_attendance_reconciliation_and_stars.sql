@@ -68,3 +68,10 @@ as $$
 $$;
 revoke all on function public.ic3_class_stars(text) from public;
 grant execute on function public.ic3_class_stars(text) to anon, authenticated;
+
+-- Repair legacy Sheets imports that stored the class but missed its school label.
+-- Never overwrite a non-empty school_name.
+update public.students s
+set school_name=sc.name
+from public.schools sc
+where s.school_id=sc.id and (s.school_name is null or btrim(s.school_name)='');
