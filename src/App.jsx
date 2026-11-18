@@ -942,7 +942,10 @@ function Computers({ profile, refresh, reload, ping }) {
   const assigned = useRows("computer_assignments", profile, refresh);
   const records = useRows("student_records", profile, refresh);
   const classNames=[...new Set([...classes.rows.map(c=>c.class_name),...students.rows.map(s=>s.class_name)].filter(Boolean))].sort();
-  const classStudents=students.rows.filter(s=>s.class_name===className);
+  const classStudents=students.rows.filter(s=>s.class_name===className&&s.status==='active');
+  const activeClass=classes.rows.find(c=>c.class_name===className&&!c.archived_at&&c.registration_code);
+  const classStars=starLeaderboard(classStudents,records.rows);
+  const topStarEarned=classStars[0]?.stars.earned||0;
   const classAssignments=assigned.rows.filter(a=>classStudents.some(s=>s.id===a.student_id));
   const [assigning,setAssigning]=useState(null),[chosenId,setChosenId]=useState(""),[assignBusy,setAssignBusy]=useState(false);
   const [show, setShow] = useState(false);
@@ -1012,6 +1015,9 @@ function Computers({ profile, refresh, reload, ping }) {
       </>}
     />
     <div className="toolbar"><label className="field-inline">Lớp đang xem <select aria-label="Lớp phòng máy" value={className} onChange={e=>setClassName(e.target.value)}><option value="">Chọn lớp</option>{classNames.map(c=><option key={c}>{c}</option>)}</select></label>
+       <a className="btn outline" href={activeClass?'/student?code='+encodeURIComponent(activeClass.registration_code):undefined}
+         target="_blank" rel="noopener noreferrer" aria-disabled={!activeClass}
+         onClick={e=>{if(!activeClass){e.preventDefault();ping('Lớp này chưa có mã đăng ký. Tạo mã trong Lớp & mã đăng ký.');}}}>🌐 Mở trang lớp</a>
       <div className="field-inline">Số máy muốn khởi tạo <input type="number" min="1" max="500" value={count} onChange={e => setCount(e.target.value)} /></div>
       <span className="muted">{rows.length} máy đã có trong hệ thống</span>
     </div>
@@ -1043,7 +1049,9 @@ function Computers({ profile, refresh, reload, ping }) {
               </div>}
               {users.length ? users.map(a => (
                 <div className="pc-user-row" key={a.id}>
-                  <span>• {(students.rows.find(s => s.id === a.student_id)?.full_name || "Học sinh").trim().split(/\s+/).slice(-2).join(" ")}</span>
+                  <span>• {(students.rows.find(s => s.id === a.student_id)?.full_name || "Học sinh").trim().split(/\s+/).slice(-2).join(" ")}
+                   {starTotals(records.rows,a.student_id).available>0&&<b className="student-star-badge"> ⭐{starTotals(records.rows,a.student_id).available>1?' ×'+starTotals(records.rows,a.student_id).available:''}</b>}
+                   {topStarEarned>=5&&starTotals(records.rows,a.student_id).earned===topStarEarned&&<b className="star-flame" title="Top sao của lớp">🔥</b>}</span>
                   <button className="mini-btn danger" onClick={() => release(a)}>Gỡ</button>
                   {records.rows.filter(r=>r.student_id===a.student_id && r.record_type==="violation").slice(-3).map(r=><small className="negative" key={r.id}>{r.title}</small>)}
                 </div>
