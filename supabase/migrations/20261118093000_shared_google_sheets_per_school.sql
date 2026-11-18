@@ -41,11 +41,17 @@ using (exists(select 1 from public.school_sheet_links l where l.id=link_id
 -- for another school. The author/school identity of an existing link is immutable.
 create or replace function public.protect_shared_school_sheet_link()
 returns trigger language plpgsql security definer set search_path='' as $$
+declare check_new boolean:=false;
 begin
- if TG_OP='UPDATE' and
-   (new.school_id is distinct from old.school_id or new.owner_id is distinct from old.owner_id)
- then raise exception 'Không được thay đổi trường hoặc chủ liên kết Google Sheets'; end if;
- if TG_OP='INSERT' or new.spreadsheet_id is distinct from old.spreadsheet_id then
+ if TG_OP='INSERT' then
+   check_new:=true;
+ elsif TG_OP='UPDATE' then
+   if new.school_id is distinct from old.school_id or new.owner_id is distinct from old.owner_id then
+     raise exception 'Không được thay đổi trường hoặc chủ liên kết Google Sheets';
+   end if;
+   check_new:=new.spreadsheet_id is distinct from old.spreadsheet_id;
+ end if;
+ if check_new then
    if new.spreadsheet_id='1zxht2Ft4mr6DEkycI--wXqZJbXLRJ-8iHtVc64horpM' then
      raise exception 'Không liên kết file mẫu trống trực tiếp. Hãy tạo bản sao của trường.';
    end if;
