@@ -292,9 +292,18 @@ async function syncClass(db:any,link:Dict,map:Dict,token:string,actorId:string,m
   const schoolDisplayName=sourceSchool?.name||"";
   const klass=await db.from("classes").select("id").eq("school_id",link.school_id).eq("class_name",map.class_name).limit(1);
   const classId=klass.data?.[0]?.id||null;
+  const {data:inactive,error:inactiveError}=await db.from("students").select("full_name")
+    .eq("school_id",link.school_id).eq("class_name",map.class_name).eq("status","inactive");
+  if(inactiveError)throw fail("Không kiểm tra được học sinh đã ẩn.",500);
+  const archivedNames=new Set((inactive||[]).map(x=>normalize(x.full_name)));
   for(const p of pairs){
    if(p.ambiguous){conflicts.push("Tên trùng hoặc đã đổi ở dòng "+p.rowNo+": "+p.name+" (cần rà soát trước).");continue;}
    let s=p.student;
+   if(!s&&archivedNames.has(normalize(p.name))){
+     // A student archived on Web must not be silently re-created by auto-pull.
+     conflicts.push("Học sinh đã xóa khỏi danh sách Web: "+p.name+" (dòng "+p.rowNo+").");
+     continue;
+   }
    if(!s){
     const dob=asDate(p.raw[3]);
     const {data:created,error}=await db.from("students").insert({
