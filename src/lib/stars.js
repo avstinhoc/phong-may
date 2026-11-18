@@ -66,7 +66,7 @@ export function flameEffect(value){
    '--flame-color':color,'--flame-core':core,'--flame-glow':glow+'px',
    '--flame-size':(rawTier.size+(gray?-2:0))+'px',
    '--flame-speed':Math.max(.72,1.65-index*.032)+'s',
-   '--flame-frame-width':index>=18?3:index>=7?2.5:2+'px',
+   '--flame-frame-width':(index>=18?3:index>=7?2.5:2)+'px',
    '--flame-ring-speed':Math.max(1.8,4-index*.085)+'s'
   }
  };
