@@ -43,6 +43,7 @@ QLPM sẽ: xác thực giáo viên thuộc `school_id` → tìm file cùng tên 
 - **Trường đã có file**: QLPM dùng lại link theo `school_id`; không sao chép và không xóa file cũ.
 - **Tên file có sẵn, chưa có link trường**: QLPM xác minh quyền/tên/thư mục và gắn file hiện có, không tạo bản sao trùng.
 - **Không có quyền mở Google Sheets trực tiếp**: giáo viên vẫn đồng bộ được qua QLPM; muốn chỉnh file trên Google Drive thì chủ Drive chia sẻ đúng file của trường cho giáo viên đó.
+- **Apps Script: Chữ ký xác thực không hợp lệ**: Hệ thống hiện hỗ trợ cả chữ ký mới (nối bằng `|`) và bản triển khai cũ (nối bằng ký tự xuống dòng). Nếu vẫn thất bại, kiểm tra `QLPM_APPS_SCRIPT_SIGNING_KEY` là **đúng 128 ký tự 0–9/a–f sau dấu =**, không thêm tên Secret, dấu nháy hoặc khoảng trắng. Trong **đúng dự án Google Apps Script** đã triển khai URL `/exec`, chạy lại `setupQlpmCopy` để xem signing key **hiện có** (không tạo khóa mới nếu đã có), rồi cập nhật Secret ở Supabase. Nếu sửa mã GAS, chọn **Deploy → Manage deployments → Edit → New version → Deploy** để cập nhật bản đang chạy. **Không gửi signing key vào chat hoặc GitHub.**
 - **Apps Script trả về HTML**: kiểm tra đang dùng URL `/exec`, không phải `/dev`, và quyền truy cập của web app phù hợp. Sau khi sửa Apps Script, phải tạo **New version** của deployment.
 
 **Bảo mật:** Chỉ cho chủ Drive và Admin truy cập Apps Script. Quyền truy cập web app `Anyone` không đồng nghĩa với quyền Google Drive `Anyone`; chỉ những yêu cầu có chữ ký HMAC hợp lệ mới được tạo file.
