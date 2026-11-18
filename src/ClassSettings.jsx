@@ -40,17 +40,48 @@ export function ClassSettings({profile,ping,schools=[],onChanged}){
  }
  useEffect(()=>{load();},[activeSchool,profile.id]);
  async function create(e){
-   e.preventDefault();setBusy(true);
-   const {data,error}=await supabase.rpc('ic3_create_class',{
-     p_school_id:activeSchool,p_class_name:name.trim(),p_auto_approve:newAutoApprove
-   });
-   setBusy(false);
-   if(error)ping(error.message);
-   else{
-     ping('Đã tạo lớp '+name+' · '+data.registration_code);
+   e.preventDefault();
+   if(busy||!activeSchool)return;
+   setBusy(true);
+   try{
+     const {data,error}=await supabase.rpc('ic3_create_class',{
+       p_school_id:activeSchool,p_class_name:name.trim(),p_auto_approve:newAutoApprove
+     });
+     if(error)throw error;
+     // Save the Web class first; immediately create its matching tab via the Edge
+     // Function only when an authenticated school workbook has auto-sync enabled.
+     let status='Chưa có liên kết Google Sheets cho trường này.';
+     try{
+       const {data:link,error:linkError}=await supabase.from('school_sheet_links')
+         .select('id,status,auto_sync').eq('school_id',activeSchool).maybeSingle();
+       if(linkError)throw linkError;
+       if(link?.id&&link.status==='verified'&&link.auto_sync){
+         const {data:result,error:syncError}=await supabase.functions.invoke('google-sheets-sync',{
+           body:{action:'auto_sync_class',link_id:link.id,class_name:data.class_name}
+         });
+         if(syncError){
+           let details=syncError.message||'Lỗi tạo tab Google Sheets';
+           if(syncError.context?.json){
+             try{details=(await syncError.context.json())?.error||details;}catch{}
+           }
+           throw Error(details);
+         }
+         if(!result?.success||result.errors?.length)
+           throw Error((result?.errors||[]).join('; ')||'Không tạo được tab lớp.');
+         status='Đã tạo hoặc liên kết tab '+(result.createdTabs?.[0]||data.class_name.replaceAll('/','／'))+' trong Sheets.';
+       }else if(link?.id&&!link.auto_sync){
+         status='Sheets đang tắt tự đồng bộ; bật lại trong Danh sách học sinh.';
+       }else if(link?.id){
+         status='Liên kết Google Sheets chưa được xác minh.';
+       }
+     }catch(syncError){
+       status='Lớp đã lưu nhưng tab Sheets chưa tạo: '+(syncError.message||String(syncError));
+     }
      setOwnedSchoolIds(ids=>ids.includes(activeSchool)?ids:[...ids,activeSchool]);
      setName('');await load();onChanged?.();
-   }
+     ping('Đã tạo lớp '+data.class_name+' · '+status);
+   }catch(err){ping('Không thể tạo lớp: '+(err.message||String(err)));}
+   finally{setBusy(false);}
  }
  async function toggleAuto(row,next){
    setBusy(true);
