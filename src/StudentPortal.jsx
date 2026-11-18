@@ -76,6 +76,7 @@ export function StudentPortal(){
     <header className="portal-header">
       {payload?.logo?<img className="portal-logo" src={payload.logo} alt="Logo trường"/>:<div className="brand-mark">IC3</div>}
       <div><b>IC3 GS6 · Lớp học của chúng mình</b><small>Máy tính • Lịch dạy • Vệ sinh • Điểm & phần thưởng</small></div>
+      {payload&&<a className="portal-school-board-link" href={'/school?code='+encodeURIComponent(code)}>🏆 BXH toàn trường</a>}
 
     </header>
     <main className="portal-content">
@@ -83,6 +84,9 @@ export function StudentPortal(){
         <div><span className="portal-eyebrow">CỔNG THÔNG TIN HỌC SINH</span>
           <h1>{payload?`Xin chào lớp ${payload.class_name}! ✨`:'Chào mừng đến với lớp IC3 GS6! ✨'}</h1>
           <p>{payload?`Trường ${payload.school} · Cùng xem lớp mình hôm nay có gì mới nhé.`:'Nhập mã lớp giáo viên cấp để xem máy tính, bạn cùng lớp và lịch vệ sinh.'}</p>
+          {payload&&<a className="portal-school-hero-link" href={'/school?code='+encodeURIComponent(code)}>
+            🏆 Khám phá Top 5 toàn trường và các khối 8 · 7 · 6 <span aria-hidden="true">↗</span>
+          </a>}
           <a className="portal-hero-register" href={code?'/register?code='+encodeURIComponent(code):'/register'}>
             <span className="portal-register-icon" aria-hidden="true">✍️</span>
             <span><strong>ĐĂNG KÝ LỚP</strong><small>Thêm bạn mới vào lớp ngay</small></span>
@@ -127,7 +131,7 @@ export function StudentPortal(){
         </div>
         <details className="panel portal-star-leaderboard portal-star-collapsible">
           <summary className="portal-rank-summary">
-            <span>🏆 Bảng xếp hạng sao · Lớp {payload.class_name}</span>
+            <span>🏆 TOP 5 sao · Lớp {payload.class_name}</span>
             <small>{ranked[0]&&Number(ranked[0].earned)>0
               ?'🥇 '+ranked[0].student_name+' · '+ranked[0].earned+' sao đã kiếm'
               :'Khám phá những ngôi sao của lớp'}</small>
@@ -135,7 +139,7 @@ export function StudentPortal(){
           </summary>
           <p className="muted">Tổng sao kiếm được dùng để xếp hạng; sao hiện có để đổi quà. Giữ chuỗi để nâng cấp lửa và khung máy.</p>
           <div className="portal-star-grid">
-            {ranked.filter(st=>Number(st.earned)>0).slice(0,12).map((st,i)=>{
+            {ranked.filter(st=>Number(st.earned)>0).slice(0,5).map((st,i)=>{
               const fx=flameEffect(st);
               return <div key={st.student_id}
                 style={fx.style} className={'portal-star-rank '+(fx.visible?fx.className:'')}>
