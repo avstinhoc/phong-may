@@ -67,18 +67,29 @@ async function googleToken(){
  return cache.token;
 }
 const idSafe=(id:string)=>/^[A-Za-z0-9_-]{25,160}$/.test(id);
-// Workbook security is scoped to the actual school UUID, not the teacher account.
-// Different schools must not reuse the same sheet, even if the names match.
+// School UUIDs belong to teacher-specific school profiles, so two different
+// UUIDs can legitimately describe the same physical school. Verify names on
+// the server, never by a browser-provided string. Different school names remain isolated.
+const workbookSchoolKey=(v:unknown)=>clean(v).normalize("NFC").replace(/\s+/g," ").toLocaleUpperCase("vi");
+async function assertSameSchoolWorkbook(admin:any,schoolId:string,otherSchoolIds:string[]){
+ const unique=[...new Set([schoolId,...otherSchoolIds])];
+ if(unique.length===1)return;
+ const {data:schools,error}=await admin.from("schools").select("id,name").in("id",unique);
+ if(error||!schools||schools.length!==unique.length)
+   throw fail("Không xác minh được các trường đang dùng chung file Google Sheets.",503);
+ const current=schools.find((s:Dict)=>s.id===schoolId);
+ const key=workbookSchoolKey(current?.name);
+ if(!key||schools.some((s:Dict)=>workbookSchoolKey(s.name)!==key))
+   throw fail("File Sheets đã liên kết cho trường KHÁC tên. Chỉ hồ sơ cùng trường mới được dùng chung file.",409);
+}
 async function assertExclusiveWorkbook(url:string,link:Dict){
  const secret=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
  if(!secret)throw fail("Thiếu cấu hình xác thực Google Sheets trên máy chủ.",503);
  const admin=createClient(url,secret,{auth:{persistSession:false,autoRefreshToken:false}});
- const {data,error}=await admin.from("school_sheet_links").select("id,school_id,created_at")
-   .eq("spreadsheet_id",link.spreadsheet_id).eq("status","verified")
-   .order("created_at",{ascending:true}).order("id",{ascending:true}).limit(1);
+ const {data,error}=await admin.from("school_sheet_links").select("school_id")
+   .eq("spreadsheet_id",link.spreadsheet_id).neq("school_id",link.school_id).limit(200);
  if(error)throw fail("Không kiểm tra được quyền liên kết Google Sheets.",503);
- if(data?.length&&data[0].school_id!==link.school_id)throw fail(
-   "File Google Sheets này đã được xác minh cho trường khác. Hãy dùng mẫu trống tạo bản sao mới cho trường này.",409);
+ await assertSameSchoolWorkbook(admin,link.school_id,(data||[]).map((row:Dict)=>row.school_id));
 }
 const FOLDER_MIME="application/vnd.google-apps.folder";
 const SHEET_MIME="application/vnd.google-apps.spreadsheet";
@@ -744,9 +755,11 @@ Deno.serve(async(req:Request)=>{
     if(action==="create_school_workbook"&&file.name!==title)
       throw fail("Tên file bản sao không trùng tên trường. Kiểm tra Apps Script hoặc file trùng.",409);
     const {data:usedBy,error:usedErr}=await admin.from("school_sheet_links")
-      .select("school_id").eq("spreadsheet_id",spreadsheetId).neq("school_id",schoolId).limit(1);
+      .select("school_id").eq("spreadsheet_id",spreadsheetId).neq("school_id",schoolId).limit(200);
     if(usedErr)throw fail("Không kiểm tra được trùng file giữa các trường.",503);
-    if(usedBy?.length)throw fail("File Sheets đã được liên kết cho một trường khác. Không được dùng chung giữa các trường.",409);
+    // Allow same-name school profiles to reuse the existing workbook in QLPM.
+    // Its Drive parent and Service Account Editor role were verified above.
+    await assertSameSchoolWorkbook(admin,schoolId,(usedBy||[]).map((row:Dict)=>row.school_id));
     const sheetMeta=await metadata(spreadsheetId,token);
     const detectedTemplate=(sheetMeta.sheets||[]).some((s:Dict)=>s.properties?.title==="Gốc")?
       "Gốc":(sheetMeta.sheets||[]).some((s:Dict)=>s.properties?.title==="6.1")?"6.1":
