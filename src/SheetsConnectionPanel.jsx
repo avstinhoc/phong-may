@@ -266,7 +266,35 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
   </button>
   {open&&<div className="sheets-link-content">
    {!profile.school_id?<p className="notice-box">Hãy chọn trường công tác ở menu trái trước khi liên kết.</p>:<>
-    <p className="muted">Mỗi trường chỉ dùng một bảng tính. Đồng nghiệp được phân quyền tại cùng trường sẽ sử dụng chung; trường khác phải có file riêng. Chủ file cần chia sẻ quyền Người chỉnh sửa cho Service Account.</p>
+    <p className="muted">Mỗi trường một thư mục Drive và một file Sheets dùng chung. Chỉ cấp quyền Editor cho Service Account <b>một lần trên thư mục</b>; các file Sheets mới đưa vào sẽ kế thừa quyền.</p>
+    <section className="sheets-folder-setup">
+     <div className="sheets-folder-head">
+      <strong>Bước 1 · Thư mục Google Drive của {profile.school_name}</strong>
+      <span className={'sheets-folder-status '+(schoolFolder?'ready':'pending')}>
+       {schoolFolder?'✓ Đã xác minh Editor':'Chưa cấu hình'}</span>
+     </div>
+     {schoolFolder?<p>Thư mục <b>{schoolFolder.folder_name}</b> đã được xác minh.
+      <a href={'https://drive.google.com/drive/folders/'+schoolFolder.folder_id} target="_blank" rel="noopener noreferrer"> Mở thư mục trường</a>
+     </p>:<p>Tạo thư mục riêng trong Drive, ví dụ <b>{suggestedFolder}</b>. Đừng chia sẻ thư mục chứa dữ liệu của nhiều trường.</p>}
+     <ol>
+      <li><a href="https://drive.google.com/drive/u/0/my-drive" target="_blank" rel="noopener noreferrer">Mở Google Drive</a> → <b>Mới → Thư mục mới</b>.</li>
+      <li>Chia sẻ thư mục cho <code>{SHEETS_EDITOR_EMAIL}</code> với quyền <b>Người chỉnh sửa (Editor)</b> một lần.</li>
+      <li>Sao chép đường dẫn thư mục, dán dưới đây, nhấn <b>Kiểm tra &amp; lưu thư mục</b>.</li>
+     </ol>
+     <div className="sheets-folder-fields">
+      <label>Đường dẫn thư mục Drive của trường
+       <input type="url" value={folderUrl} disabled={!!busy||!canChangeFolder}
+        onChange={e=>setFolderUrl(e.target.value)}
+        placeholder="https://drive.google.com/drive/folders/..." aria-label="Đường dẫn thư mục Drive của trường"/>
+      </label>
+      <button type="button" className="btn outline" disabled={!!busy||!folderUrl.trim()||!canChangeFolder}
+       onClick={()=>run('folder',saveSchoolFolder)}>{busy==='folder'?'Đang kiểm tra…':schoolFolder?'Kiểm tra lại quyền':'Kiểm tra & lưu thư mục'}</button>
+      <button type="button" className="btn outline" onClick={()=>navigator.clipboard?.writeText(SHEETS_EDITOR_EMAIL)
+       .then(()=>setMessage('Đã sao chép email dịch vụ; hãy cấp quyền Editor cho thư mục.'))
+       .catch(()=>setError('Hãy sao chép email bên trên thủ công.'))}>Sao chép email Editor</button>
+     </div>
+     {link&&!schoolFolder&&<small>Liên kết Google Sheets cũ vẫn hoạt động. Bạn có thể thiết lập thư mục sau; muốn chuyển file cũ vào thư mục thì hãy di chuyển file trước khi kiểm tra.</small>}
+    </section>
     <div className="sheets-link-grid">
      <label>Đường dẫn Google Sheets của {profile.school_name}
       <input type="url" value={url} disabled={!!busy||!!link||!canManageLink} onChange={e=>setUrl(e.target.value)}
@@ -280,22 +308,21 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
       </button>}
     </div>
     {!link&&<div className="sheets-copy-guide">
-      <strong>Tạo file Google Sheets của trường từ mẫu trống</strong>
-      <p>Đề xuất đặt tên: <b>{suggestedTitle}</b>. Mẫu mặc định không phải file đang liên kết của trường khác.</p>
-      <ol>
-        <li>Bấm <b>Tạo file Google Sheets của trường</b>. Google mở xác nhận bản sao vào Drive của giáo viên. Nếu tên chưa tự điền, hãy đặt <b>{suggestedTitle}</b>.</li>
-        <li>Trong file bản sao, chọn <b>Chia sẻ</b> → thêm email dịch vụ bên dưới → chọn <b>Người chỉnh sửa (Editor)</b> → <b>Gửi</b>.</li>
-        <li>Chọn <b>Chia sẻ → Sao chép đường liên kết</b> rồi về QLPM bấm <b>Dán link bản sao &amp; liên kết</b>. Nếu trình duyệt không cho đọc clipboard, dán link vào ô đường dẫn và bấm Lưu liên kết.</li>
-      </ol>
-      <div className="sheets-link-actions">
-       <a className="btn primary" href={sourceCopyUrl} target="_blank" rel="noopener noreferrer">Tạo file Google Sheets của trường</a>
-       <button type="button" className="btn outline" disabled={!!busy} onClick={()=>run('paste',pasteNewSchoolCopy)}>Dán link bản sao &amp; liên kết</button>
-       <button type="button" className="btn outline" onClick={()=>navigator.clipboard?.writeText(SHEETS_EDITOR_EMAIL)
-         .then(()=>setMessage('Đã sao chép email dịch vụ. Cấp quyền Editor trong Google Sheets.'))
-         .catch(()=>setError('Không sao chép được; hãy chọn email bên dưới để copy.'))}>Sao chép email cấp quyền</button>
-      </div>
-      <code className="sheets-service-email">{SHEETS_EDITOR_EMAIL}</code>
-      <small>Không dán link file mẫu trực tiếp vào trường. Google yêu cầu người dùng xác nhận bản sao trong Drive cá nhân; Service Account không thể tự sở hữu file trong My Drive.</small>
+     <strong>Bước 2 · Tạo file Google Sheets của trường từ mẫu trống</strong>
+     <p>Tên file đề xuất: <b>{suggestedTitle}</b>. Chỉ dùng mẫu trống cố định, không dùng Sheets của trường khác.</p>
+     <ol>
+      <li>Sau khi xác minh thư mục ở bước 1, bấm <b>Tạo file Google Sheets của trường</b>. Google yêu cầu bạn xác nhận bản sao và đặt tên theo trường.</li>
+      <li>Trong file bản sao, bấm biểu tượng <b>Di chuyển</b> bên cạnh tên file → chọn thư mục <b>{schoolFolder?.folder_name||suggestedFolder}</b>. File nằm trong thư mục này sẽ tự kế thừa quyền Editor của Service Account, không cần chia sẻ lại.</li>
+      <li>Chọn <b>Chia sẻ → Sao chép đường liên kết</b>. Quay về QLPM bấm <b>Dán link bản sao &amp; liên kết</b> hoặc dán vào ô đường dẫn phía trên. Hệ thống chỉ nhận file đúng thư mục và có quyền chỉnh sửa.</li>
+     </ol>
+     <div className="sheets-link-actions">
+      {schoolFolder?<a className="btn primary" href={sourceCopyUrl} target="_blank" rel="noopener noreferrer">Tạo file Google Sheets của trường</a>:
+       <button type="button" className="btn primary" disabled title="Hãy cấu hình và xác minh thư mục trường trước">Tạo file Google Sheets của trường</button>}
+      {schoolFolder&&<a className="btn outline" href={'https://drive.google.com/drive/folders/'+schoolFolder.folder_id} target="_blank" rel="noopener noreferrer">Mở thư mục trường</a>}
+      <button type="button" className="btn outline" disabled={!!busy||!schoolFolder}
+       onClick={()=>run('paste',pasteNewSchoolCopy)}>Dán link bản sao &amp; liên kết</button>
+     </div>
+     <small>Không gắn trực tiếp file mẫu. Nếu bản sao chưa được chuyển vào thư mục trường, QLPM sẽ báo lỗi và hướng dẫn di chuyển. Không cần OAuth Drive riêng.</small>
     </div>}
     {link&&!canManageLink&&<p className="sheets-link-footnote"><b>Đang dùng chung Google Sheets của trường.</b> Bạn có thể đồng bộ trên QLPM theo quyền trường; muốn mở và chỉnh sửa trực tiếp trong Google Sheets, nhờ chủ file chia sẻ thêm email Google của bạn ở quyền Editor.</p>}
         {link&&<div className="sheets-link-meta">
