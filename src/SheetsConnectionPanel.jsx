@@ -277,7 +277,8 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
       <code className="sheets-service-email">{SHEETS_EDITOR_EMAIL}</code>
       <small>Không dán link file mẫu trực tiếp vào trường. Google yêu cầu người dùng xác nhận bản sao trong Drive cá nhân; Service Account không thể tự sở hữu file trong My Drive.</small>
     </div>}
-    {link&&<div className="sheets-link-meta">
+    {link&&!canManageLink&&<p className="sheets-link-footnote"><b>Đang dùng chung Google Sheets của trường.</b> Bạn có thể đồng bộ trên QLPM theo quyền trường; muốn mở và chỉnh sửa trực tiếp trong Google Sheets, nhờ chủ file chia sẻ thêm email Google của bạn ở quyền Editor.</p>}
+        {link&&<div className="sheets-link-meta">
      <a href={'https://docs.google.com/spreadsheets/d/'+link.spreadsheet_id+'/edit'}
        target="_blank" rel="noreferrer">Mở file Google Sheets gốc</a>
      <small>{link.spreadsheet_title||'Chưa đọc được tên file'} · Dùng chung cho giáo viên tại {profile.school_name} · Cập nhật lần cuối: {link.last_synced_at?new Date(link.last_synced_at).toLocaleString('vi-VN'):'Chưa đồng bộ'}</small>
