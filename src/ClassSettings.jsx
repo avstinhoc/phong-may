@@ -18,6 +18,8 @@ export function ClassSettings({refresh,profile,ping,schools=[],onChanged}){
  const [editingCode,setEditingCode]=useState(null),[updatedCode,setUpdatedCode]=useState('');
  const [loading,setLoading]=useState(false);
  const preview=shortCodePreview(activeSchoolName,name);
+ const boardClass=rows.find(row=>row.school_id===activeSchool&&!row.archived_at&&row.registration_code);
+ const schoolBoardUrl=boardClass?'/school?code='+encodeURIComponent(boardClass.registration_code):'';
 
  useEffect(()=>{
    let alive=true;
@@ -33,7 +35,7 @@ export function ClassSettings({refresh,profile,ping,schools=[],onChanged}){
    if(!activeSchool){setRows([]);return;}
    setLoading(true);
    const {data,error}=await supabase.from('classes')
-     .select('id,class_name,registration_code,archived_at,auto_approve,created_by')
+     .select('id,school_id,class_name,registration_code,archived_at,auto_approve,created_by')
      .eq('school_id',activeSchool).eq('created_by',profile.id).order('class_name');
    setLoading(false);
    if(error)ping(error.message);else setRows(data||[]);
@@ -128,7 +130,12 @@ export function ClassSettings({refresh,profile,ping,schools=[],onChanged}){
  }
  return <section className="class-management">
   <div className="section-head"><div><h2>Lớp & mã đăng ký</h2>
-   <p>Chỉ hiển thị lớp do chính tài khoản của bạn tạo. Mỗi mã ngắn theo trường và lớp, không lẫn lớp do giáo viên khác quản lý.</p></div></div>
+   <p>Chỉ hiển thị lớp do tài khoản bạn tạo. BXH toàn trường tổng hợp học sinh của mọi giáo viên có lớp thuộc cùng ID trường.</p></div>
+   {schoolBoardUrl&&<div className="class-school-board-actions">
+     <a className="btn primary" href={schoolBoardUrl} target="_blank" rel="noopener noreferrer">🏆 Mở BXH toàn trường</a>
+     <button type="button" className="btn outline" onClick={()=>copy(window.location.origin+schoolBoardUrl)}>Sao chép link BXH</button>
+   </div>}
+  </div>
   <label className="management-school-select">Trường quản lý
     <select aria-label="Trường chứa lớp của tôi" value={activeSchool}
       onChange={e=>{setManagedSchool(e.target.value);setShowArchived(false);}}>
@@ -138,7 +145,7 @@ export function ClassSettings({refresh,profile,ping,schools=[],onChanged}){
       })}
     </select>
   </label>
-  <p className="muted">Muốn tạo lớp tại một trường mới, trước tiên chọn trường đó ở menu bên trái. Các trường trùng tên được phân biệt bằng mã ngắn.</p>
+  <p className="muted">Mỗi trường chỉ có một BXH theo ID trường. Giáo viên khác chọn cùng bản ghi trường sẽ xuất hiện trên BXH chung; trường trùng tên nhưng ID khác không được tự gộp để bảo vệ dữ liệu. {!schoolBoardUrl&&'Tạo lớp đầu tiên hoặc xin link BXH chung từ giáo viên đã có mã lớp.'}</p>
   <label className="field-inline"><input type="checkbox" checked={showArchived} onChange={e=>setShowArchived(e.target.checked)}/> Hiện mã đã ngừng sử dụng</label>
   <div className="panel table-panel"><div className="table-wrap"><table>
    <thead><tr><th>Lớp</th><th>Mã đăng ký</th><th>Duyệt tự động</th><th>Trang học sinh</th><th>Đăng ký</th><th>Thao tác</th></tr></thead>
