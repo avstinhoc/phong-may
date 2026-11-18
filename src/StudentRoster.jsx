@@ -66,8 +66,7 @@ export function StudentRoster({profile,refresh,ping}){
    : old
      ? await supabase.from('attendance').update({status:'absent'}).eq('id',old.id).eq('school_id',profile.school_id)
      : await supabase.from('attendance').insert({school_id:profile.school_id,session_id:lesson.id,student_id:student.id,status:'absent'});
-  setMarkBusy('');
-   if(result.error){ping(result.error.message);return;}
+  if(result.error){setMarkBusy('');ping(result.error.message);return;}
    try{
      const {data:link,error:linkError}=await supabase.from('school_sheet_links')
        .select('id,status,auto_sync').eq('school_id',profile.school_id).maybeSingle();
@@ -79,7 +78,7 @@ export function StudentRoster({profile,refresh,ping}){
        if(syncError)throw syncError;
      }
    }catch(e){ping('Web đã lưu điểm danh nhưng Sheets chưa cập nhật: '+e.message);}
-   setVersion(v=>v+1);
+   setMarkBusy('');setVersion(v=>v+1);
  }
  async function saveLesson(e){
   e.preventDefault();if(!className||!lessonEdit)return;
