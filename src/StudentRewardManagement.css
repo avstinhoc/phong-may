@@ -1,0 +1,55 @@
+/* Compact school reward & behavior desk: reuses the existing student_records ledger. */
+.student-reward-management{display:flex;flex-direction:column;gap:15px}
+.srm-header{display:flex;justify-content:space-between;align-items:center;gap:20px;background:linear-gradient(110deg,#124b5c,#0e817a);border-radius:17px;color:white;padding:24px 27px}
+.srm-header>div{max-width:850px}
+.srm-header h2{font-size:24px;line-height:1.2;color:#fff;margin:5px 0}
+.srm-header p{font-size:12px;line-height:1.6;color:#c9f6ea;margin:7px 0 0}
+.srm-eyebrow{font-size:10px;font-weight:900;letter-spacing:1.4px;color:#adf7d6}
+.srm-header .btn{font-weight:850;white-space:nowrap}
+.srm-filter{display:grid;grid-template-columns:1.2fr .75fr 1.25fr;gap:13px;padding:17px}
+.srm-filter label,.srm-form label{display:flex;flex-direction:column;gap:6px;font-size:11px;font-weight:850;color:#446a70}
+.srm-filter input,.srm-filter select,.srm-form input,.srm-form select,.srm-form textarea{display:block;width:100%;min-width:0;padding:11px 12px;border:1px solid #d1e2e2;border-radius:10px;background:#fff;color:#123b49;font:inherit;font-size:13px}
+.srm-filter input:focus,.srm-filter select:focus,.srm-form input:focus,.srm-form select:focus{outline:2px solid #12a69e;outline-offset:1px}
+.srm-error,.srm-success{padding:12px 15px;border-radius:11px;font-size:12px;font-weight:750}
+.srm-error{background:#fff0ed;border:1px solid #f1c6c1;color:#a74338}
+.srm-success{background:#e7f8ef;border:1px solid #b6e6d4;color:#15715f}
+.srm-message{padding:17px;color:#729299;font-size:12px;text-align:center}
+.srm-welcome{text-align:center;min-height:230px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
+.srm-welcome>span{font-size:47px}
+.srm-welcome h3{font-size:20px;margin:0}
+.srm-welcome p{max-width:620px;color:#66858b;font-size:13px;line-height:1.6}
+.srm-student-hero{padding:19px 22px;background:linear-gradient(115deg,#f1fffa,#f9fbff);border:1px solid #ceeee4;border-radius:17px}
+.srm-student-title{display:flex;align-items:center;gap:12px}
+.srm-avatar{width:52px;height:52px;flex:none;background:linear-gradient(145deg,#0a9b87,#177b9c);color:#fff;border-radius:16px;display:grid;place-items:center;font-size:23px;font-weight:900}
+.srm-student-title small{font-size:10px;color:#0e9088;letter-spacing:1.6px;font-weight:900}
+.srm-student-title h3{font-size:20px;margin:4px 0;display:flex;align-items:center;gap:3px;color:#174350}
+.srm-student-title p{font-size:11px;color:#6c8b8d;margin:4px 0}
+.srm-stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:11px;margin-top:16px}
+.srm-stats article{background:#fff;border:1px solid #dbe9e8;border-radius:13px;padding:14px 12px;display:flex;flex-direction:column;gap:4px}
+.srm-stats article span{color:#5a7980;font-size:11px;font-weight:750}
+.srm-stats article strong{font-size:24px;color:#135c64}
+.srm-stats article small{font-size:10px;color:#8a9ca4}
+.srm-grid{display:grid;grid-template-columns:minmax(0,.95fr) minmax(0,1.05fr);gap:16px}
+.srm-action-panel,.srm-history-panel{padding:21px;min-width:0}
+.srm-action-panel h3,.srm-history-panel h3{font-size:17px;color:#1c4c59;margin:0 0 18px}
+.srm-form{display:flex;flex-direction:column;gap:13px}
+.srm-action-hint{padding:10px 13px;border:1px solid #d3efe4;border-radius:10px;color:#267363;background:#effbf5;font-size:11px;line-height:1.5;margin:0}
+.srm-history-header{display:flex;align-items:center;justify-content:space-between;gap:9px}
+.srm-history-header h3{margin:0}
+.srm-history-header span{color:#82989a;font-size:10px}
+.srm-history-scroller{margin-top:17px;max-height:520px;overflow-y:auto;padding-right:6px;scrollbar-width:thin}
+.srm-history-row{display:flex;justify-content:space-between;align-items:center;gap:11px;padding:12px 0;border-top:1px solid #e7eeee}
+.srm-history-row b{font-size:12px;color:#234b57;display:block}
+.srm-history-row small{color:#83979e;font-size:10px;display:block;margin-top:4px}
+.srm-history-row strong{font-size:13px;white-space:nowrap}
+.srm-positive{color:#15966b}.srm-negative{color:#d04f4f}
+.teacher-school-board{margin:-6px}
+.teacher-school-board-intro{padding:13px 16px;display:flex;justify-content:space-between;align-items:center;gap:15px;background:#eef9f6;border:1px solid #d0ece8;border-radius:14px;margin:0 0 12px}
+.teacher-school-board-intro b{font-size:14px;color:#166d66}
+.teacher-school-board-intro p{font-size:11px;color:#6b898c;margin:4px 0}
+.teacher-school-board-intro a{text-decoration:none;white-space:nowrap}
+.teacher-school-board .school-public-page{min-height:initial}
+.teacher-school-board .school-public-main{padding:14px 10px 45px}
+.teacher-school-board .school-public-header{position:sticky;top:0}
+@media(max-width:1120px){.srm-stats{grid-template-columns:repeat(3,minmax(0,1fr))}.srm-grid{grid-template-columns:1fr}}
+@media(max-width:700px){.srm-header{flex-direction:column;align-items:flex-start;padding:20px}.srm-header h2{font-size:20px}.srm-filter{grid-template-columns:1fr}.srm-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.srm-grid{gap:12px}.srm-action-panel,.srm-history-panel{padding:16px}.teacher-school-board-intro{flex-direction:column;align-items:flex-start}.teacher-school-board{margin:0}}
