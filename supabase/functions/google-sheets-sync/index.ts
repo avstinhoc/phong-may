@@ -95,7 +95,7 @@ const QLPM_TEMPLATE_ID="1zxht2Ft4mr6DEkycI--wXqZJbXLRJ-8iHtVc64horpM";
 const QLPM_TEMPLATE_NAME="DS ĐIỂM DANH";
 const QLPM_ROOT_ID="1d8ZiM9q2xyxKNZwTSD5mN77fpVma-Nti";
 function schoolWorkbookTitle(name:string){
- const school=clean(name).normalize("NFC").replace(/\\s+/g," ").toLocaleUpperCase("vi");
+ const school=clean(name).normalize("NFC").replace(/\s+/g," ").toLocaleUpperCase("vi");
  if(!school||school.length>130)throw fail("Tên trường không hợp lệ.",400);
  return ("DS ĐIỂM DANH "+school).slice(0,110);
 }
@@ -113,15 +113,15 @@ async function callOwnerCopyScript(schoolId:string,title:string,rootId:string){
  const key=clean(Deno.env.get("QLPM_APPS_SCRIPT_SIGNING_KEY"));
  if(!endpoint||!key)throw fail(
   "Chưa thiết lập Apps Script tạo Google Sheets tự động. Admin cần triển khai script QLPM một lần và thêm URL + signing key vào Supabase Edge Secrets.",503);
- if(!/^https:\/\/script\\.google\\.com\/macros\/s\/[A-Za-z0-9_-]{20,}\/exec$/.test(endpoint))
+ if(!/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]{20,}\/exec$/.test(endpoint))
   throw fail("QLPM_APPS_SCRIPT_WEB_APP_URL chưa đúng dạng URL /exec của Google Apps Script.",503);
  if(key.length<60)throw fail("QLPM_APPS_SCRIPT_SIGNING_KEY phải là khóa bí mật đủ dài.",503);
  const ts=Date.now(),nonce=crypto.randomUUID().replaceAll("-","");
- const message=[ts,nonce,schoolId,title,rootId,QLPM_TEMPLATE_ID].join("\\n");
+ const message=[ts,nonce,schoolId,title,rootId,QLPM_TEMPLATE_ID].join("|");
  const hashKey=await crypto.subtle.importKey("raw",new TextEncoder().encode(key),
    {name:"HMAC",hash:"SHA-256"},false,["sign"]);
  const signed=new Uint8Array(await crypto.subtle.sign("HMAC",hashKey,new TextEncoder().encode(message)));
- const signature=btoa(String.fromCharCode(...signed)).replace(/\\+/g,"-").replace(/\\//g,"_").replace(/=+$/g,"");
+ const signature=btoa(String.fromCharCode(...signed)).split("+").join("-").split("/").join("_").replace(/=+$/g,"");
  let response:Response;
  try{
   response=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},
