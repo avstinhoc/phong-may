@@ -1362,6 +1362,8 @@ function Records({ profile, refresh, reload, ping }) {
   const records=useRows("student_records",profile,refresh);
   const [selectedClass,setSelectedClass]=useState("");
   const [selectedStudent,setSelectedStudent]=useState("");
+  const [nameQuery,setNameQuery]=useState("");
+  const [redeemBusy,setRedeemBusy]=useState("");
   const [threshold,setThreshold]=useState(3);
   const [reports,setReports]=useState([]);
   const [reportNote,setReportNote]=useState({});
@@ -1370,10 +1372,13 @@ function Records({ profile, refresh, reload, ping }) {
     student_id:"",record_type:"violation",title:"Nhắc 1",points:0,note:"",record_date:today()
   });
   const classes=[...new Set(students.rows.map(x=>x.class_name).filter(Boolean))].sort();
-  const allowedStudents=students.rows.filter(st=>(!selectedClass||st.class_name===selectedClass) && st.status==="active");
+  const allowedStudents=students.rows.filter(st=>(!selectedClass||st.class_name===selectedClass)&&st.status==="active" &&
+    searchName(st.full_name).includes(searchName(nameQuery)));
+  const leaderboard=starLeaderboard(allowedStudents,records.rows);
   const filteredRecords=records.rows.filter(r=>{
     const st=students.rows.find(x=>x.id===r.student_id);
-    return st&&(!selectedClass||st.class_name===selectedClass)&&(!selectedStudent||st.id===selectedStudent);
+    return st&&(!selectedClass||st.class_name===selectedClass)&&(!selectedStudent||st.id===selectedStudent) &&
+      searchName(st.full_name).includes(searchName(nameQuery));
   }).sort((a,b)=>String(b.record_date).localeCompare(String(a.record_date))||String(b.created_at).localeCompare(String(a.created_at)));
   const violationCounts=new Map();
   records.rows.filter(r=>r.record_type==="violation").forEach(r=>{
@@ -1398,7 +1403,8 @@ function Records({ profile, refresh, reload, ping }) {
     if(!form.student_id)return ping("Chọn học sinh trước khi lưu.");
     setBusy(true);
     const {error}=await supabase.from("student_records").insert({
-      ...form,school_id:profile.school_id,created_by:profile.id,points:Number(form.points)
+      ...form,school_id:profile.school_id,created_by:profile.id,
+       points:form.record_type==='reward'?1:Number(form.points)
     });
     setBusy(false);
     if(error)ping(error.message);
@@ -1406,6 +1412,17 @@ function Records({ profile, refresh, reload, ping }) {
       ping(form.record_type==="violation"?"Đã ghi nhận một lần vi phạm. Nếu đủ ngưỡng sẽ có biên bản nháp.":"Đã lưu ghi nhận");
       setForm(old=>({...old,note:"",record_date:today()}));reload();
     }
+  }
+  async function redeemOneStar(st){
+    if(redeemBusy||starTotals(records.rows,st.id).available<1)return;
+    if(!window.confirm('Xác nhận '+st.full_name+' đã đổi 1 ⭐ lấy kẹo? Sao hiện có sẽ giảm 1, tổng sao kiếm được vẫn lưu vào bảng xếp hạng.'))return;
+    setRedeemBusy(st.id);
+    const {error}=await supabase.rpc('ic3_redeem_student_stars',{
+      p_student_id:st.id,p_stars:1,p_note:'Giáo viên đã xác nhận đổi kẹo'
+    });
+    setRedeemBusy('');
+    if(error)ping('Chưa đổi thưởng: '+error.message);
+    else{ping('Đã xác nhận đổi 1 ⭐ cho '+st.full_name);reload();}
   }
   async function changeThreshold(value){
     setBusy(true);
@@ -1452,6 +1469,10 @@ function Records({ profile, refresh, reload, ping }) {
   return <>
     <SectionHead title="Điểm, lỗi & thưởng" desc="Ghi nhận theo lớp, tổng số lần vi phạm và biên bản xác nhận của giáo viên"/>
     <div className="toolbar record-filter-bar">
+      <label className="field-inline record-name-search">🔎 Tìm nhanh học sinh
+        <input aria-label="Tìm tên học sinh trong Điểm lỗi và thưởng" value={nameQuery}
+         onChange={e=>setNameQuery(e.target.value)} placeholder="Nhập tên để tìm nhanh..." />
+      </label>
       <label className="field-inline">Lọc theo lớp
         <select aria-label="Lọc lớp ghi nhận" value={selectedClass} onChange={e=>{setSelectedClass(e.target.value);setSelectedStudent("");setForm(v=>({...v,student_id:""}));}}>
           <option value="">Tất cả lớp</option>{classes.map(c=><option key={c}>{c}</option>)}
@@ -1480,7 +1501,7 @@ function Records({ profile, refresh, reload, ping }) {
             ...form,record_type:e.target.value,title:e.target.value==="violation"?"Nhắc 1":e.target.value==="reward"?"Điểm thưởng":"Điểm thực hành",
             points:e.target.value==="violation"?0:1
           })}>
-            <option value="violation">Lỗi / vi phạm</option><option value="reward">Thưởng</option><option value="point">Điểm học tập</option>
+            <option value="violation">Lỗi / vi phạm</option><option value="reward">Thưởng 1 ⭐</option><option value="point">Điểm học tập</option>
           </select></label>
           {form.record_type==="violation"&&<label>Ghi nhận nhanh
             <select value={["Nhắc 1","1 Lỗi","Không làm bài","Mất trật tự","Không tuân thủ nội quy"].includes(form.title)?form.title:"other"}
@@ -1491,7 +1512,8 @@ function Records({ profile, refresh, reload, ping }) {
             </select>
           </label>}
           <label>Nội dung<input required maxLength={200} value={form.title} onChange={e=>setForm({...form,title:e.target.value})}/></label>
-          {form.record_type!=="violation"&&<label>Điểm (+/-)<input type="number" value={form.points} onChange={e=>setForm({...form,points:e.target.value})}/></label>}
+          {form.record_type==="reward"?<p className="star-award-hint">⭐ Mỗi lần ghi nhận sẽ tặng 1 sao. Sao dùng được để đổi kẹo; tổng sao đã kiếm vẫn lưu lại.</p>:
+           form.record_type==="point"&&<label>Điểm (+/-)<input type="number" value={form.points} onChange={e=>setForm({...form,points:e.target.value})}/></label>}
           <label>Ngày<input required type="date" value={form.record_date} onChange={e=>setForm({...form,record_date:e.target.value})}/></label>
           <label>Ghi chú<textarea maxLength={1500} value={form.note} onChange={e=>setForm({...form,note:e.target.value})}/></label>
           {form.student_id&&<p className="notice-box">Học sinh này có <b>{violationCounts.get(form.student_id)||0} lỗi</b>. Đến mốc {threshold} lỗi sẽ có biên bản nháp, giáo viên kiểm tra trước khi xác nhận.</p>}
@@ -1513,6 +1535,22 @@ function Records({ profile, refresh, reload, ping }) {
         {!filteredRecords.length&&<Empty text="Chưa có ghi nhận cho bộ lọc này."/>}
       </div>
     </div>
+    <section className="panel star-leaderboard-panel">
+      <div className="panel-head"><div><h3>🏆 Bảng xếp hạng sao & đổi kẹo</h3>
+        <p>⭐ Sao hiện có được dùng để đổi thưởng; sao đã kiếm vẫn được giữ để xếp hạng theo lớp.</p></div>
+        <span className="status active">{leaderboard.length} học sinh</span></div>
+      <div className="star-wallet-grid">
+        {leaderboard.filter(st=>st.stars.earned>0).slice(0,20).map((st,i)=><article className={'star-wallet '+(i===0&&st.stars.earned>=5?'star-champion':'')} key={st.id}>
+          <span className="star-place">{i===0?'🥇':i===1?'🥈':i===2?'🥉':'#'+(i+1)}</span>
+          <div className="star-wallet-label"><b>{st.full_name} {i===0&&st.stars.earned>=5?'🔥':''}</b><small>Lớp {st.class_name} · Đã kiếm {st.stars.earned} ⭐</small></div>
+          <strong>⭐ {st.stars.available}</strong>
+          <button type="button" className="mini-btn success" disabled={!!redeemBusy||st.stars.available<1} onClick={()=>redeemOneStar(st)}>
+            {redeemBusy===st.id?'Đang đổi…':'Xác nhận đổi 1 ⭐'}
+          </button>
+        </article>)}
+        {!leaderboard.some(st=>st.stars.earned>0)&&<p className="muted">Chưa có sao thưởng. Chọn loại Thưởng 1 ⭐ để ghi nhận thành tích.</p>}
+      </div>
+    </section>
     <section className="panel incident-reports-panel">
       <h3>Biên bản vi phạm</h3>
       <p className="muted">Đủ {threshold} lần vi phạm sẽ tạo biên bản nháp. Bản in kết hợp mẫu học sinh tường trình, bảng lỗi đã ghi nhận và phần ký xác nhận; học sinh tự điền phần giải trình. Giáo viên kiểm tra rồi xác nhận, không tự áp dụng hình thức kỷ luật.</p>
