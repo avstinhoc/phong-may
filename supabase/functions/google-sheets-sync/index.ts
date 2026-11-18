@@ -760,6 +760,42 @@ Deno.serve(async(req:Request)=>{
    const result=await syncSchool(db,link,token,ownerId,offset);
    return respond(200,{success:true,...result},origin);
   }
+  if(action==="sync_attendance_cell"){
+   // A Web click changes only its own checkbox and must verify its school scope.
+   const studentId=clean(payload.student_id),sessionId=clean(payload.session_id);
+   if(!/^[a-f0-9-]{36}$/i.test(studentId)||!/^[a-f0-9-]{36}$/i.test(sessionId))
+     throw fail("Thông tin học sinh/buổi học không hợp lệ.");
+   const [{data:student},{data:lesson}]=await Promise.all([
+     db.from("students").select("id,full_name,class_name,school_id,status")
+       .eq("id",studentId).eq("school_id",link.school_id).maybeSingle(),
+     db.from("class_sessions").select("id,class_name,school_id")
+       .eq("id",sessionId).eq("school_id",link.school_id).maybeSingle()
+   ]);
+   if(!student||student.status!=="active"||!lesson||student.class_name!==lesson.class_name)
+     throw fail("Học sinh và buổi học không thuộc cùng lớp tại trường này.",403);
+   const map=await getMap(db,link.id,student.class_name);
+   if(!map)throw fail("Lớp chưa được liên kết với tab Sheets.",409);
+   const rowNo=Number((map.student_rows||{})[studentId]);
+   const ordinal=Number((map.lesson_columns||{})[sessionId]);
+   if(!Number.isInteger(rowNo)||rowNo<8||rowNo>70||!Number.isInteger(ordinal)||ordinal<1||ordinal>70)
+     throw fail("Chưa ghép dòng học sinh hoặc buổi học với Sheets.",409);
+   const rows=await readTab(link.spreadsheet_id,map.sheet_title,token);
+   if(normalize((rows[rowNo-5]||[])[2])!==normalize(student.full_name))
+     throw fail("Dòng học sinh trong Sheets đã đổi, cần kiểm tra lại trước khi ghi.",409);
+   const {data:mark,error:markError}=await db.from("attendance").select("status")
+     .eq("school_id",link.school_id).eq("student_id",studentId).eq("session_id",sessionId).maybeSingle();
+   if(markError)throw fail("Không đọc được điểm danh Web.",500);
+   const absent=["absent","excused"].includes(mark?.status);
+   await batchValues(link.spreadsheet_id,[{
+     range:sheetName(map.sheet_title)+"!"+col(9+ordinal)+rowNo,values:[[absent]]
+   }],token);
+   const attendance_snapshot={...(map.attendance_snapshot||{}),[studentId+":"+sessionId]:absent};
+   const {error:updateError}=await db.from("school_sheet_tabs").update({
+     attendance_snapshot,last_synced_at:new Date().toISOString()
+   }).eq("id",map.id);
+   if(updateError)throw fail("Đã cập nhật Sheets nhưng chưa lưu trạng thái đồng bộ.",500);
+   return respond(200,{success:true,absent},origin);
+  }
   if(action==="inspect"){
    const meta=await metadata(link.spreadsheet_id,token);
    const tabs=(meta.sheets||[]).map((s:Dict)=>({
