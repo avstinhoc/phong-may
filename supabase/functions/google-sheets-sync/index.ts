@@ -166,7 +166,7 @@ async function callOwnerCopyScript(schoolId:string,title:string,rootId:string){
    const fingerprint=btoa(String.fromCharCode(...check))
      .split("+").join("-").split("/").join("_").replace(/=+$/g,"").slice(0,16);
    console.warn("QLPM_KEY_FINGERPRINT_V1="+fingerprint+"; reason=apps_script_signature_rejected");
-   throw fail("Apps Script không xác thực được yêu cầu. Mã máy chủ đã lưu dấu vân tay khóa để đối chiếu an toàn với Script Properties, không cần đổi khóa hoặc gửi khóa lên chat.",502);
+   throw fail("Apps Script không xác thực được yêu cầu. Mã máy chủ đã lưu dấu vân tay khóa để đối chiếu an toàn với Script Properties. Không gửi khóa vào chat.",502);
   }
   throw fail("Apps Script: "+message,502);
  }
