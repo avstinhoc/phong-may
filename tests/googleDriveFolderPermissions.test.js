@@ -74,3 +74,11 @@ test('root is admin-only to configure, existing school links remain intact',()=>
  assert.ok(ui.includes('Liên kết Google Sheets'));
  assert.ok(ui.includes('File Sheets đã liên kết trước đây vẫn được giữ nguyên'));
 });
+
+test('provided Drive root link is suggested but never implicitly registered',()=>{
+ assert.ok(ui.includes("const SUGGESTED_QLPM_ROOT_URL='https://drive.google.com/drive/folders/1d8ZiM9q2xyxKNZwTSD5mN77fpVma-Nti'"));
+ assert.ok(ui.includes("setRootUrl(rootData?'https://drive.google.com/drive/folders/'+rootData.folder_id:SUGGESTED_QLPM_ROOT_URL)"));
+ assert.ok(ui.includes("callSchoolDrive('register_qlpm_root'"));
+ assert.ok(ui.includes("if(profile.role!=='admin')"));
+ assert.ok(edge.includes('ensureDriveFolder(info)'));
+});

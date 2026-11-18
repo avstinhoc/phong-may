@@ -8,6 +8,8 @@ import {parseDriveFolderUrl,schoolFolderSuggestedName} from './lib/driveSchoolFo
 const labelDate=v=>String(v||'').split('-').reverse().join('/');
 const SHEETS_EDITOR_EMAIL='ic3-sheets-sync@qlpm-ic3.iam.gserviceaccount.com';
 const EMPTY_SCHOOL_TEMPLATE_ID='1zxht2Ft4mr6DEkycI--wXqZJbXLRJ-8iHtVc64horpM';
+// Suggested parent folder provided by the QLPM administrator. Never treat as verified until the Edge Function checks Editor access.
+const SUGGESTED_QLPM_ROOT_URL='https://drive.google.com/drive/folders/1d8ZiM9q2xyxKNZwTSD5mN77fpVma-Nti';
 const getMessage=async error=>{
  if(error?.context?.json){
   try{const d=await error.context.json();if(d?.error)return d.error;}catch{}
@@ -41,7 +43,7 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
     .select('*').eq('id',1).maybeSingle();
   if(rootError)throw rootError;
   setRootFolder(rootData||null);
-  setRootUrl(rootData?'https://drive.google.com/drive/folders/'+rootData.folder_id:'');
+  setRootUrl(rootData?'https://drive.google.com/drive/folders/'+rootData.folder_id:SUGGESTED_QLPM_ROOT_URL);
   const {data:folderData,error:folderError}=await supabase.from('school_drive_folders')
     .select('*').eq('school_id',profile.school_id).maybeSingle();
   if(folderError)throw folderError;
