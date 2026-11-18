@@ -1373,3 +1373,13 @@
  .qlpm-flame,.flame-pc::before{animation:none!important}
  .portal-float-action{transition:none}
 }
+
+/* School leaderboard entry points for pupils and teachers. */
+.portal-school-board-link{margin-left:auto;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;color:#fff5bd!important;background:#ffffff1c;border:1px solid #f7dc8f91;border-radius:11px;text-decoration:none;padding:10px 15px;font-size:12px;font-weight:850}
+.portal-school-board-link:hover{background:#ffffff34}
+.portal-school-hero-link{display:flex;align-items:center;justify-content:space-between;gap:13px;max-width:540px;margin:15px 0 0;background:#fff3c01f;border:1px solid #ffe4a18a;color:#ffeeb2!important;padding:11px 14px;border-radius:13px;font-size:12px;font-weight:850;text-decoration:none}
+.portal-school-hero-link:hover{background:#fff3c038}
+.portal-school-hero-link span{font-size:20px}
+.class-school-board-actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
+.class-school-board-actions .btn{font-weight:850;white-space:nowrap;text-decoration:none}
+@media(max-width:700px){.portal-header{flex-wrap:wrap}.portal-school-board-link{margin-left:0;width:100%}.class-school-board-actions{width:100%;justify-content:flex-start}.class-management>.section-head{flex-wrap:wrap;gap:12px}}
