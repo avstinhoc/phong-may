@@ -799,9 +799,14 @@ async function syncSchool(db:any,link:Dict,token:string,ownerId:string,offset=0,
    const pulled=await syncClass(db,link,map,token,ownerId,"pull_names");
    map=await getMap(db,link.id,name);
    const pushed=await syncClass(db,link,map,token,ownerId,fresh?"push":"reconcile");
+   let sortWarning="";
+   if(!(pulled.conflicts||[]).length&&!(pushed.conflicts||[]).length){
+    const sorted=await sortStudentTab(db,link,await getMap(db,link.id,name),token);
+    sortWarning=sorted.warning||"";
+   }
    report.push({class_name:name,
      addedStudents:pulled.createdStudents||0,cellsWritten:pushed.counts?.cellsWritten||0,
-     conflicts:[...(pulled.conflicts||[]),...(pushed.conflicts||[])].slice(0,8)});
+     conflicts:[...(pulled.conflicts||[]),...(pushed.conflicts||[]),...(sortWarning?[sortWarning]:[])].slice(0,8)});
    }catch(e){
   const reason=String((e as Error).message||e).slice(0,250);
   // Log only class and failure reason; never log student rows or secret credentials.
@@ -1144,6 +1149,11 @@ Deno.serve(async(req:Request)=>{
   if(["preview","pull","push"].includes(action)){
    if(action!=="preview"&&payload.confirm!==true)throw fail("Cần xem trước và xác nhận trước khi ghi dữ liệu.");
    const result=await syncClass(db,link,map,token,ownerId,action);
+   if(action!=="preview"&&!(result.conflicts||[]).length){
+    const sorted=await sortStudentTab(db,link,await getMap(db,link.id,className),token);
+    if(sorted.warning)result.conflicts=[...(result.conflicts||[]),sorted.warning];
+    result.sortedByGivenName=Boolean(sorted.sorted);
+   }
    return respond(200,{success:true,...result},origin);
   }
   throw fail("Thao tác không được hỗ trợ.");
