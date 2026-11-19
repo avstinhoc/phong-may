@@ -1,3 +1,4 @@
+import {namePairs} from './lib/namePairs';
 
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase, configurationError, authMessage, isEmailSendLimit } from "./lib/supabase";
@@ -711,6 +712,17 @@ function Students({ profile, refresh, reload, ping, navigate }) {
   const suspectStudents=rows.filter(s=>s.status==="active" && s.name_review_status && s.name_review_status!=="allow" &&
     (profile.role==="admin" || ownedClasses.some(c=>c.id===s.class_id)));
 
+  const reviewKey='qlpm.review.pairs.'+profile.id+'.'+profile.school_id;
+  const [reviewRevision,setReviewRevision]=useState(0);
+  const reviewedPairs=useMemo(()=>{
+    try{return new Set(JSON.parse(localStorage.getItem(reviewKey)||'[]'));}catch{return new Set();}
+  },[reviewKey,reviewRevision]);
+  const possiblePairs=namePairs(rows.filter(s=>s.status==='active'&&(profile.role==='admin'||
+    ownedClasses.some(c=>s.class_id?c.id===s.class_id:c.class_name===s.class_name)))).filter(p=>!reviewedPairs.has(p.id));
+  function confirmSeparate(id){
+    localStorage.setItem(reviewKey,JSON.stringify([...reviewedPairs,id]));
+    setReviewRevision(v=>v+1);
+  }
   async function save(e) {
     e.preventDefault();
     const {data:review,error:reviewError}=await supabase.rpc('ic3_name_review',{p_name:form.full_name});
@@ -868,6 +880,13 @@ function Students({ profile, refresh, reload, ping, navigate }) {
         "Chưa có hồ sơ đăng ký trực tuyến chờ duyệt."}</p>}
     </div>
 
+    <section className="panel"><h3>Rà soát hồ sơ trùng hoặc gần giống ({possiblePairs.length})</h3>
+      {!possiblePairs.length&&<p>Chưa có cặp tên cần đối chiếu.</p>}
+      {possiblePairs.map(pair=><div className="task-row" key={pair.id}><b>Lớp {pair.students[0].class_name}</b>
+        {pair.students.map(st=><button className="mini-btn" key={st.id} onClick={()=>setNameEditing({id:st.id,full_name:st.full_name})}>Sửa tên · {st.full_name}</button>)}
+        <button className="mini-btn success" onClick={()=>confirmSeparate(pair.id)}>Xác nhận hai học sinh riêng</button>
+      </div>)}
+    </section>
     {suspectStudents.length>0&&<section className="panel student-name-review-panel">
       <div className="panel-head"><div>
         <h3>Rà soát tên học sinh đã được duyệt ({suspectStudents.length})</h3>

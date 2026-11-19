@@ -634,7 +634,9 @@ async function cleanClonedTab(id:string,newId:number,title:string,schoolName:str
 async function cloneClassTab(id:string,template:Dict,className:string,schoolName:string,token:string,tabTitle=classTabTitle(className)){
  // Atomic duplicate + clearing: a failed cleanup must not leave a visible tab
  // containing another classroom's pupil data.
- const newId=Math.floor(100000000+Math.random()*1900000000);
+ // Concurrent attempts for the same workbook and class must request the same gid.
+ const digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(JSON.stringify([id,tabTitle])));
+ const newId=1+(new DataView(digest).getUint32(0)%2147483646);
  const cleanup=freshTabRequests(newId,className,schoolName);
  const source=await api("https://sheets.googleapis.com/v4/spreadsheets/"+id+"/values/"+a1(template.title,"A5:CT70")+"?valueRenderOption=FORMULA",token);
  const rows=(await source.json()).values||[];
