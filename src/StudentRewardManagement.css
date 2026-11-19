@@ -87,3 +87,5 @@
 .srm-audit-item p{margin:4px 0 6px;font-size:11px;line-height:1.5;overflow-wrap:break-word}
 .srm-audit-item small{font-size:11px;color:#647f86;line-height:1.5}
 @media(max-width:740px){.srm-totals-fields{grid-template-columns:1fr}.srm-totals-editor{padding:13px}.srm-edit-totals-btn{width:100%}}
+
+.srm-stat-adjusted{display:block;margin-top:7px;color:#0e8276;font-size:10px;font-weight:800;line-height:1.5}
