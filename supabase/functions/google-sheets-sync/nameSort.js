@@ -59,3 +59,10 @@ export function verifiedCodeMatch(code, candidates, uniqueOnSheet) {
   const matches=candidates.filter(s => String(s.student_code ?? '').trim()===key);
   return matches.length===1 ? matches[0] : null;
 }
+
+export function canReconcileMissingRows(names, activeByName, mapped, students) {
+  const activeIds = new Set(students.map(st => st.id));
+  return names.length > 0 && new Set(names).size === names.length &&
+    names.every(n => activeByName.get(n)?.length === 1) &&
+    Object.keys(mapped).every(id => activeIds.has(id));
+}

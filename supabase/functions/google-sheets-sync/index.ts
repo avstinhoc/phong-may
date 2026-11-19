@@ -1,6 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2.119.0";
 import { importPKCS8, SignJWT } from "npm:jose@5.10.0";
-import { studentSheetSortPlan, mergedRowMoves, verifiedCodeMatch, matchedStudentBatches } from "./nameSort.js";
+import { canReconcileMissingRows, studentSheetSortPlan, mergedRowMoves, verifiedCodeMatch, matchedStudentBatches } from "./nameSort.js";
 
 type Dict = Record<string, any>;
 const ORIGIN="https://phong-may.vercel.app";
@@ -278,6 +278,83 @@ async function syncClass(db:any,link:Dict,map:Dict,token:string,actorId:string,m
  if(clean(heads[9]).toUpperCase()!=="B1"||clean(heads[78]).toUpperCase()!=="B70")
    throw fail("Mẫu thiếu dãy checkbox B1–B70 từ J5:CA5.");
  const students=await studentsFromDB(db,link.school_id,map.class_name);
+ const conflicts:string[]=[];
+ let retiredOnWeb=0,retiredOnSheet=0;
+ if(mode==="pull_names"||mode==="pull"){
+  const mapped={...(map.student_rows||{})};
+  const ids=Object.keys(mapped);
+  const stale=ids.filter(id=>!students.some(st=>st.id===id));
+  const retired=stale.length?await db.from("students").select("id,full_name,student_code")
+    .eq("school_id",link.school_id).eq("class_name",map.class_name).eq("status","inactive").in("id",stale):{data:[],error:null};
+  if(retired.error)throw fail("Không đọc được hồ sơ đã xóa.",503);
+  const rowNames=rows.slice(3).map((r:any[])=>normalize(r?.[2]));
+  const removed:number[]=[];
+  for(const st of retired.data||[]){
+   const r=Number(mapped[st.id]),name=normalize(st.full_name);
+   if(r<8||r>70||!Number.isInteger(r))continue;
+   if(!rowNames.includes(name)){delete mapped[st.id];continue;}
+   if(rowNames[r-8]!==name)continue;
+   const code=clean(st.student_code);
+   const unique=rowNames.filter((v:string)=>v===name).length===1&&!students.some(s=>normalize(s.full_name)===name);
+   const coded=code&&clean(rows[r-5]?.[0])===code&&rows.slice(3).filter((v:any[])=>clean(v[0])===code).length===1&&!students.some(s=>clean(s.student_code)===code);
+   if((unique||coded)&&Object.values(mapped).filter(n=>Number(n)===r).length===1){
+    removed.push(r);delete mapped[st.id];
+   }
+  }
+  if(removed.length){
+   // Archive the complete original rows below the grid before clearing roster inputs.
+   const meta=await metadata(link.spreadsheet_id,token);
+   const tab=meta.sheets.find((t:Dict)=>t.properties.sheetId===map.sheet_gid&&t.properties.title===map.sheet_title);
+   if(!tab)throw fail("Tab lớp đã đổi trước khi cập nhật danh sách.",409);
+   const bottom=tab.properties.gridProperties.rowCount;
+   const requests:Dict[]=[{appendDimension:{sheetId:map.sheet_gid,dimension:"ROWS",length:removed.length}}];
+   const params=new URLSearchParams({valueRenderOption:"FORMULA"});
+   for(const r of removed)params.append("ranges",sheetName(map.sheet_title)+"!A"+r+":CT"+r);
+   const raw=await api("https://sheets.googleapis.com/v4/spreadsheets/"+link.spreadsheet_id+"/values:batchGet?"+params,token);
+   const ranges=(await raw.json()).valueRanges;
+   for(const [i,r] of removed.entries()){
+    const source={sheetId:map.sheet_gid,startRowIndex:r-1,endRowIndex:r};
+    const dest={...source,startRowIndex:bottom+i,endRowIndex:bottom+i+1};
+    const cells=ranges[i].values?.[0]||[];
+    if(normalize(cells[2])!==rowNames[r-8])throw fail("Dòng Sheets vừa thay đổi, hãy đồng bộ lại.",409);
+    requests.push({copyPaste:{source,destination:dest,pasteType:"PASTE_NORMAL"}});
+    for(const [column,value] of cells.entries()){
+     if(column===1||!nonblank(value)||String(value).startsWith("="))continue;
+     requests.push({repeatCell:{range:{...source,startColumnIndex:column,endColumnIndex:column+1},
+      cell:column>=9&&column<79?{userEnteredValue:{boolValue:false}}:{},fields:"userEnteredValue"}});
+    }
+   }
+   await sheetBatch(link.spreadsheet_id,requests,token);
+   retiredOnSheet=removed.length;
+   for(const r of removed){rows[r-5]=[];rowNames[r-8]="";}
+  }
+  // An existing mapped pupil can disappear from Sheets. Rebase surviving rows
+  // only when all visible names still identify one known pupil in this class.
+  const activeByName=new Map<string,Dict[]>();
+  for(const st of students){const n=normalize(st.full_name);activeByName.set(n,[...(activeByName.get(n)||[]),st]);}
+  const visible=rowNames.filter(Boolean);
+  const reliable=canReconcileMissingRows(visible,activeByName,mapped,students);
+  if(reliable){
+   const absent=students.filter(st=>mapped[st.id]&&!visible.includes(normalize(st.full_name)));
+   const safe=absent.filter(st=>activeByName.get(normalize(st.full_name))?.length===1&&
+     (!rowNames[Number(mapped[st.id])-8]||students.some(peer=>mapped[peer.id]&&normalize(peer.full_name)===rowNames[Number(mapped[st.id])-8])));
+   if(safe.length){
+    const meta=await metadata(link.spreadsheet_id,token);
+    if(!meta.sheets.some((t:Dict)=>t.properties.sheetId===map.sheet_gid&&t.properties.title===map.sheet_title))
+     throw fail("Tab lớp đã thay đổi. Dừng cập nhật hồ sơ.",409);
+    const check=await readTab(link.spreadsheet_id,map.sheet_title,token);
+    if(Array.from({length:63},(_,i)=>normalize(check[i+3]?.[2])!==(rowNames[i]||"")).some(Boolean))
+     throw fail("Danh sách Sheets vừa thay đổi. Vui lòng đồng bộ lại.",409);
+    const updated=await db.from("students").update({status:"inactive"}).eq("school_id",link.school_id)
+      .eq("class_name",map.class_name).eq("status","active").in("id",safe.map(st=>st.id)).select("id");
+    if(updated.error||updated.data?.length!==safe.length)throw fail("Chưa cập nhật đủ hồ sơ đã xóa trên Sheets.",409);
+    retiredOnWeb=safe.length;
+    for(const st of safe){delete mapped[st.id];students.splice(students.indexOf(st),1);}
+    for(const [i,n] of rowNames.entries()){const st=activeByName.get(n)?.[0];if(st&&mapped[st.id])mapped[st.id]=i+8;}
+   }
+  }
+  map={...map,student_rows:mapped};
+ }
  const byName=new Map<string,any[]>();
  for(const s of students){const k=normalize(s.full_name);byName.set(k,[...(byName.get(k)||[]),s]);}
  // Duplicate names on an unlinked sheet may represent different students.
@@ -315,7 +392,6 @@ async function syncClass(db:any,link:Dict,map:Dict,token:string,actorId:string,m
    lessonsMapped:Object.keys(map.lesson_columns||{}).length,
    availableBlankRows:63-sheetNonempty.size};
  if(mode==="preview")return {counts,tab:map.sheet_title,lessons:await sessionsFromDB(db,link.school_id,map.class_name)};
- const conflicts:string[]=[];
  const newRows:Dict[]=[];
  const newStudentRows={...(map.student_rows||{})};
  const attendanceSnapshot:Dict={...(map.attendance_snapshot||{})};
@@ -410,6 +486,7 @@ async function syncClass(db:any,link:Dict,map:Dict,token:string,actorId:string,m
  if(mode==="push"||mode==="reconcile"){
   const changes:Dict[]=[];
   const used=new Set(pairs.map(p=>p.rowNo));
+  for(let i=3;i<rows.length;i++)if(!clean(rows[i]?.[2])&&rows[i]?.some((v:any,c:number)=>c!==1&&nonblank(v)&&v!==false))used.add(i+5);
   const takenStudents=new Set<string>();
   const dataScores=await db.from("student_results").select("student_id,scores,classification,comment,standard_met,exam_result")
    .eq("school_id",link.school_id).in("student_id",students.map(s=>s.id).length?students.map(s=>s.id):["00000000-0000-0000-0000-000000000000"]);
@@ -445,6 +522,9 @@ async function syncClass(db:any,link:Dict,map:Dict,token:string,actorId:string,m
    }
    let p=pairs.find(p=>p.matchedId===student.id&&!takenStudents.has(student.id));
    if(!p){
+    if(linkedRow&&mode==="reconcile"){
+     conflicts.push("Thiếu dòng đã liên kết của "+student.full_name+" trên Sheets; cần xác minh trước khi thêm lại.");continue;
+    }
     const free=Array.from({length:63},(_,i)=>i+8).find(r=>!used.has(r));
     if(!free){conflicts.push("Sheet đầy 63 học sinh; không ghi "+student.full_name);continue;}
     used.add(free);
@@ -530,7 +610,7 @@ async function syncClass(db:any,link:Dict,map:Dict,token:string,actorId:string,m
   if(error)conflicts.push("Chưa lưu được ánh xạ học sinh.");
   await db.from("school_sheet_links").update({last_synced_at:new Date().toISOString()}).eq("id",link.id);
  }
- return {counts,createdStudents:newRows.length,conflicts:conflicts.slice(0,40),tab:map.sheet_title};
+ return {counts,retiredOnWeb,retiredOnSheet,createdStudents:newRows.length,conflicts:conflicts.slice(0,40),tab:map.sheet_title};
 }
 
 
@@ -843,7 +923,7 @@ async function syncSchool(db:any,link:Dict,token:string,ownerId:string,offset=0,
     sortWarning=sorted.warning||"";
    }
    report.push({class_name:name,
-     addedStudents:pulled.createdStudents||0,cellsWritten:pushed.counts?.cellsWritten||0,
+     retiredOnWeb:pulled.retiredOnWeb,retiredOnSheet:pulled.retiredOnSheet,addedStudents:pulled.createdStudents||0,cellsWritten:pushed.counts?.cellsWritten||0,
      conflicts:[...(pulled.conflicts||[]),...(pushed.conflicts||[]),...(sortWarning?[sortWarning]:[])].slice(0,8)});
    }catch(e){
   const reason=String((e as Error).message||e).slice(0,250);

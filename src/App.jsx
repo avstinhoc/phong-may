@@ -764,8 +764,8 @@ function Students({ profile, refresh, reload, ping, navigate }) {
   }
 
   async function remove(s) {
-    if (!confirm("Xóa hồ sơ học sinh này?")) return;
-    const { error } = await supabase.from("students").delete().eq("id", s.id);
+    if (!confirm("Xóa "+s.full_name+" khỏi danh sách lớp "+s.class_name+"? Điểm và lịch sử được giữ lại.")) return;
+    const { error } = await supabase.from("students").update({status:"inactive"}).eq("id", s.id).eq("school_id",profile.school_id).select("id").single();
     if (error) ping(error.message);
     else { ping("Đã xóa hồ sơ"); reload(); }
   }
