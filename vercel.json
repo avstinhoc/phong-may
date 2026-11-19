@@ -27,6 +27,10 @@
       "destination": "/index.html"
     },
     {
+      "source": "/school/grade/:grade",
+      "destination": "/index.html"
+    },
+    {
       "source": "/auth/callback",
       "destination": "/index.html"
     }
