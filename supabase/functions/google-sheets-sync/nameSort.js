@@ -66,3 +66,53 @@ export function canReconcileMissingRows(names, activeByName, mapped, students) {
     names.every(n => activeByName.get(n)?.length === 1) &&
     Object.keys(mapped).every(id => activeIds.has(id));
 }
+
+
+/**
+ * Reconstruct the student-ID -> row mapping from pre/post-sort snapshots.
+ * Use stable student code + normalized name + date of birth, not row number
+ * or the STT column (which can be populated by an array formula).
+ * Refuse ambiguous or changed data rather than linking a student to a peer.
+ */
+export function verifiedRowMapping(beforeGrid, afterGrid, existingMapping, firstRow = 8, lastRow = 70) {
+  const normalizeCell = value => String(value ?? '').normalize('NFC').replace(/\s+/gu, ' ').trim();
+  const identity = row => JSON.stringify([0, 2, 3].map(i => normalizeCell(row?.[i])));
+  const beforeRows = beforeGrid.slice(firstRow - 5, lastRow - 4);
+  const afterRows = afterGrid.slice(firstRow - 5, lastRow - 4);
+  const count = new Map();
+  const locations = new Map();
+  for (const [index, row] of afterRows.entries()) {
+    if (!normalizeCell(row?.[2])) continue;
+    const key = identity(row);
+    count.set(key, (count.get(key) || 0) + 1);
+    locations.set(key, firstRow + index);
+  }
+  const beforeCount = new Map();
+  for (const row of beforeRows) {
+    if (!normalizeCell(row?.[2])) continue;
+    const key = identity(row);
+    beforeCount.set(key, (beforeCount.get(key) || 0) + 1);
+  }
+  const recovered = {};
+  const rowUsed = new Set();
+  const entries = Object.entries(existingMapping || {});
+  if (!entries.length && beforeRows.some(row => normalizeCell(row?.[2])))
+    return {safe:false, reason:'Chưa có ánh xạ học sinh; cần đồng bộ danh sách trước khi sắp xếp.'};
+  for (const [studentId, oldRow] of entries) {
+    const rowNumber = Number(oldRow);
+    if (!Number.isInteger(rowNumber) || rowNumber < firstRow || rowNumber > lastRow)
+      return {safe:false, reason:'Có mã học sinh liên kết ngoài vùng dòng cho phép.'};
+    const row = beforeRows[rowNumber - firstRow];
+    if (!normalizeCell(row?.[2]))
+      return {safe:false, reason:'Dòng liên kết của học sinh không còn họ tên.'};
+    const key = identity(row);
+    if (beforeCount.get(key) !== 1 || count.get(key) !== 1)
+      return {safe:false, reason:'Có dòng bị trùng hoặc thay đổi trong lúc sắp xếp; cần đối soát.'};
+    const newRow = locations.get(key);
+    if (rowUsed.has(newRow))
+      return {safe:false, reason:'Hai học sinh trỏ tới cùng một dòng sau sắp xếp.'};
+    rowUsed.add(newRow);
+    recovered[studentId] = newRow;
+  }
+  return {safe:true, mapping:recovered};
+}
