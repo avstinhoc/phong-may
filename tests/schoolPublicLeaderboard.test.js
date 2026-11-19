@@ -6,6 +6,7 @@ import {SCHOOL_TOP_LIMIT,schoolPodiumOrder,gradeFromClassName,gradeClassRows} fr
 
 const migration=readFileSync(new URL('../supabase/migrations/20261119031000_school_public_leaderboards.sql',import.meta.url),'utf8');
 const includeActive=readFileSync(new URL('../supabase/migrations/20261119032000_school_include_active_students.sql',import.meta.url),'utf8');
+const gradeTopTen=readFileSync(new URL('../supabase/migrations/20261120090000_school_grade_top_ten.sql',import.meta.url),'utf8');
 const app=readFileSync(new URL('../src/App.jsx',import.meta.url),'utf8');
 const school=readFileSync(new URL('../src/SchoolPortal.jsx',import.meta.url),'utf8');
 const vercel=JSON.parse(readFileSync(new URL('../vercel.json',import.meta.url),'utf8'));
@@ -24,9 +25,13 @@ test('Top 5 winner is centered and grade links handle 6A1, 6/1, 6-1 and 6.1',()=
  assert.ok(app.includes('return <SchoolPortal />;'));
  assert.ok(app.includes('.slice(0,5)'));
  assert.ok(school.includes('schoolPodiumOrder(rows)'));
- for(const grade of ['8','6','7'])assert.ok(school.includes('GradeLeaderboard grade="'+grade+'"'));
+ assert.ok(school.includes('const rows=(items||[]).slice(0,10)'));
+ assert.ok(school.includes('GradeLeaderboard grade={selectedGrade}'));
+ assert.ok(school.includes('gradeLink(grade,code)'));
  assert.ok(school.includes("['8','7','6'].map"));
  assert.ok(vercel.rewrites.some(x=>x.source==='/school'));
+ assert.ok(vercel.rewrites.some(x=>x.source==='/school/grade/:grade'));
+ assert.ok(app.includes('window.location.pathname === "/school" ||'));
 });
 
 test('SQL school portal collects multiple teachers but isolates same-name schools and adds new class codes automatically',async()=>{
@@ -76,6 +81,7 @@ test('SQL school portal collects multiple teachers but isolates same-name school
   }
   await db.exec(migration);
   await db.exec(includeActive);
+  await db.exec(gradeTopTen);
   const get=async code=>(await db.query('select public.ic3_school_public_portal($1) as payload',[code])).rows[0].payload;
   const first=await get('CLASS6A1');
   assert.equal(first.school_name,'THCS Trùng Tên');
@@ -104,5 +110,17 @@ test('SQL school portal collects multiple teachers but isolates same-name school
   await db.exec('set role anon');
   assert.equal((await get('CLASS7-1')).top_school.length,5,'anon needs only valid class code');
   await db.exec('reset role');
+  // Add enough pupils to prove the grade ranking genuinely reaches 10 while school stays Top 5.
+  for(let i=0;i<9;i++){
+    const pupilId=id(String(310+i));
+    await db.query('insert into students values($1,$2,$3,$4,$5,$6)',[pupilId,schoolA,id('101'),'6A1','Bạn lớp 6 '+i,'active']);
+    await db.query('insert into student_records values($1,$2,$3,$4)',[schoolA,pupilId,'reward',9-i]);
+  }
+  const expanded=await get('CLASS6A1');
+  assert.equal(expanded.top_school.length,5,'The school podium must remain Top 5');
+  assert.equal(expanded.top_6.length,10,'Grade 6 must return its first 10 students');
+  assert.equal(expanded.top_6[0].name,'An');
+  assert.ok(expanded.top_6.every(row=>row.class_name.startsWith('6')));
+
  }finally{await db.close();}
 });

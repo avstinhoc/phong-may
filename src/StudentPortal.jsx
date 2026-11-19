@@ -76,6 +76,14 @@ export function StudentPortal(){
     <header className="portal-header">
       {payload?.logo?<img className="portal-logo" src={payload.logo} alt="Logo trường"/>:<div className="brand-mark">IC3</div>}
       <div><b>IC3 GS6 · Lớp học của chúng mình</b><small>Máy tính • Lịch dạy • Vệ sinh • Điểm & phần thưởng</small></div>
+      {payload&&<form className="portal-header-seat-search" onSubmit={locateSeat} role="search" aria-label="Tìm vị trí máy">
+        <label className="portal-header-seat-label">
+          <span className="sr-only">Tìm số máy trong lớp</span>
+          <input type="search" required value={seat} onChange={e=>setSeat(e.target.value)} placeholder="🔎 Tìm máy: PC01, PC02…" aria-label="Số máy cần tìm"/>
+        </label>
+        <button type="submit" disabled={busy}>Tìm máy</button>
+        {seatMessage&&<output role="status" className="portal-header-seat-result">{seatMessage}</output>}
+      </form>}
       {payload&&<a className="portal-school-board-link" href={'/school?code='+encodeURIComponent(code)}>🏆 BXH toàn trường</a>}
 
     </header>
@@ -95,21 +103,18 @@ export function StudentPortal(){
         </div>
         <div className="portal-hero-art" aria-hidden="true">💻<span>🌟</span></div>
       </section>
-      <section className="panel portal-search portal-search-compact">
+      {!payload&&<section className="panel portal-search portal-search-compact">
         <div className="portal-search-heading">
-          <div><h3>📍 {payload?'Tìm nhanh vị trí máy':'Mở lớp học'}</h3>
-            <p className="muted">{payload?'Nhập PC1, PC01 hoặc số 1 để tới ngay ô máy.':'Nhập mã lớp được giáo viên cấp để bắt đầu.'}</p></div>
+          <div><h3>📍 Mở lớp học</h3><p className="muted">Nhập mã lớp được giáo viên cấp để bắt đầu.</p></div>
           {busy&&<span className="portal-search-spinner">Đang tải dữ liệu…</span>}
         </div>
-        {payload&&<form className="seat-search portal-seat-inline" onSubmit={locateSeat}>
-          <label className="portal-seat-label">Số máy / vị trí
-            <input required value={seat} onChange={e=>setSeat(e.target.value)} placeholder="Ví dụ: PC02"/></label>
-          <button className="btn primary">🔎 Tìm máy</button>
-          {seatMessage&&<output role="status">{seatMessage}</output>}
-        </form>}
-        {!payload&&<form className="portal-form" onSubmit={e=>{e.preventDefault();load();}}>
+        <form className="portal-form" onSubmit={e=>{e.preventDefault();load();}}>
           <label>Mã lớp<input required value={code} onChange={e=>setCode(e.target.value.toUpperCase())} placeholder="Nhập mã lớp" autoComplete="off"/></label>
-          <button className="btn primary" disabled={busy}>{busy?'Đang mở…':'Mở lớp'}</button></form>}
+          <button className="btn primary" disabled={busy}>{busy?'Đang mở…':'Mở lớp'}</button>
+        </form>
+        {error&&<p role="alert" className="notice-box">{error}</p>}
+      </section>}
+      {payload&&<section className="panel portal-private-panel">
         {payload&&<details className="portal-private-lookup">
           <summary><span>🔐 Tra cứu kết quả cá nhân</span><small>Chỉ mở khi có mã xem điểm riêng</small></summary>
           <form className="portal-form portal-form--private" onSubmit={e=>{e.preventDefault();load();}}>
@@ -121,7 +126,7 @@ export function StudentPortal(){
           {secret.trim()&&!student&&<p className="notice-box">Mã cá nhân chưa đúng hoặc chưa được giáo viên cấp.</p>}
         </details>}
         {error&&<p role="alert" className="notice-box">{error}</p>}
-      </section>
+      </section>}
       {payload&&<>
         <div className="portal-metrics portal-overview">
           <div><small>Máy trong trường</small><b>{counts.total}</b><span>🖥️</span></div>
@@ -129,28 +134,34 @@ export function StudentPortal(){
           <div><small>Máy cần sửa</small><b>{counts.broken}</b><span>🛠️</span></div>
           <div><small>Vị trí lớp mình</small><b>{counts.occupied}</b><span>👨‍🎓</span></div>
         </div>
-        <details className="panel portal-star-leaderboard portal-star-collapsible">
-          <summary className="portal-rank-summary">
-            <span>🏆 TOP 5 sao · Lớp {payload.class_name}</span>
-            <small>{ranked[0]&&Number(ranked[0].earned)>0
-              ?'🥇 '+ranked[0].student_name+' · '+ranked[0].earned+' sao đã kiếm'
-              :'Khám phá những ngôi sao của lớp'}</small>
-            <span className="portal-rank-arrow" aria-hidden="true">⌄</span>
-          </summary>
-          <p className="muted">Tổng sao kiếm được dùng để xếp hạng; sao hiện có để đổi quà. Giữ chuỗi để nâng cấp lửa và khung máy.</p>
+        <section className="panel portal-star-leaderboard portal-star-showcase" aria-label="Top 5 học sinh có nhiều sao nhất lớp">
+          <div className="portal-rank-heading">
+            <div><span className="portal-rank-eyebrow">🌟 BẢNG VÀNG LỚP MÌNH</span>
+              <h2>🏆 TOP 5 SAO · Lớp {payload.class_name}</h2>
+              <p className="muted">Xếp hạng theo tổng sao đã kiếm; sao hiện có dùng để đổi quà.</p></div>
+            {ranked[0]&&Number(ranked[0].earned)>0&&<div className="portal-rank-champion">
+              👑 Dẫn đầu: <strong>{ranked[0].student_name}</strong>
+            </div>}
+          </div>
           <div className="portal-star-grid">
             {ranked.filter(st=>Number(st.earned)>0).slice(0,5).map((st,i)=>{
               const fx=flameEffect(st);
-              return <div key={st.student_id}
-                style={fx.style} className={'portal-star-rank '+(fx.visible?fx.className:'')}>
-                <span>{i===0?'🥇':i===1?'🥈':i===2?'🥉':'#'+(i+1)}</span>
-                <b>{st.student_name} <FlameBadge wallet={st} compact/></b>
-                <span>⭐ {st.earned} đã kiếm · {st.available} hiện có</span>
-              </div>;
+              return <article key={st.student_id} style={fx.style}
+                className={'portal-star-rank portal-star-rank--'+(i+1)+' '+(fx.visible?fx.className:'')}>
+                <div className="portal-rank-position"><span>{i===0?'🥇':i===1?'🥈':i===2?'🥉':'#'+(i+1)}</span><small>HẠNG {i+1}</small></div>
+                <div className="portal-rank-person">
+                  <strong title={st.student_name}>{st.student_name}</strong>
+                  <FlameBadge wallet={st} compact/>
+                </div>
+                <div className="portal-rank-stats">
+                  <span>⭐ <b>{Number(st.earned).toLocaleString('vi-VN')}</b> sao đã kiếm</span>
+                  <small>{Number(st.available).toLocaleString('vi-VN')} sao hiện có</small>
+                </div>
+              </article>;
             })}
-            {!ranked.some(st=>Number(st.earned)>0)&&<p className="muted">Chưa có sao thưởng. Cùng cố gắng nhé! ✨</p>}
+            {!ranked.some(st=>Number(st.earned)>0)&&<p className="portal-rank-empty">✨ Chưa có sao thưởng. Cùng cố gắng để ghi tên lên bảng vàng!</p>}
           </div>
-        </details>
+        </section>
         <section className="panel">
           <div className="portal-section-title"><div><h2>💻 Sơ đồ máy tính lớp {payload.class_name}</h2><p className="muted">Xem bạn nào đang ngồi máy nào và việc vệ sinh cần làm.</p></div><span className="portal-mini-pill">{counts.waiting} việc vệ sinh chưa xong</span></div>
           <div className="portal-pcs">

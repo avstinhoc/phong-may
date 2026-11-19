@@ -177,3 +177,89 @@
  .school-class-section{scroll-margin-top:152px}
 }
 @media(prefers-reduced-motion:reduce){.school-public-nav>a{transition:none}}
+
+/* Separate school grade pages: sticky header with always-visible class lookup. */
+.school-public-header{position:sticky;top:0;z-index:95;display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px 15px;padding:10px clamp(12px,2.5vw,30px);min-height:76px}
+.school-public-brand{flex:0 0 auto}
+.school-public-nav{flex:1 1 470px;gap:8px;justify-content:center}
+.school-public-nav>a{padding:10px 12px;min-height:42px;font-size:12px;flex:0 1 auto}
+.school-header-class-search{position:relative;display:flex;flex:1 1 225px;max-width:335px;gap:6px;align-items:center;min-width:0}
+.school-header-class-search input{min-width:0;width:100%;height:42px;border-radius:11px;border:1px solid #97d2cd;color:#144e51;font:inherit;font-size:12px;font-weight:750;padding:10px 12px;background:#fff;box-shadow:0 5px 12px #123d4626}
+.school-header-class-search>button{height:42px;border-radius:11px;border:1px solid #ffe6ad;background:#ffe5a2;color:#63460b;font-weight:900;padding:0 12px;cursor:pointer}
+.school-header-class-search>button:disabled{opacity:.55;cursor:default}
+.school-header-search-results{position:absolute;z-index:100;top:calc(100% + 6px);left:0;right:0;display:flex;flex-direction:column;overflow:hidden;border:1px solid #cde6e3;border-radius:12px;background:white;box-shadow:0 12px 25px #002d3840;max-height:290px;overflow-y:auto}
+.school-header-search-results a{display:flex;gap:7px;flex-direction:column;text-decoration:none;color:#17565b;padding:10px 12px;border-bottom:1px solid #e6efee}
+.school-header-search-results a:hover,.school-header-search-results a:focus-visible{background:#eaf8f5}
+.school-header-search-results a>span{font-size:12px;font-weight:900}
+.school-header-search-results a>small{font-size:11px;color:#718b94}
+.school-header-no-results{font-size:12px;padding:11px;color:#936b33}
+.school-grade-launchers{margin:26px 0;padding:26px 22px;background:white;border-radius:23px;border:1px solid #e0ecf0;box-shadow:0 7px 24px #183f5310}
+.school-grade-launcher-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.school-grade-launcher{display:flex;align-items:flex-start;gap:16px;text-decoration:none;padding:26px 22px;min-width:0;min-height:165px;border-radius:19px;border:1px solid #dbe5eb;box-shadow:0 6px 20px #254d5c0f;transition:transform .18s ease,box-shadow .18s ease}
+.school-grade-launcher:hover,.school-grade-launcher:focus-visible{transform:translateY(-4px);box-shadow:0 13px 25px #214e6026}
+.school-grade-launcher--8{background:linear-gradient(130deg,#f5eaff,#fff);border-color:#e4d0f9;color:#6732a0}
+.school-grade-launcher--7{background:linear-gradient(130deg,#e8f5ff,#fff);border-color:#c2ddfa;color:#1c689d}
+.school-grade-launcher--6{background:linear-gradient(130deg,#fff2e4,#fff);border-color:#f0d5b3;color:#ac601e}
+.school-grade-launcher-icon{font-size:38px;line-height:1}
+.school-grade-launcher-text{display:flex;flex-direction:column;gap:12px;min-width:0}
+.school-grade-launcher-text strong{font-size:24px;letter-spacing:.5px}
+.school-grade-launcher-text small{font-size:13px;opacity:.82}
+.school-grade-launcher-text b{font-size:13px;color:#145763}
+.school-grade-launcher-text b span{margin-left:4px}
+.school-grade-detail-hero{margin:0 0 20px;padding:31px 37px;border-radius:24px;background:linear-gradient(110deg,#4d3386,#8b4cb1);color:white;box-shadow:0 14px 30px #173d4724}
+.school-grade-detail-hero--7{background:linear-gradient(110deg,#154c85,#187cb0)}
+.school-grade-detail-hero--6{background:linear-gradient(110deg,#945414,#d58833)}
+.school-grade-back{display:inline-flex;gap:6px;color:#fff;text-decoration:none;border:1px solid #ffffff75;border-radius:40px;padding:8px 12px;font-size:12px;font-weight:800;margin-bottom:18px;background:#ffffff18}
+.school-grade-back:hover{background:#ffffff30}
+.school-grade-detail-overline{display:block;font-size:11px;letter-spacing:1.1px;color:#fef3cb;font-weight:850}
+.school-grade-detail-hero h1{font-size:clamp(25px,3vw,40px);color:white;margin:12px 0}
+.school-grade-detail-hero p{font-size:13px;color:#f4efff;line-height:1.6;max-width:660px}
+.school-grade-detail-pills{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
+.school-grade-detail-pills span{font-size:12px;font-weight:850;padding:8px 12px;background:#ffffff27;border:1px solid #ffffff4d;border-radius:30px}
+.school-grade-detail .school-grade-board{box-shadow:0 9px 24px #244f6714;border-radius:22px}
+.school-grade-detail .school-grade-board-head{padding:19px 24px}
+.school-grade-detail .school-grade-board h3{font-size:21px}
+.school-grade-detail .school-grade-board-head small{font-size:12px}
+.school-grade-detail .school-grade-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:20px;list-style:none;counter-reset:none}
+.school-grade-detail .school-grade-row{min-height:81px;gap:12px;padding:13px 15px;border-radius:15px}
+.school-grade-detail .school-grade-place{flex:0 0 40px;font-size:22px}
+.school-grade-detail .school-grade-info b{font-size:15px;line-height:1.4;white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:break-word;word-break:normal}
+.school-grade-detail .school-grade-info small{font-size:12px}
+.school-grade-detail .school-grade-points{font-size:14px}
+.school-grade-detail .school-grade-row .qlpm-flame{max-width:24px}
+.school-public-main #school-classes{scroll-margin-top:125px}
+.school-grade-detail+.school-class-section{margin-top:31px}
+.school-grade-detail+.school-class-section .school-class-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media(max-width:1200px){
+ .school-public-header{gap:10px}
+ .school-public-nav{order:3;flex:1 1 100%;justify-content:space-around}
+ .school-header-class-search{margin-left:auto;max-width:360px}
+ .school-public-main #school-classes{scroll-margin-top:155px}
+}
+@media(max-width:800px){
+ .school-grade-launcher-grid{grid-template-columns:1fr}
+ .school-grade-launcher{min-height:115px;padding:20px}
+ .school-grade-detail .school-grade-list{grid-template-columns:1fr}
+ .school-grade-detail+.school-class-section .school-class-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:640px){
+ .school-public-header{gap:8px;padding:10px 12px}
+ .school-public-brand>b{font-size:13px}
+ .school-header-class-search{order:2;flex:1 1 100%;max-width:none}
+ .school-header-refresh{order:1;margin-left:auto}
+ .school-public-nav{order:3;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;width:100%}
+ .school-public-nav>a{min-height:39px;padding:7px 4px;font-size:10px;white-space:normal}
+ .school-grade-launchers{padding:19px 14px}
+ .school-grade-launcher{gap:13px}
+ .school-grade-launcher-icon{font-size:30px}
+ .school-grade-launcher-text strong{font-size:22px}
+ .school-grade-detail-hero{padding:22px 19px}
+ .school-grade-detail .school-grade-board-head{padding:15px}
+ .school-grade-detail .school-grade-list{padding:11px;gap:9px}
+ .school-grade-detail .school-grade-row{padding:11px;gap:8px}
+ .school-grade-detail .school-grade-info b{font-size:13px}
+ .school-grade-detail .school-grade-points{font-size:12px}
+ .school-grade-detail+.school-class-section .school-class-grid{grid-template-columns:1fr}
+ .school-public-main #school-classes{scroll-margin-top:215px}
+}
+@media(prefers-reduced-motion:reduce){.school-grade-launcher{transition:none}}
