@@ -33,6 +33,7 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
   [rootFolder,setRootFolder]=useState(null),[rootUrl,setRootUrl]=useState('');
  const autoSyncedForRef=useRef('');
  const autoInspectedForRef=useRef('');
+ const choices=classes;
  const currentTab=bindings.find(x=>x.class_name===selectedClass);
  const canManageLink=!link||link.owner_id===profile.id||profile.role==='admin';
  const suggestedTitle=('DS ĐIỂM DANH '+String(profile.school_name||'TRƯỜNG').toLocaleUpperCase('vi')).slice(0,110);
@@ -55,8 +56,12 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
    setUrl('https://docs.google.com/spreadsheets/d/'+linkData.spreadsheet_id+'/edit');
    const {data,error}=await supabase.from('school_sheet_tabs').select('*').eq('link_id',linkData.id).order('class_name');
    if(error)throw error;
-   setBindings(data||[]);
-   setSelectedClass(before=>data?.some(x=>x.class_name===before)?before:data?.[0]?.class_name||'');
+   const catalog=await supabase.from('classes').select('class_name,archived_at').eq('school_id',profile.school_id);
+   if(catalog.error)throw catalog.error;
+   const open=new Set(catalog.data.filter(c=>!c.archived_at).map(c=>c.class_name));
+   const valid=(data||[]).filter(t=>open.has(t.class_name));
+   setBindings(valid);
+
   }else{
    setBindings([]);setSelectedClass('');setTabs([]);
    setUrl('');
@@ -65,6 +70,8 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
  useEffect(()=>{let live=true;(async()=>{try{if(live)await load();}catch(e){if(live)setError(e.message);}})();
   return()=>{live=false;};
  },[profile.id,profile.school_id,refresh]);
+ const choicesKey=JSON.stringify(choices);
+ useEffect(()=>{setSelectedClass(current=>choices.includes(current)?current:choices[0]||'');},[choicesKey]);
  useEffect(()=>{setMapping(currentTab?.lesson_columns||{});setPreview(null);},[currentTab?.id,selectedClass]);
  useEffect(()=>{
   if(!tabs.length||tabs.some(t=>t.title===templateTab))return;
@@ -96,7 +103,7 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
  },[link?.id,link?.status,profile.school_id]);
  useEffect(()=>{
   if(!link?.id||!link.auto_sync||link.status!=='verified')return;
-  const key=link.id+':'+rosterVersion;
+  const key=[link.id,rosterVersion,refresh].join(':');
   if(autoSyncedForRef.current===key)return;
   autoSyncedForRef.current=key;
   let cancelled=false;
@@ -112,7 +119,7 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
       added+=(data.report||[]).reduce((n,r)=>n+(r.addedStudents||0),0);
       written+=(data.report||[]).reduce((n,r)=>n+(r.cellsWritten||0),0);
       issues+=(data.errors||[]).length+(data.report||[]).reduce((n,r)=>n+(r.conflicts?.length||0),0);
-      allErrors.push(...(data.errors||[]));
+      allErrors.push(...(data.errors||[]),...(data.report||[]).flatMap(r=>(r.conflicts||[]).map(msg=>r.class_name+': '+msg)));
       setMessage('Đang đồng bộ '+checked+'/'+(data.totalClasses||checked)+' lớp · '+created+' tab mới...');
       if(data.nextOffset===null||data.nextOffset===undefined)break;
       if(data.nextOffset<=offset)throw Error('Tiến trình đồng bộ bị lặp, đã dừng để bảo vệ dữ liệu.');
@@ -123,14 +130,14 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
     if(issues)setError(allErrors.slice(0,4).join(' | ')||'Có '+issues+' khác biệt dữ liệu cần kiểm tra trước khi ghi đè.');
     await load();
     if(added||created){
-      autoSyncedForRef.current=link.id+':'+(rosterVersion+1);
+      autoSyncedForRef.current=[link.id,rosterVersion+1,refresh].join(':');
       onSynced?.();
     }
    }catch(e){if(!cancelled)setError('Tự đồng bộ: '+(e.message||String(e)));}
    finally{if(!cancelled)setBusy('');}
   })();
   return()=>{cancelled=true;};
- },[link?.id,link?.status,link?.auto_sync,profile.school_id,rosterVersion]);
+ },[link?.id,link?.status,link?.auto_sync,profile.school_id,rosterVersion,refresh]);
  async function changeAuto(enabled){
   if(!link)return;
   const {error}=await supabase.from('school_sheet_links').update({auto_sync:enabled}).eq('id',link.id);
@@ -386,15 +393,15 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
       <button className="btn outline" disabled={!newClass.trim()||!!busy} onClick={()=>run('clone',clone)}>Nhân bản mẫu</button>
      </div>
     </div>}
-    {bindings.length>0&&<div className="sheets-link-section">
+    {choices.length>0&&<div className="sheets-link-section">
      <h3>2. Đồng bộ dữ liệu lớp</h3>
      <div className="sheets-link-grid">
       <label>Chọn lớp liên kết
        <select value={selectedClass} onChange={e=>setSelectedClass(e.target.value)}>
-        {bindings.map(t=><option key={t.id} value={t.class_name}>{t.class_name} → Tab {t.sheet_title}</option>)}
+        {choices.map(name=><option key={name} value={name}>{name} · {bindings.find(t=>t.class_name===name)?.sheet_title||'Chờ liên kết'}</option>)}
        </select>
       </label>
-      <button className="btn outline" disabled={!selectedClass||!!busy} onClick={()=>run('preview',previewNow)}>
+      <button className="btn outline" disabled={!currentTab||!!busy} onClick={()=>run('preview',previewNow)}>
        {busy==='preview'?'Đang đọc…':'Xem trước thay đổi'}
       </button>
       <button className="btn outline" disabled={!!busy} onClick={()=>run('download',()=>downloadOriginal(false))}>Xuất Excel gốc</button>

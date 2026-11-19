@@ -9,6 +9,15 @@ const seatKey=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').t
 export function StudentPortal(){
   const [code,setCode]=useState(()=>new URLSearchParams(window.location.search).get('code')||'');
   const [seat,setSeat]=useState('');
+  const [desiredPc,setDesiredPc]=useState('');
+  const [requestResult,setRequestResult]=useState('');
+  async function requestMove(e){
+    e.preventDefault();setBusy(true);
+    try{
+      const {error}=await supabase.rpc('request_seat_change',{p_code:code,p_secret:secret,p_pc:desiredPc});
+      setRequestResult(error?.message||'Đã gửi yêu cầu. Chỗ ngồi sẽ đổi sau khi giáo viên duyệt.');
+    }finally{setBusy(false);}
+  }
   const [highlight,setHighlight]=useState('');
   const [seatMessage,setSeatMessage]=useState('');
   const [secret,setSecret]=useState('');
@@ -164,6 +173,7 @@ export function StudentPortal(){
         </section>
         <section className="panel">
           <div className="portal-section-title"><div><h2>💻 Sơ đồ máy tính lớp {payload.class_name}</h2><p className="muted">Xem bạn nào đang ngồi máy nào và việc vệ sinh cần làm.</p></div><span className="portal-mini-pill">{counts.waiting} việc vệ sinh chưa xong</span></div>
+          {starBoard.some(s=>!s.computer)&&<details><summary>Học sinh chưa xếp máy</summary><ul>{starBoard.filter(s=>!s.computer).map(s=><li key={s.student_id}>{s.student_name}</li>)}</ul></details>}
           <div className="portal-pcs">
             {machines.map(c=>{const fx=fireForMachine(c);return <article id={'seat-'+c.computer} tabIndex={-1}
               style={fx?.style} className={'portal-pc '+(highlight===c.computer?'seat-found ':'')+
@@ -202,6 +212,10 @@ export function StudentPortal(){
           {!payload.schedule?.length&&<p className="muted">Giáo viên chưa có lịch học được công bố.</p>}
         </section>
         {student&&<>
+          <form className="panel seat-search" onSubmit={requestMove}><label>Yêu cầu đổi máy<select required value={desiredPc} onChange={e=>setDesiredPc(e.target.value)}>
+            <option value="">Chọn máy muốn chuyển đến</option>
+            {machines.filter(m=>!['broken','maintenance'].includes(m.status)&&m.occupied<m.capacity).map(m=><option key={m.computer}>{m.computer}</option>)}
+          </select></label><button className="btn primary" disabled={busy}>Gửi giáo viên duyệt</button><output>{requestResult}</output></form>
           <section className="panel">
             <h2>🏅 Góc kết quả của {student.name}</h2>
             <p className="muted">Mã học sinh: {student.student_code||'Chưa có'}</p>

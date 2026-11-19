@@ -192,7 +192,7 @@ async function metadata(id:string,token:string){
  return await (await api(url,token)).json();
 }
 async function readTab(id:string,title:string,token:string){
- const url="https://sheets.googleapis.com/v4/spreadsheets/"+id+"/values/"+a1(title,"A5:CT70")+"?valueRenderOption=UNFORMATTED_VALUE";
+ const url="https://sheets.googleapis.com/v4/spreadsheets/"+id+"/values/"+a1(title,"A5:CT")+"?valueRenderOption=UNFORMATTED_VALUE";
  const data=await (await api(url,token)).json();
  return data.values||[];
 }
@@ -213,10 +213,17 @@ async function getMap(db:any,linkId:string,className:string){
  return data;
 }
 async function studentsFromDB(db:any,schoolId:string,className:string){
- const {data,error}=await db.from("students").select("id,school_id,full_name,student_code,class_name,date_of_birth,phone,status,school_name")
-   .eq("school_id",schoolId).eq("class_name",className).eq("status","active").limit(300);
- if(error)throw fail("Không đọc được danh sách học sinh.",500);
- return data||[];
+ const klass=await db.from("classes").select("id").eq("school_id",schoolId).eq("class_name",className).is("archived_at",null).maybeSingle();
+ if(klass.error||!klass.data)throw fail("Không xác định được lớp đang hoạt động.",409);
+ const students=[];
+ for(let start=0;;start+=300){
+  const {data,error}=await db.from("students").select("id,school_id,full_name,student_code,class_name,date_of_birth,phone,status,school_name")
+   .eq("school_id",schoolId).eq("class_name",className).eq("status","active")
+   .or("class_id.is.null,class_id.eq."+klass.data.id).order("id").range(start,start+299);
+  if(error)throw fail("Không đọc được danh sách học sinh.",500);
+  students.push(...data);
+  if(data.length<300)return students;
+ }
 }
 async function sessionsFromDB(db:any,schoolId:string,className:string){
  const {data,error}=await db.from("class_sessions").select("id,school_id,class_name,session_date,start_time,period_count")
@@ -226,7 +233,7 @@ async function sessionsFromDB(db:any,schoolId:string,className:string){
 }
 async function ensureClass(db:any,schoolId:string,className:string,ownerId:string,schoolName:string){
  let {data:existing,error}=await db.from("classes").select("id,school_id,class_name,created_by")
-   .eq("school_id",schoolId).eq("class_name",className).limit(1);
+   .eq("school_id",schoolId).eq("class_name",className).is("archived_at",null).limit(1);
  if(error)throw fail("Không kiểm tra được lớp trên web.",500);
  if(existing?.length)return existing[0].id;
  const slug=schoolName.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[đĐ]/g,"D")
@@ -268,12 +275,12 @@ async function syncClass(db:any,link:Dict,map:Dict,token:string,actorId:string,m
  // Duplicate names on an unlinked sheet may represent different students.
  // Do not silently attach both rows to one website ID or create twins.
  const rowNameCount=new Map<string,number>();
- for(let r=8;r<=70;r++){
+ for(let r=8;r<=rows.length+4;r++){
   const name=normalize((rows[r-5]||[])[2]);
   if(name)rowNameCount.set(name,(rowNameCount.get(name)||0)+1);
  }
  const pairs:Dict[]=[];const sheetNonempty=new Set<number>();
- for(let r=8;r<=70;r++){
+ for(let r=8;r<=rows.length+4;r++){
   const a=rows[r-5]||[],name=clean(a[2]);
   if(!name)continue;
   sheetNonempty.add(r);
@@ -284,7 +291,7 @@ async function syncClass(db:any,link:Dict,map:Dict,token:string,actorId:string,m
   const duplicatedOnSheet=(rowNameCount.get(normalize(name))||0)>1;
   const chosen=renamedRow?null:(mappedStudent||(names.length===1&&!duplicatedOnSheet?names[0]:null));
   pairs.push({rowNo:r,raw:a,name,student:chosen,
-    ambiguous:renamedRow||(!mappedStudent&&duplicatedOnSheet)||(names.length>1&&!chosen),
+    ambiguous:Boolean(linked&&!mappedStudent)||Boolean(chosen&&chosen.date_of_birth&&nonblank(a[3])&&asDate(a[3])!==chosen.date_of_birth)||renamedRow||(!mappedStudent&&duplicatedOnSheet)||(names.length>1&&!chosen),
     matchedId:chosen?.id||null,proposedScores:scoreValues(a)});
  }
  const counts={sheetStudents:pairs.length,websiteStudents:students.length,
@@ -302,7 +309,7 @@ async function syncClass(db:any,link:Dict,map:Dict,token:string,actorId:string,m
  if(mode==="pull"||mode==="pull_names"){
   const {data:sourceSchool}=await db.from("schools").select("name").eq("id",link.school_id).maybeSingle();
   const schoolDisplayName=sourceSchool?.name||"";
-  const klass=await db.from("classes").select("id").eq("school_id",link.school_id).eq("class_name",map.class_name).limit(1);
+  const klass=await db.from("classes").select("id").eq("school_id",link.school_id).eq("class_name",map.class_name).is("archived_at",null).limit(1);
   const classId=klass.data?.[0]?.id||null;
   const {data:inactive,error:inactiveError}=await db.from("students").select("full_name")
     .eq("school_id",link.school_id).eq("class_name",map.class_name).eq("status","inactive");
@@ -318,14 +325,21 @@ async function syncClass(db:any,link:Dict,map:Dict,token:string,actorId:string,m
    }
    if(!s){
     const dob=asDate(p.raw[3]);
-    const {data:created,error}=await db.from("students").insert({
-      school_id:link.school_id,class_id:classId,class_name:map.class_name,
-      full_name:p.name,school_name:schoolDisplayName||null,
-      date_of_birth:dob,phone:nonblank(p.raw[4])?clean(p.raw[4]):null,
-      created_by:actorId,status:"active"
-    }).select("id,full_name").single();
+    if(!classId||!/^\p{L}[\p{L}\p{M} .'’-]{0,149}$/u.test(p.name)||(nonblank(p.raw[3])&&!dob)){
+      conflicts.push("Dòng "+p.rowNo+": kiểm tra lớp, họ tên hoặc ngày sinh.");continue;
+    }
+    const {data:id,error}=await db.rpc("ic3_import_sheet_student",{p_class:classId,p_name:p.name,p_birth:dob,p_phone:nonblank(p.raw[4])?clean(p.raw[4]):null});
     if(error){conflicts.push("Không nhập được "+p.name+": "+error.message);continue;}
-    s=created;newRows.push({id:s.id,full_name:s.full_name});
+    s={id,full_name:p.name};newRows.push(s);
+   }
+   for(const [field,value] of Object.entries({date_of_birth:asDate(p.raw[3]),phone:clean(p.raw[4])})){
+    if(!p.student||!value)continue;
+    if(p.student[field]&&p.student[field]!==value){conflicts.push(p.name+" · "+field+" khác giữa web/Sheets");continue;}
+    if(!p.student[field]){
+     let update=db.from("students").update({[field]:value}).eq("id",s.id).eq("school_id",link.school_id);
+     const result=await (p.student[field]==null?update.is(field,null):update.eq(field,""));
+     if(result.error)conflicts.push("Không cập nhật được hồ sơ dòng "+p.rowNo);
+    }
    }
    newStudentRows[s.id]=p.rowNo;
    if(p.student&&!p.student.school_name&&schoolDisplayName){
@@ -416,6 +430,10 @@ async function syncClass(db:any,link:Dict,map:Dict,token:string,actorId:string,m
     push(free,8,map.class_name);
    }else if(normalize(p.name)!==normalize(student.full_name)){
     conflicts.push("Không được ghi đè tên khác tại dòng "+p.rowNo);continue;
+   }
+   if(p.matchedId){
+    if(student.date_of_birth&&!nonblank(p.raw[3]))push(p.rowNo,4,student.date_of_birth.split("-").reverse().join("/"));
+    if(student.phone&&!nonblank(p.raw[4]))push(p.rowNo,5,student.phone);
    }
    takenStudents.add(student.id);newStudentRows[student.id]=p.rowNo;
    const g=scoreMap.get(student.id)||{};
@@ -659,6 +677,7 @@ async function syncSchool(db:any,link:Dict,token:string,ownerId:string,offset=0,
    }
    // Existing data is preserved. No date-based automatic mapping on older tabs.
    const pulled=await syncClass(db,link,map,token,ownerId,"pull_names");
+   map=await getMap(db,link.id,name);
    const pushed=await syncClass(db,link,map,token,ownerId,fresh?"push":"reconcile");
    report.push({class_name:name,
      addedStudents:pulled.createdStudents||0,cellsWritten:pushed.counts?.cellsWritten||0,
@@ -881,7 +900,7 @@ Deno.serve(async(req:Request)=>{
    if(!map)throw fail("Lớp chưa được liên kết với tab Sheets.",409);
    const rowNo=Number((map.student_rows||{})[studentId]);
    const ordinal=Number((map.lesson_columns||{})[sessionId]);
-   if(!Number.isInteger(rowNo)||rowNo<8||rowNo>70||!Number.isInteger(ordinal)||ordinal<1||ordinal>70)
+   if(!Number.isInteger(rowNo)||rowNo<8||!Number.isInteger(ordinal)||ordinal<1||ordinal>70)
      throw fail("Chưa ghép dòng học sinh hoặc buổi học với Sheets.",409);
    const shared=await workbookPeerLinks(link);
    if(!await sharedClassWriteAllowed(shared.admin,link,shared.peers,student.class_name))

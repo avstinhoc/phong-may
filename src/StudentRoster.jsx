@@ -1,3 +1,4 @@
+import {activeClassNames} from './lib/syncClassNames';
 import React,{useEffect,useState} from 'react';
 import {exportAttendanceReference} from './lib/exportReferenceAttendance';
 import {SheetsConnectionPanel} from './SheetsConnectionPanel';
@@ -10,10 +11,10 @@ export function StudentRoster({profile,refresh,ping}){
  const [centers,setCenters]=useState([]);
  const [logoSource,setLogoSource]=useState('school');
  const [temporaryLogo,setTemporaryLogo]=useState(null);
- const [data,setData]=useState({students:[],sessions:[],marks:[],results:[],assignments:[],computers:[]}),[className,setClassName]=useState(''),[query,setQuery]=useState(''),[view,setView]=useState('attendance'),[error,setError]=useState(''),[loading,setLoading]=useState(false),[editing,setEditing]=useState(null),[saving,setSaving]=useState(false),[version,setVersion]=useState(0),[markBusy,setMarkBusy]=useState(''),[lessonEdit,setLessonEdit]=useState(null),[lessonSaving,setLessonSaving]=useState(false),[exporting,setExporting]=useState(false),[nameEditing,setNameEditing]=useState(null),[nameBusy,setNameBusy]=useState(false);
- useEffect(()=>{let live=true;setLoading(true);setError('');(async()=>{const tables=['students','class_sessions','attendance','student_results','computer_assignments','computers'];
+ const [data,setData]=useState({students:[],sessions:[],marks:[],results:[],assignments:[],computers:[],catalog:[]}),[className,setClassName]=useState(''),[query,setQuery]=useState(''),[view,setView]=useState('attendance'),[error,setError]=useState(''),[loading,setLoading]=useState(false),[editing,setEditing]=useState(null),[saving,setSaving]=useState(false),[version,setVersion]=useState(0),[markBusy,setMarkBusy]=useState(''),[lessonEdit,setLessonEdit]=useState(null),[lessonSaving,setLessonSaving]=useState(false),[exporting,setExporting]=useState(false),[nameEditing,setNameEditing]=useState(null),[nameBusy,setNameBusy]=useState(false);
+ useEffect(()=>{let live=true;setLoading(true);setError('');(async()=>{const tables=['students','class_sessions','attendance','student_results','computer_assignments','computers','classes'];
  // Paginate rather than silently truncate large class registers.
- const values=await Promise.all(tables.map(async table=>{let all=[];for(let from=0;;from+=500){const {data,error}=await supabase.from(table).select('*').eq('school_id',profile.school_id).order('id').range(from,from+499);if(error)throw error;all.push(...data);if(data.length<500)break;}return all;})).catch(e=>{if(live)setError(e.message);return null;});if(!live)return;setLoading(false);if(values){const [students,sessions,marks,results,assignments,computers]=values;setData({students,sessions,marks,results,assignments,computers});}})();return()=>{live=false;};},[profile.school_id,refresh,version]);
+ const values=await Promise.all(tables.map(async table=>{let all=[];for(let from=0;;from+=500){const {data,error}=await supabase.from(table).select('*').eq('school_id',profile.school_id).order('id').range(from,from+499);if(error)throw error;all.push(...data);if(data.length<500)break;}return all;})).catch(e=>{if(live)setError(e.message);return null;});if(!live)return;setLoading(false);if(values){const [students,sessions,marks,results,assignments,computers,catalog]=values;setData({students,sessions,marks,results,assignments,computers,catalog});}})();return()=>{live=false;};},[profile.school_id,refresh,version]);
  useEffect(()=>{
   let live=true;
   Promise.all([
@@ -51,8 +52,9 @@ export function StudentRoster({profile,refresh,ping}){
    setTemporaryLogo(data);ping('Đã chọn logo thay thế cho file Excel.');
   }catch(e){ping(e.message);}
  }
- const classes=[...new Set([...data.students.map(s=>s.class_name),...data.sessions.map(s=>s.class_name)].filter(Boolean))].sort();
- const pupils=data.students.filter(s=>s.status==='active'&&(!className||s.class_name===className)&&searchName(s.full_name).includes(searchName(query))).sort(compareStudentName);
+ const classes=activeClassNames(data.catalog,[...data.students,...data.sessions].map(row=>row.class_name));
+ const closedIds=new Set(data.catalog.filter(c=>c.archived_at).map(c=>c.id));
+ const pupils=data.students.filter(s=>s.status==='active'&&!closedIds.has(s.class_id)&&classes.includes(s.class_name)&&(!className||s.class_name===className)&&searchName(s.full_name).includes(searchName(query))).sort(compareStudentName);
  const sessions=data.sessions.filter(s=>s.class_name===className).sort((a,b)=>a.session_date.localeCompare(b.session_date)||a.start_time.localeCompare(b.start_time));
  const result=s=>data.results.find(r=>r.student_id===s.id)||{gender:'',classification:'',scores:{},comment:'',standard_met:false,exam_result:''};
  const pc=s=>data.assignments.filter(a=>a.student_id===s.id&&a.active).map(a=>data.computers.find(c=>c.id===a.computer_id)?.computer_code||'').sort(comparePC).join(', ');

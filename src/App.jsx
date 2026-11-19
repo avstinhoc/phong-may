@@ -965,6 +965,11 @@ function Computers({ profile, refresh, reload, ping }) {
   const classStudents=students.rows.filter(s=>s.class_name===className&&s.status==='active');
   const activeClass=classes.rows.find(c=>c.class_name===className&&!c.archived_at&&c.registration_code);
   const wallets=useRows("ic3_star_wallets",profile,refresh);
+  const requests=useRows("seat_change_requests",profile,refresh,{status:"pending"});
+  async function reviewSeat(id,approve){
+    const {error}=await supabase.rpc('review_seat_change',{p_id:id,p_approve:approve});
+    ping(error?.message||(approve?'Đã đổi máy':'Đã từ chối yêu cầu'));reload();
+  }
   const classAssignments=assigned.rows.filter(a=>classStudents.some(s=>s.id===a.student_id));
   const [assigning,setAssigning]=useState(null),[chosenId,setChosenId]=useState(""),[assignBusy,setAssignBusy]=useState(false);
   const [show, setShow] = useState(false);
@@ -1033,6 +1038,11 @@ function Computers({ profile, refresh, reload, ping }) {
         <button className="btn primary" onClick={() => setShow(true)}><Plus size={17} />Thêm máy</button>
       </>}
     />
+    {requests.rows.length>0&&<section className="panel"><h3>Yêu cầu đổi máy</h3>{requests.rows.map(r=><div key={r.id} className="record-row">
+      <b>{students.rows.find(s=>s.id===r.student_id)?.full_name} · {classes.rows.find(c=>c.id===r.class_id)?.class_name}</b>
+      <span>Muốn chuyển đến {rows.find(pc=>pc.id===r.computer_id)?.computer_code}</span>
+      <button className="mini-btn" onClick={()=>reviewSeat(r.id,true)}>Duyệt</button><button className="mini-btn danger" onClick={()=>reviewSeat(r.id,false)}>Từ chối</button>
+    </div>)}</section>}
     <div className="toolbar"><label className="field-inline">Lớp đang xem <select aria-label="Lớp phòng máy" value={className} onChange={e=>setClassName(e.target.value)}><option value="">Chọn lớp</option>{classNames.map(c=><option key={c}>{c}</option>)}</select></label>
        <a className="btn outline" href={activeClass?'/student?code='+encodeURIComponent(activeClass.registration_code):undefined}
          target="_blank" rel="noopener noreferrer" aria-disabled={!activeClass}

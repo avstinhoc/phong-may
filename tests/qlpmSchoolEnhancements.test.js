@@ -16,7 +16,7 @@ test('class identifiers are not conflated and slash receives a legal Google tab 
  assert.ok(edge.includes('const classTabTitle='));
  assert.ok(edge.includes('const classroomName=(v:string)=>validClass(v)'));
  assert.ok(edge.includes('newSheetName:tabTitle'));
- assert.ok(edge.includes('school_name:schoolDisplayName||null'));
+ assert.ok(edge.includes('ic3_import_sheet_student'));
 });
 
 test('two-way attendance can write false or true and never blindly resolves unknown conflicts',()=>{
