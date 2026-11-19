@@ -1591,13 +1591,14 @@ function Records({ profile, refresh, reload, ping }) {
                 disabled={r.star_event==='recovery'}
                 title={r.star_event==='recovery'?'Cần đối soát riêng lượt khôi phục':'Sửa ghi nhận đã lưu'}>✏️ Sửa</button>}
             </div>
-            {editHistory&&editingRecord?.id===r.id&&<RecordCorrectionEditor record={r}
-              students={students.rows.filter(st=>st.status==='active')}
-              onCancel={()=>setEditingRecord(null)}
-              onSaved={message=>{setEditingRecord(null);ping(message);reload();}}/>}
+
           </React.Fragment>)}
         </div>
         {!filteredRecords.length&&<Empty text="Chưa có ghi nhận cho bộ lọc này."/>}
+        {editHistory&&editingRecord&&<RecordCorrectionEditor key={editingRecord.id} record={editingRecord}
+          students={students.rows.filter(st=>st.status==='active')}
+          onCancel={()=>setEditingRecord(null)}
+          onSaved={message=>{setEditingRecord(null);ping(message);reload();}}/>}
       </div>
     </div>
     <section className="panel star-leaderboard-panel">
