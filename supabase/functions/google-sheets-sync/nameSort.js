@@ -6,7 +6,7 @@ const fold=value=>String(value||'').normalize('NFD')
  .toLowerCase().replace(/\s+/g,' ').trim();
 export const studentNameSortKey=(name,rowIndex=0)=>{
  const words=fold(name).split(' ').filter(Boolean);
- if(!words.length)return '~~~~~'+String(rowIndex).padStart(4,'0');
+ if(!words.length)return 'zzzzzz:'+String(rowIndex).padStart(4,'0');
  return 'qlpm:'+words.at(-1)+'|'+words.slice(0,-1).join(' ')+'|'+String(rowIndex).padStart(4,'0');
 };
 export const studentSheetSortPlan=(rawStudentRows=[],firstRow=8,lastRow=70)=>{
