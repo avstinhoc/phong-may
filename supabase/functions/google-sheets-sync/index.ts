@@ -555,7 +555,7 @@ async function sortStudentTab(db:any,link:Dict,map:Dict,token:string){
   const endpoint="https://sheets.googleapis.com/v4/spreadsheets/"+link.spreadsheet_id+
    "/values/"+a1(map.sheet_title,"CZ8:CZ70")+"?valueRenderOption=UNFORMATTED_VALUE";
   const prev=(await(await api(endpoint,token)).json()).values||[];
-  if(prev.some((row:unknown[])=>row.some(v=>nonblank(v)&&!String(v).startsWith("qlpm:")&&!String(v).startsWith("~~~~~"))))
+  if(prev.some((row:unknown[])=>row.some(v=>nonblank(v)&&!String(v).startsWith("qlpm:")&&!String(v).startsWith("zzzzzz:"))))
    return {sorted:false,warning:"Cột CZ đã có dữ liệu ngoài QLPM; bỏ qua sắp xếp để không ghi đè."};
  }
  if(cols<104)await sheetBatch(link.spreadsheet_id,[
