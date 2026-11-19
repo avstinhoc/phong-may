@@ -1,4 +1,4 @@
-import React,{useEffect,useMemo,useState} from 'react';
+import React,{useEffect,useMemo,useRef,useState} from 'react';
 import {flameEffect} from './lib/stars';
 import {FlameBadge} from './FlameBadge';
 import {supabase} from './lib/supabase';
@@ -52,6 +52,22 @@ export function StudentPortal(){
 
   }
   useEffect(()=>{if(code)load(code,'');},[]);
+  const lastEveningRefresh=useRef('');
+  useEffect(()=>{
+    if(!code||!payload)return;
+    const updateAtEvening=()=>{
+      // 18:00 in Vietnam (UTC+7), independent of browser/device timezone.
+      const vn=new Date(Date.now()+7*60*60*1000).toISOString();
+      const day=vn.slice(0,10),clock=vn.slice(11,16);
+      if(clock>='18:00'&&lastEveningRefresh.current!==day){
+        lastEveningRefresh.current=day;
+        load(code,secret);
+      }
+    };
+    const timer=window.setInterval(updateAtEvening,60*1000);
+    document.addEventListener('visibilitychange',updateAtEvening);
+    return()=>{window.clearInterval(timer);document.removeEventListener('visibilitychange',updateAtEvening);};
+  },[code,secret,Boolean(payload)]);
   const student=payload?.student;
   const scores=student?.scores?.scores||{};
   const machines=payload?.computers||[];
