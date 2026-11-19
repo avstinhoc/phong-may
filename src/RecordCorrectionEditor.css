@@ -1,0 +1,17 @@
+.record-correction-editor{margin-top:14px;padding:17px;border:1px solid #abdcd0;background:#f4fffb;border-radius:15px;box-shadow:0 6px 22px #194e5220;min-width:0}
+.record-correction-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.record-correction-head h4{font-size:16px;margin:0 0 5px;color:#12645c}
+.record-correction-head p,.record-correction-note{font-size:11px;color:#688589;line-height:1.55;margin:0 0 12px}
+.record-correction-close{width:30px;height:30px;border:1px solid #d3e4df;border-radius:9px;background:white;color:#42636a;font-size:22px;cursor:pointer;flex:none}
+.record-correction-form{display:grid;gap:12px}
+.record-correction-form label{display:flex;flex-direction:column;gap:6px;font-size:12px;color:#376268;font-weight:750;min-width:0}
+.record-correction-form input,.record-correction-form select,.record-correction-form textarea{width:100%;min-width:0;border:1px solid #c6ddda;border-radius:9px;background:white;color:#183f4c;padding:10px;font:inherit;font-size:13px}
+.record-correction-form input:focus-visible,.record-correction-form select:focus-visible,.record-correction-form textarea:focus-visible{outline:2px solid #19b2a0;outline-offset:1px}
+.record-correction-two{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.record-correction-actions{display:flex;justify-content:flex-end;gap:9px;flex-wrap:wrap}
+.record-correction-error,.record-correction-warning{font-size:12px;border-radius:10px;padding:11px;background:#fff1ed;border:1px solid #efd2c9;color:#b54335}
+.record-correction-note{margin:0}
+.record-correction-edit-button{border:1px solid #b9dcd7;border-radius:8px;background:#eefaf6;color:#08786c;font-size:11px;font-weight:850;padding:7px 9px;cursor:pointer;white-space:nowrap}
+.record-correction-edit-button:hover,.record-correction-edit-button:focus-visible{background:#d7f4e9}
+.record-correction-edit-button:disabled{opacity:.6;cursor:not-allowed}
+@media(max-width:600px){.record-correction-editor{padding:13px}.record-correction-two{grid-template-columns:1fr}.record-correction-actions .btn{flex:1}}

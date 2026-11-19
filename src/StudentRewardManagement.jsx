@@ -3,6 +3,8 @@ import {supabase} from './lib/supabase';
 import {FlameBadge} from './FlameBadge';
 import {isFormalViolation} from './lib/stars';
 import './StudentRewardManagement.css';
+import {StudentPicker} from './StudentPicker';
+import {RecordCorrectionEditor} from './RecordCorrectionEditor';
 
 const today=()=>{
  const d=new Date();
@@ -21,10 +23,11 @@ const dateLabel=value=>value?String(value).slice(0,10).split('-').reverse().join
 
 export function StudentRewardManagement({profile,refresh,onNavigate}){
  const [students,setStudents]=useState([]),[wallets,setWallets]=useState([]);
- const [selectedClass,setSelectedClass]=useState(''),[search,setSearch]=useState('');
+ const [selectedClass,setSelectedClass]=useState('');
  const [studentId,setStudentId]=useState(''),[history,setHistory]=useState([]);
  const [kind,setKind]=useState('award'),[title,setTitle]=useState('Nhắc 1');
- const [stars,setStars]=useState(2),[points,setPoints]=useState(1);
+ const [stars,setStars]=useState(2),[points,setPoints]=useState(1),[awardStars,setAwardStars]=useState(1);
+ const [editing,setEditing]=useState(null);
  const [note,setNote]=useState(''),[recordDate,setRecordDate]=useState(today());
  const [loading,setLoading]=useState(true),[busy,setBusy]=useState(false);
  const [error,setError]=useState(''),[success,setSuccess]=useState('');
@@ -65,9 +68,8 @@ export function StudentRewardManagement({profile,refresh,onNavigate}){
  const classes=useMemo(()=>[...new Set(students.map(s=>s.class_name).filter(Boolean))]
    .sort((a,b)=>a.localeCompare(b,'vi',{numeric:true})),[students]);
  const visible=useMemo(()=>students.filter(st=>
-   (!selectedClass||st.class_name===selectedClass)&&
-   (!search||st.full_name.toLocaleLowerCase('vi').includes(search.trim().toLocaleLowerCase('vi')))
- ),[students,selectedClass,search]);
+   !selectedClass||st.class_name===selectedClass
+ ),[students,selectedClass]);
  const student=students.find(st=>st.id===studentId);
  const wallet=wallets.find(w=>w.student_id===studentId);
  const formalCount=history.filter(isFormalViolation).length;
@@ -76,7 +78,10 @@ export function StudentRewardManagement({profile,refresh,onNavigate}){
    e.preventDefault();
    setError('');setSuccess('');
    if(!student||busy)return;
-   const amount=Number(stars),score=Number(points);
+   const amount=Number(stars),score=Number(points),reward=Number(awardStars);
+   if(kind==='award'&&(!Number.isSafeInteger(reward)||reward<1||reward>1000)){
+     setError('Số sao thưởng phải là số nguyên từ 1 đến 1000.');return;
+   }
    if(['disorder','redeem'].includes(kind)&&(!Number.isSafeInteger(amount)||amount<2)){
      setError('Cần nhập ít nhất 2 sao nguyên.');return;
    }
@@ -107,7 +112,7 @@ export function StudentRewardManagement({profile,refresh,onNavigate}){
          record_type:kind==='point'?'point':kind==='violation'?'violation':'reward',
          title:kind==='award'?'Điểm thưởng':kind==='disorder'?'Mất trật tự':
            kind==='restore'?'Phục hồi chuỗi sao':kind==='point'?'Điểm học tập':title.trim(),
-         points:kind==='award'?1:kind==='disorder'?-amount:
+         points:kind==='award'?reward:kind==='disorder'?-amount:
            kind==='restore'?0:kind==='point'?score:0,
          ...(kind==='disorder'?{star_event:'penalty'}:
            kind==='restore'?{star_event:'recovery'}:{})
@@ -129,19 +134,14 @@ export function StudentRewardManagement({profile,refresh,onNavigate}){
      <button className="btn outline" type="button" onClick={()=>onNavigate('records')}>Xem đầy đủ Điểm, lỗi & thưởng ↗</button>
    </header>
    <section className="srm-filter panel">
-     <label>🔎 Tìm học sinh
-       <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Nhập tên học sinh…" aria-label="Tìm học sinh để quản lý sao"/>
-     </label>
+     <StudentPicker key={selectedClass} students={visible} selectedId={studentId}
+       onSelect={id=>{setStudentId(id);setEditing(null);setError('');setSuccess('');}}
+       label="🔎 Tìm & chọn học sinh" placeholder="Nhập tên rồi chọn đúng học sinh trong danh sách…"
+       disabled={loading||busy}/>
      <label>🏫 Lọc theo lớp
-       <select value={selectedClass} onChange={e=>{setSelectedClass(e.target.value);setStudentId('');}}>
+       <select value={selectedClass} onChange={e=>{setSelectedClass(e.target.value);setStudentId('');setEditing(null);}}>
          <option value="">Tất cả lớp</option>
          {classes.map(c=><option key={c} value={c}>{c}</option>)}
-       </select>
-     </label>
-     <label>👩‍🎓 Chọn học sinh
-       <select value={studentId} onChange={e=>{setStudentId(e.target.value);setError('');setSuccess('');}}>
-         <option value="">Chọn học sinh…</option>
-         {visible.map(s=><option key={s.id} value={s.id}>{s.full_name} · Lớp {s.class_name}</option>)}
        </select>
      </label>
    </section>
@@ -178,6 +178,9 @@ export function StudentRewardManagement({profile,refresh,onNavigate}){
              </select>
            </label>
            <p className="srm-action-hint">{types[kind].description}</p>
+           {kind==='award'&&<label>Số sao thưởng
+             <input required type="number" min="1" max="1000" step="1" value={awardStars} onChange={e=>setAwardStars(e.target.value)}/>
+           </label>}
            {(kind==='disorder'||kind==='redeem')&&<label>{kind==='disorder'?'Số sao bị trừ':'Số sao muốn đổi'}
              <input required type="number" min="2" step="1" value={stars} onChange={e=>setStars(e.target.value)}/>
            </label>}
@@ -202,18 +205,27 @@ export function StudentRewardManagement({profile,refresh,onNavigate}){
        <section className="panel srm-history-panel">
          <div className="srm-history-header"><h3>📖 Lịch sử học sinh</h3><span>{history.length} ghi nhận gần nhất</span></div>
          <div className="srm-history-scroller">
-           {history.map(r=><div className="srm-history-row" key={r.id}>
-             <div><b>{r.title}</b><small>{dateLabel(r.record_date)} · {
-               r.star_event==='penalty'?'Phạt trừ sao':
-               r.star_event==='recovery'?'Phục hồi lửa':
-               isFormalViolation(r)?'Lỗi biên bản':
-               r.record_type==='reward'?'Sao & quà':'Điểm học tập'}</small></div>
-             <strong className={Number(r.points)<0?'srm-negative':'srm-positive'}>
-               {isFormalViolation(r)?'1 lỗi':Number(r.points)>0?'+'+num(r.points):num(r.points)}
-             </strong>
-           </div>)}
+           {history.map(r=><React.Fragment key={r.id}>
+             <div className="srm-history-row">
+               <div><b>{r.title}</b><small>{dateLabel(r.record_date)} · {
+                 r.star_event==='penalty'?'Phạt trừ sao':
+                 r.star_event==='recovery'?'Phục hồi lửa':
+                 isFormalViolation(r)?'Lỗi biên bản':
+                 r.record_type==='reward'?'Sao & quà':'Điểm học tập'}</small></div>
+               <strong className={Number(r.points)<0?'srm-negative':'srm-positive'}>
+                 {isFormalViolation(r)?'1 lỗi':Number(r.points)>0?'+'+num(r.points):num(r.points)}
+               </strong>
+               <button type="button" className="record-correction-edit-button" disabled={busy||r.star_event==='recovery'}
+                 onClick={()=>setEditing(editing?.id===r.id?null:r)}
+                 title={r.star_event==='recovery'?'Không thể sửa trực tiếp lượt khôi phục':'Chỉnh sửa ghi nhận khi chọn nhầm học sinh'}>✏️ Sửa</button>
+             </div>
+
+           </React.Fragment>)}
            {!history.length&&<p className="srm-message">Chưa có ghi nhận cho học sinh này.</p>}
          </div>
+         {editing&&<RecordCorrectionEditor key={editing.id} record={editing} students={students}
+           onCancel={()=>setEditing(null)}
+           onSaved={message=>{setEditing(null);setSuccess(message);setLocalRefresh(n=>n+1);}}/>}
        </section>
      </div>
    </>}

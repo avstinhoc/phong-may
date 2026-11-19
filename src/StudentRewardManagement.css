@@ -53,3 +53,14 @@
 .teacher-school-board .school-public-header{position:sticky;top:0}
 @media(max-width:1120px){.srm-stats{grid-template-columns:repeat(3,minmax(0,1fr))}.srm-grid{grid-template-columns:1fr}}
 @media(max-width:700px){.srm-header{flex-direction:column;align-items:flex-start;padding:20px}.srm-header h2{font-size:20px}.srm-filter{grid-template-columns:1fr}.srm-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.srm-grid{gap:12px}.srm-action-panel,.srm-history-panel{padding:16px}.teacher-school-board-intro{flex-direction:column;align-items:flex-start}.teacher-school-board{margin:0}}
+
+/* Single student lookup, plus inline correction actions. */
+.srm-filter{grid-template-columns:minmax(260px,1fr) minmax(180px,240px);align-items:start}
+.srm-filter>.student-picker{width:100%;min-width:0}
+.srm-filter>.student-picker>label{font-size:12px}
+.srm-filter>.student-picker .student-picker-field input{font-size:13px;min-height:42px}
+.srm-history-row>div:first-child{flex:1;min-width:0}
+.srm-history-row{gap:8px;flex-wrap:wrap}
+.srm-history-row strong{flex:none}
+.srm-history-row .record-correction-edit-button{flex:none}
+@media(max-width:700px){.srm-filter{grid-template-columns:1fr}}

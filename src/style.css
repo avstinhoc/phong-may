@@ -1436,3 +1436,18 @@
  .student-portal .portal-rank-stats>span{font-size:10px}
 }
 @media(max-width:360px){.student-portal .portal-star-grid{grid-template-columns:1fr}}
+
+/* Records desk: shared searchable student picker and explicit correction mode. */
+.record-filter-bar>.student-picker{flex:1 1 320px;max-width:580px;min-width:240px}
+.record-filter-bar>.student-picker>label{font-size:12px}
+.record-filter-bar>.field-inline{flex:0 1 210px}
+.record-selected-student{background:#edf9f6;border:1px solid #c8eae2;border-radius:10px;color:#146a62;padding:12px 13px;font-size:12px;line-height:1.6;overflow-wrap:break-word}
+.record-selected-student strong{font-weight:900;color:#13535a}
+.record-history-heading{display:flex;align-items:center;justify-content:space-between;gap:9px;margin-bottom:12px;flex-wrap:wrap}
+.record-history-heading h3{margin:0}
+.history-scroll .record-row{gap:8px}
+.history-scroll .record-row-main{flex:1;min-width:0}
+.history-scroll .record-row-main b{overflow-wrap:break-word;line-height:1.45}
+.history-scroll .record-row strong{margin-left:0;flex:none}
+.history-scroll .record-row .record-correction-edit-button{flex:none}
+@media(max-width:620px){.record-filter-bar>.student-picker{width:100%;min-width:0;max-width:none}.record-filter-bar>.field-inline{flex:1 1 100%;max-width:none}.record-history-heading{align-items:flex-start}.history-scroll .record-row{flex-wrap:wrap}}

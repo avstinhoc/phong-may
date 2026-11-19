@@ -9,6 +9,8 @@ import { StudentPortal } from "./StudentPortal";
 import { SchoolPortal } from "./SchoolPortal";
 import { TeacherSchoolLeaderboard } from "./TeacherSchoolLeaderboard";
 import { StudentRewardManagement } from "./StudentRewardManagement";
+import { StudentPicker } from "./StudentPicker";
+import { RecordCorrectionEditor } from "./RecordCorrectionEditor";
 import { AuthCallback, emailCallbackUrl } from "./AuthCallback";
 import { startGoogleAuth, googleOAuthError } from "./lib/googleAuth";
 import { TeacherPayroll } from "./TeacherPayroll";
@@ -1382,6 +1384,8 @@ function Records({ profile, refresh, reload, ping }) {
   const [selectedClass,setSelectedClass]=useState("");
   const [selectedStudent,setSelectedStudent]=useState("");
   const [nameQuery,setNameQuery]=useState("");
+  const [editHistory,setEditHistory]=useState(false),[editingRecord,setEditingRecord]=useState(null);
+  const [awardStars,setAwardStars]=useState(1);
   const [redeemBusy,setRedeemBusy]=useState("");
   const [threshold,setThreshold]=useState(3);
   const [reports,setReports]=useState([]);
@@ -1425,11 +1429,19 @@ function Records({ profile, refresh, reload, ping }) {
   async function save(e){
     e.preventDefault();
     if(!form.student_id)return ping("Chọn học sinh trước khi lưu.");
+    const selected=students.rows.find(st=>st.id===form.student_id);
+    if(!selected)return ping("Hãy chọn học sinh hợp lệ trong danh sách.");
+    const rewardAmount=Number(awardStars);
+    if(form.record_type==='reward'&&(!Number.isSafeInteger(rewardAmount)||rewardAmount<1||rewardAmount>1000)){
+      return ping("Sao thưởng phải là số nguyên từ 1 đến 1000.");
+    }
+    if(!window.confirm('Xác nhận lưu ghi nhận "'+form.title+'" cho '+selected.full_name+
+      ' · Lớp '+selected.class_name+'?'))return;
     setBusy(true);
     const {error}=await supabase.from("student_records").insert({
       ...form,school_id:profile.school_id,created_by:profile.id,
        ...(form.record_type==='break'?{record_type:'reward',star_event:'penalty'}:{}),
-       points:form.record_type==='break'?-2:disorder?-Number(penalty):form.record_type==='reward'?1:Number(form.points)
+       points:form.record_type==='break'?-2:disorder?-Number(penalty):form.record_type==='reward'?rewardAmount:Number(form.points)
     });
     setBusy(false);
     if(error)ping(error.message);
@@ -1503,18 +1515,16 @@ function Records({ profile, refresh, reload, ping }) {
   return <>
     <SectionHead title="Điểm, lỗi & thưởng" desc="Ghi nhận theo lớp, tổng số lần vi phạm và biên bản xác nhận của giáo viên"/>
     <div className="toolbar record-filter-bar">
-      <label className="field-inline record-name-search">🔎 Tìm nhanh học sinh
-        <input aria-label="Tìm tên học sinh trong Điểm lỗi và thưởng" value={nameQuery}
-         onChange={e=>setNameQuery(e.target.value)} placeholder="Nhập tên để tìm nhanh..." />
-      </label>
+      <StudentPicker key={selectedClass} students={allowedStudents} selectedId={selectedStudent}
+        label="🔎 Tìm & chọn học sinh" placeholder="Gõ tên rồi chọn học sinh đúng lớp…"
+        onSelect={id=>{setSelectedStudent(id);setForm(v=>({...v,student_id:id}));setEditingRecord(null);}}
+        onQueryChange={setNameQuery} disabled={busy}/>
       <label className="field-inline">Lọc theo lớp
-        <select aria-label="Lọc lớp ghi nhận" value={selectedClass} onChange={e=>{setSelectedClass(e.target.value);setSelectedStudent("");setForm(v=>({...v,student_id:""}));}}>
+        <select aria-label="Lọc lớp ghi nhận" value={selectedClass} onChange={e=>{
+          setSelectedClass(e.target.value);setSelectedStudent("");setNameQuery("");
+          setEditingRecord(null);setForm(v=>({...v,student_id:""}));
+        }}>
           <option value="">Tất cả lớp</option>{classes.map(c=><option key={c}>{c}</option>)}
-        </select>
-      </label>
-      <label className="field-inline">Lọc học sinh
-        <select aria-label="Lọc học sinh ghi nhận" value={selectedStudent} onChange={e=>setSelectedStudent(e.target.value)}>
-          <option value="">Tất cả học sinh</option>{allowedStudents.map(x=><option key={x.id} value={x.id}>{x.full_name}</option>)}
         </select>
       </label>
       <label className="field-inline">Ngưỡng lập biên bản
@@ -1527,10 +1537,10 @@ function Records({ profile, refresh, reload, ping }) {
       <div className="panel">
         <h3>Ghi nhận mới</h3>
         <form className="form-stack" onSubmit={save}>
-          <label>Học sinh<select required value={form.student_id} onChange={e=>setForm({...form,student_id:e.target.value})}>
-            <option value="">Chọn học sinh</option>
-            {allowedStudents.map(st=><option key={st.id} value={st.id}>{st.full_name} – {st.class_name} ({violationCounts.get(st.id)||0} lỗi)</option>)}
-          </select></label>
+          <div className="record-selected-student" role="status">
+            {form.student_id?<>✅ Ghi nhận cho: <strong>{students.rows.find(st=>st.id===form.student_id)?.full_name||'Học sinh'}</strong> · Lớp {students.rows.find(st=>st.id===form.student_id)?.class_name||'—'}</>:
+              <>🔎 Tìm và chọn đúng học sinh ở thanh phía trên trước khi lưu.</>}
+          </div>
           <label>Loại ghi nhận<select value={form.record_type} onChange={e=>setForm({
             ...form,record_type:e.target.value,title:e.target.value==="violation"?"Nhắc 1":e.target.value==="reward"?"Điểm thưởng":e.target.value==="break"?"Mất trật tự":"Điểm thực hành",
             points:e.target.value==="violation"?0:1
@@ -1546,8 +1556,11 @@ function Records({ profile, refresh, reload, ping }) {
             </select>
           </label>}
           <label>Nội dung<input required maxLength={200} value={form.title} onChange={e=>setForm({...form,title:e.target.value})}/></label>
-          {form.record_type==="reward"?<p className="star-award-hint">Sao được dùng để đổi quà, số sao đổi 1 phần quà tùy vào giáo viên.</p>:
-           form.record_type==="point"&&<label>Điểm (+/-)<input type="number" value={form.points} onChange={e=>setForm({...form,points:e.target.value})}/></label>}
+          {form.record_type==="reward"?<>
+            <p className="star-award-hint">Sao được dùng để đổi quà, số sao đổi 1 phần quà tùy vào giáo viên.</p>
+            <label>Số sao thưởng<input type="number" min="1" max="1000" step="1" required
+              value={awardStars} onChange={e=>setAwardStars(e.target.value)}/></label>
+          </>:form.record_type==="point"&&<label>Điểm (+/-)<input type="number" value={form.points} onChange={e=>setForm({...form,points:e.target.value})}/></label>}
           {disorder&&<label>Số sao bị trừ<input required type="number" min="2" step="1" value={penalty} onChange={e=>setPenalty(e.target.value)}/></label>}
           <label>Ngày<input required type="date" value={form.record_date} onChange={e=>setForm({...form,record_date:e.target.value})}/></label>
           <label>Ghi chú<textarea maxLength={1500} value={form.note} onChange={e=>setForm({...form,note:e.target.value})}/></label>
@@ -1556,18 +1569,36 @@ function Records({ profile, refresh, reload, ping }) {
         </form>
       </div>
       <div className="panel">
-        <h3>Lịch sử theo lớp</h3>
-        <div className="history-scroll">{groupedHistory(filteredRecords).map(r=><div className="record-row" key={r.id}>
-          <div className={"record-dot "+r.record_type}/>
-          <div><b>{r.title}</b><small>
-            {students.rows.find(s=>s.id===r.student_id)?.full_name||"Học sinh"}
-            {" · "}{r.record_type==="violation"?"Vi phạm":r.kind==="penalty"?"Trừ sao":r.kind==="recovery"?"Phục hồi":r.kind==="redeem"?"Đổi quà":r.record_type==="reward"?"Khen thưởng":"Điểm"}
-            {" · "}{dateText(r.record_date)}
-          </small></div>
-          {isFormalViolation(r)?<span className="pc-violation-badge">1 lỗi</span>:
-           <strong className={r.points<0?"negative":"positive"}>{r.points>0?"+":""}{r.points}</strong>}
-        </div>)}
-        </div>{!filteredRecords.length&&<Empty text="Chưa có ghi nhận cho bộ lọc này."/>}
+        <div className="record-history-heading">
+          <h3>Lịch sử theo lớp</h3>
+          <button type="button" className="record-correction-edit-button" onClick={()=>{
+            setEditHistory(v=>!v);setEditingRecord(null);
+          }}>{editHistory?'✓ Xong chỉnh sửa':'✏️ Chỉnh sửa ghi nhận'}</button>
+        </div>
+        <div className="history-scroll">
+          {(editHistory?filteredRecords:groupedHistory(filteredRecords)).map(r=><React.Fragment key={r.id}>
+            <div className="record-row">
+              <div className={"record-dot "+r.record_type}/>
+              <div className="record-row-main"><b>{r.title}</b><small>
+                {students.rows.find(st=>st.id===r.student_id)?.full_name||"Học sinh"}
+                {" · "}{r.record_type==="violation"?"Vi phạm":r.kind==="penalty"||r.star_event==="penalty"?"Trừ sao":r.kind==="recovery"||r.star_event==="recovery"?"Phục hồi":r.kind==="redeem"||r.record_type==="reward"&&Number(r.points)<0?"Đổi quà":r.record_type==="reward"?"Khen thưởng":"Điểm"}
+                {" · "}{dateText(r.record_date)}
+              </small></div>
+              {isFormalViolation(r)?<span className="pc-violation-badge">1 lỗi</span>:
+                <strong className={r.points<0?"negative":"positive"}>{r.points>0?"+":""}{r.points}</strong>}
+              {editHistory&&<button type="button" className="record-correction-edit-button"
+                onClick={()=>setEditingRecord(editingRecord?.id===r.id?null:r)}
+                disabled={r.star_event==='recovery'}
+                title={r.star_event==='recovery'?'Cần đối soát riêng lượt khôi phục':'Sửa ghi nhận đã lưu'}>✏️ Sửa</button>}
+            </div>
+
+          </React.Fragment>)}
+        </div>
+        {!filteredRecords.length&&<Empty text="Chưa có ghi nhận cho bộ lọc này."/>}
+        {editHistory&&editingRecord&&<RecordCorrectionEditor key={editingRecord.id} record={editingRecord}
+          students={students.rows.filter(st=>st.status==='active')}
+          onCancel={()=>setEditingRecord(null)}
+          onSaved={message=>{setEditingRecord(null);ping(message);reload();}}/>}
       </div>
     </div>
     <section className="panel star-leaderboard-panel">
