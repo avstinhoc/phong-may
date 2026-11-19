@@ -20,9 +20,10 @@ export function StudentPicker({
    const q=clean(query);
    // When a student is already selected, show a short set of alternatives on focus.
    const search=q&&(!current||q!==clean(current.full_name+' · Lớp '+(current.class_name||'—')))?q:'';
-   return students.filter(s=>!search||
-     clean(s.full_name+' '+(s.class_name||'')).includes(search))
-     .slice(0,maxResults);
+   const candidates=students.filter(s=>!search||
+     clean(s.full_name+' '+(s.class_name||'')).includes(search));
+   if(!search&&current)candidates.sort((a,b)=>(a.id===current.id?-1:b.id===current.id?1:0));
+   return candidates.slice(0,maxResults);
  },[students,query,current,maxResults]);
  const choose=student=>{
    setQuery(student.full_name+' · Lớp '+(student.class_name||'—'));
