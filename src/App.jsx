@@ -185,7 +185,7 @@ function App() {
   if (window.location.pathname === "/student") {
     return <StudentPortal />;
   }
-  if (window.location.pathname === "/school") {
+  if (window.location.pathname === "/school" || /^\/school\/grade\/[678]\/?$/.test(window.location.pathname)) {
     return <SchoolPortal />;
   }
   if (window.location.pathname === "/register") {
