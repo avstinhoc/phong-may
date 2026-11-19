@@ -562,14 +562,14 @@ function useRows(table, profile, refresh, extra = {}) {
     (async () => {
       setBusy(true);
       let data=[],error=null;
-      const paged=["student_records","ic3_star_wallets","students"].includes(table);
+      const paged=["student_records","ic3_star_wallets","students","ic3_student_violation_totals"].includes(table);
       for(let offset=0;live;offset+=500){
         let q = supabase.from(table).select("*");
         if (profile?.school_id && table !== "student_registrations") q = q.eq("school_id", profile.school_id);
         Object.entries(extra).forEach(([k, v]) => {
           if (v !== undefined && v !== null) q = q.eq(k, v);
         });
-        const batch=await (paged?q.order(table==="ic3_star_wallets"?"student_id":"id",{ascending:true}).range(offset,offset+499):q.limit(500));
+        const batch=await (paged?q.order(["ic3_star_wallets","ic3_student_violation_totals"].includes(table)?"student_id":"id",{ascending:true}).range(offset,offset+499):q.limit(500));
         if(batch.error){error=batch.error;break;}
         data.push(...batch.data);
         if(!paged||batch.data.length<500)break;
@@ -1381,6 +1381,7 @@ function Attendance({ profile, refresh, reload, ping, focusDate, setFocusDate, o
 function Records({ profile, refresh, reload, ping }) {
   const students=useRows("students",profile,refresh);
   const records=useRows("student_records",profile,refresh);
+  const violationTotals=useRows("ic3_student_violation_totals",profile,refresh);
   const [selectedClass,setSelectedClass]=useState("");
   const [selectedStudent,setSelectedStudent]=useState("");
   const [nameQuery,setNameQuery]=useState("");
@@ -1408,10 +1409,8 @@ function Records({ profile, refresh, reload, ping }) {
     return st&&(!selectedClass||st.class_name===selectedClass)&&(!selectedStudent||st.id===selectedStudent) &&
       searchName(st.full_name).includes(searchName(nameQuery));
   }).sort((a,b)=>String(b.record_date).localeCompare(String(a.record_date))||String(b.created_at).localeCompare(String(a.created_at)));
-  const violationCounts=new Map();
-  records.rows.filter(isFormalViolation).forEach(r=>{
-    violationCounts.set(r.student_id,(violationCounts.get(r.student_id)||0)+1);
-  });
+  const violationCounts=new Map(violationTotals.rows.map(row=>
+    [row.student_id,Number(row.violations||0)]));
   useEffect(()=>{
     let mounted=true;
     (async()=>{
