@@ -76,8 +76,7 @@ statuses as (
   case
     when earned<20 then 'off'
     when interrupted then 'gray'
-    when inactivity_days>=3 then 'off'
-    when inactivity_days>=1 then 'gray'
+    when inactivity_days>=1 then 'off'
     when raw_score<20 and not (recovered and inactivity_days=0) then 'gray'
     else 'active'
   end::text flame_state
