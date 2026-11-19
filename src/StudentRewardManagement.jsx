@@ -5,6 +5,7 @@ import {isFormalViolation} from './lib/stars';
 import './StudentRewardManagement.css';
 import {StudentPicker} from './StudentPicker';
 import {RecordCorrectionEditor} from './RecordCorrectionEditor';
+import {rewardSummaryRows,recentRewardActivity} from './lib/rewardSummary.js';
 
 const today=()=>{
  const d=new Date();
@@ -27,6 +28,10 @@ export function StudentRewardManagement({profile,refresh,onNavigate}){
  const [showTotalsEditor,setShowTotalsEditor]=useState(false),[totalsBusy,setTotalsBusy]=useState(false);
  const [totalsDraft,setTotalsDraft]=useState({available:'0',earned:'0',violations:'0',reason:''});
  const [selectedClass,setSelectedClass]=useState('');
+ const [boardClass,setBoardClass]=useState(''),[boardQuery,setBoardQuery]=useState('');
+ const [boardLimit,setBoardLimit]=useState(100);
+ const [rewardActivity,setRewardActivity]=useState([]),[activityLoading,setActivityLoading]=useState(false);
+ const [activityError,setActivityError]=useState('');
  const [studentId,setStudentId]=useState(''),[history,setHistory]=useState([]);
  const [kind,setKind]=useState('award'),[title,setTitle]=useState('Nhắc 1');
  const [stars,setStars]=useState(2),[points,setPoints]=useState(1),[awardStars,setAwardStars]=useState(1);
@@ -74,11 +79,47 @@ export function StudentRewardManagement({profile,refresh,onNavigate}){
      }).catch(err=>{if(alive)setError(err.message);});
    return()=>{alive=false;};
  },[schoolId,studentId,refresh,localRefresh]);
+ useEffect(()=>{
+   let alive=true;
+   if(!schoolId){setRewardActivity([]);setActivityLoading(false);return;}
+   setRewardActivity([]);setActivityError('');setActivityLoading(true);
+   (async()=>{
+     const rows=[];
+     // Read every reward/learning-point event with stable pagination. Avoid the
+     // default 1,000-row PostgREST limit silently corrupting class totals.
+     const pageSize=400;
+     for(let start=0;start<20000;start+=pageSize){
+       const {data,error}=await supabase.from('student_records')
+         .select('id,student_id,record_type,star_event,title,points,record_date,created_at')
+         .eq('school_id',schoolId).in('record_type',['reward','point'])
+         .order('created_at',{ascending:false}).order('id',{ascending:false})
+         .range(start,start+pageSize-1);
+       if(error)throw error;
+       rows.push(...(data||[]));
+       if((data||[]).length<pageSize)break;
+       if(start+pageSize>=20000)throw Error('Số ghi nhận vượt giới hạn đọc an toàn. Vui lòng liên hệ quản trị viên.');
+     }
+     if(alive)setRewardActivity(rows);
+   })().catch(err=>{if(alive)setActivityError(err?.message||String(err));})
+     .finally(()=>{if(alive)setActivityLoading(false);});
+   return()=>{alive=false;};
+ },[schoolId,refresh,localRefresh]);
  const classes=useMemo(()=>[...new Set(students.map(s=>s.class_name).filter(Boolean))]
    .sort((a,b)=>a.localeCompare(b,'vi',{numeric:true})),[students]);
  const visible=useMemo(()=>students.filter(st=>
    !selectedClass||st.class_name===selectedClass
  ),[students,selectedClass]);
+ const summaryRows=useMemo(()=>rewardSummaryRows(students,wallets,rewardActivity,boardClass,boardQuery),
+   [students,wallets,rewardActivity,boardClass,boardQuery]);
+ const recentActivity=useMemo(()=>recentRewardActivity(students,rewardActivity,boardClass,boardQuery,80),
+   [students,rewardActivity,boardClass,boardQuery]);
+ const displayedSummary=summaryRows.slice(0,boardLimit);
+ function selectBoardStudent(row,action='award'){
+   setSelectedClass(row.class_name||'');
+   setStudentId(row.id);setEditing(null);setShowTotalsEditor(false);setKind(action);
+   setError('');setSuccess('');
+   document.getElementById('srm-student-search')?.scrollIntoView({behavior:'smooth',block:'start'});
+ }
  const student=students.find(st=>st.id===studentId);
  const wallet=wallets.find(w=>w.student_id===studentId);
  const statRow=violationTotals.find(r=>r.student_id===studentId);
@@ -192,7 +233,7 @@ export function StudentRewardManagement({profile,refresh,onNavigate}){
      </div>
      <button className="btn outline" type="button" onClick={()=>onNavigate('records')}>Xem đầy đủ Điểm, lỗi & thưởng ↗</button>
    </header>
-   <section className="srm-filter panel">
+   <section className="srm-filter panel" id="srm-student-search">
      <StudentPicker key={selectedClass} students={visible} selectedId={studentId}
        onSelect={id=>{setStudentId(id);setEditing(null);setShowTotalsEditor(false);setError('');setSuccess('');}}
        label="🔎 Tìm & chọn học sinh" placeholder="Nhập tên rồi chọn đúng học sinh trong danh sách…"
@@ -344,5 +385,77 @@ export function StudentRewardManagement({profile,refresh,onNavigate}){
        </section>
      </div>
    </>}
+   <section className="panel srm-class-summary" aria-label="Danh sách điểm thưởng và sao theo lớp">
+     <div className="srm-class-summary-head">
+       <div>
+         <span className="srm-class-summary-eyebrow">⭐ SỔ THƯỞNG THEO LỚP</span>
+         <h3>Danh sách điểm thưởng & sao học sinh</h3>
+         <p>Xem toàn bộ học sinh theo lớp, sao hiện có, tổng sao đã kiếm và điểm học tập. Đây là danh sách quản lý, không phải bảng xếp hạng.</p>
+       </div>
+       <span className="srm-summary-count">{summaryRows.length} học sinh</span>
+     </div>
+     <div className="srm-class-summary-filters">
+       <label>🏫 Lọc theo lớp
+         <select aria-label="Lọc lớp trong danh sách điểm thưởng và sao" value={boardClass}
+           onChange={e=>{setBoardClass(e.target.value);setBoardLimit(100);}}>
+           <option value="">Tất cả lớp</option>
+           {classes.map(c=><option value={c} key={c}>Lớp {c}</option>)}
+         </select>
+       </label>
+       <label>🔎 Tìm học sinh
+         <input type="search" placeholder="Nhập họ tên học sinh…" value={boardQuery}
+           onChange={e=>{setBoardQuery(e.target.value);setBoardLimit(100);}}/>
+       </label>
+     </div>
+     {activityLoading&&<p className="srm-message" role="status">Đang tổng hợp điểm thưởng và lịch sử sao…</p>}
+     {activityError&&<p className="srm-error" role="alert">Không tải đủ lịch sử điểm thưởng: {activityError}. Số sao trên ví vẫn được giữ nguyên; các cột điểm và số lần thưởng tạm thời không hiển thị.</p>}
+     <div className="srm-class-summary-table-wrap">
+       <table className="srm-class-summary-table">
+         <thead><tr>
+           <th>STT</th><th>Học sinh</th><th>Lớp</th><th>⭐ Sao hiện có</th>
+           <th>🏆 Tổng sao đã kiếm</th><th>📚 Điểm học tập</th><th>🎁 Lần thưởng sao</th><th>Thao tác</th>
+         </tr></thead>
+         <tbody>
+           {displayedSummary.map((row,i)=><tr key={row.id}>
+             <td>{i+1}</td>
+             <td><strong>{row.full_name}</strong></td>
+             <td>{row.class_name||'—'}</td>
+             <td><strong className="srm-summary-stars">{num(row.available)}</strong></td>
+             <td><strong className="srm-summary-earned">{num(row.earned)}</strong></td>
+             <td>{activityLoading||activityError?'—':num(row.learningPoints)}</td>
+             <td>{activityLoading||activityError?'—':num(row.awardEvents)}</td>
+             <td><div className="srm-class-summary-actions">
+               <button type="button" className="srm-summary-select" onClick={()=>selectBoardStudent(row)}>Xem hồ sơ</button>
+               <button type="button" className="srm-summary-redeem" disabled={row.available<2}
+                 onClick={()=>selectBoardStudent(row,'redeem')} title="Chọn học sinh và mở mẫu đổi quà">Đổi quà</button>
+             </div></td>
+           </tr>)}
+         </tbody>
+       </table>
+       {!summaryRows.length&&!loading&&<p className="srm-message">Không tìm thấy học sinh trong lớp hoặc theo tên đã nhập.</p>}
+     </div>
+     {summaryRows.length>boardLimit&&<button type="button" className="srm-summary-load-more"
+       onClick={()=>setBoardLimit(n=>n+100)}>Hiển thị thêm ({displayedSummary.length}/{summaryRows.length})</button>}
+     <details className="srm-reward-activity">
+       <summary>📖 Xem các ghi nhận thưởng sao, đổi quà và điểm học tập gần nhất ({recentActivity.length})</summary>
+       <div className="srm-class-summary-table-wrap">
+         <table className="srm-class-summary-table">
+           <thead><tr><th>Ngày</th><th>Học sinh</th><th>Lớp</th><th>Ghi nhận</th><th>Giá trị</th></tr></thead>
+           <tbody>{recentActivity.map(record=><tr key={record.id}>
+             <td>{dateLabel(record.record_date)}</td>
+             <td><strong>{record.student.full_name}</strong></td>
+             <td>{record.student.class_name||'—'}</td>
+             <td>{record.record_type==='point'?'📚 Điểm học tập':
+               record.star_event==='penalty'?'⚠️ Trừ sao':
+               Number(record.points)<0?'🎁 Đổi quà':'⭐ Thưởng sao'} · {record.title}</td>
+             <td className={Number(record.points)<0?'srm-negative':'srm-positive'}>
+               {Number(record.points)>0?'+':''}{num(record.points)}
+             </td>
+           </tr>)}</tbody>
+         </table>
+         {!recentActivity.length&&!activityLoading&&<p className="srm-message">Chưa có ghi nhận sao hoặc điểm học tập ở lớp này.</p>}
+       </div>
+     </details>
+   </section>
  </div>;
 }
