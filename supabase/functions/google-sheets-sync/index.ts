@@ -193,7 +193,7 @@ async function metadata(id:string,token:string){
  return await (await api(url,token)).json();
 }
 async function readTab(id:string,title:string,token:string){
- const url="https://sheets.googleapis.com/v4/spreadsheets/"+id+"/values/"+a1(title,"A5:CT")+"?valueRenderOption=UNFORMATTED_VALUE";
+ const url="https://sheets.googleapis.com/v4/spreadsheets/"+id+"/values/"+a1(title,"A5:CT70")+"?valueRenderOption=UNFORMATTED_VALUE";
  const data=await (await api(url,token)).json();
  return data.values||[];
 }
@@ -433,7 +433,9 @@ async function syncClass(db:any,link:Dict,map:Dict,token:string,actorId:string,m
   }
   const marksByKey=new Map(marks.map(x=>[x.student_id+":"+x.session_id,x]));
   const push=(rowNo:number,column:number,value:any)=>changes.push({range:sheetName(map.sheet_title)+"!"+col(column)+rowNo,values:[[value]]});
-  for(const student of students){
+  const order=studentSheetSortPlan(students.map(s=>[null,null,s.full_name]),1,students.length);
+  for(const entry of order.sorted){
+   const student=students[entry.sheetRow-1];
    const linkedRow=Number((map.student_rows||{})[student.id]);
    const conflictingLinkedRow=pairs.find(p=>p.rowNo===linkedRow&&p.matchedId!==student.id);
    const unnamedConflict=pairs.some(p=>p.ambiguous&&normalize(p.name)===normalize(student.full_name));
@@ -549,14 +551,35 @@ async function sheetBatch(id:string,requests:Dict[],token:string){
 
 async function sortStudentTab(db:any,link:Dict,map:Dict,token:string){
  const grid=await readTab(link.spreadsheet_id,map.sheet_title,token);
- if(grid.slice(66).some((r:any[])=>nonblank(r?.[2])))
-  return {sorted:false,warning:"Có tên ngoài vùng danh sách dòng 8–70. Cần kiểm tra mẫu lớp."};
  const plan=studentSheetSortPlan(grid.slice(3,66));
- if(!plan.needsSort)return {sorted:false};
  const meta=await metadata(link.spreadsheet_id,token);
  const tab=meta.sheets?.find((s:Dict)=>s.properties.sheetId===map.sheet_gid&&s.properties.title===map.sheet_title);
  if(!tab)
   throw fail("Tab lớp đã thay đổi trước khi sắp xếp.",409);
+ const template=meta.sheets.find((s:Dict)=>s.properties.title==="Gốc");
+ const serialRange={sheetId:map.sheet_gid,startRowIndex:7,endRowIndex:70,startColumnIndex:1,endColumnIndex:2};
+ const serialRequests:Dict[]=[];
+ if(template&&template.properties.sheetId!==map.sheet_gid){
+  const ranges=[sheetName("Gốc")+"!B8",sheetName(map.sheet_title)+"!B8:B70"];
+  const params=new URLSearchParams({valueRenderOption:"FORMULA"});
+  for(const range of ranges)params.append("ranges",range);
+  const response=await api("https://sheets.googleapis.com/v4/spreadsheets/"+link.spreadsheet_id+"/values:batchGet?"+params,token);
+  const [source,current]=(await response.json()).valueRanges;
+  const formula=source.values?.[0]?.[0];
+  const cells=current.values||[];
+  if(typeof formula==="string"&&/^=MAP\(/i.test(formula)&&
+     cells.every((row:any[],i:number)=>!nonblank(row[0])||(!i&&row[0]===formula)||row[0]===i+1)){
+   if(plan.needsSort||cells[0]?.[0]!==formula){
+    serialRequests.push({repeatCell:{range:serialRange,cell:{},fields:"userEnteredValue"}},
+     {copyPaste:{source:{...serialRange,sheetId:template.properties.sheetId,endRowIndex:8},
+      destination:{...serialRange,endRowIndex:8},pasteType:"PASTE_FORMULA"}});
+   }
+  }
+ }
+ if(!plan.needsSort){
+  if(serialRequests.length)await sheetBatch(link.spreadsheet_id,serialRequests,token);
+  return {sorted:false};
+ }
  const batch=mergedRowMoves(plan,map.sheet_gid,tab.merges||[]);
  if(batch.warning)return {sorted:false,warning:batch.warning};
  const positions=new Map(plan.sorted.map((row,i)=>[row.sheetRow,i+8]));
@@ -570,9 +593,7 @@ async function sortStudentTab(db:any,link:Dict,map:Dict,token:string){
  const cleared=await db.from("school_sheet_tabs").update({student_rows:{}})
   .eq("id",map.id).eq("link_id",link.id).eq("student_rows",JSON.stringify(map.student_rows||{})).select("id").maybeSingle();
  if(cleared.error||!cleared.data)throw fail("Ánh xạ lớp đã thay đổi. Vui lòng đồng bộ lại.",409);
- const requests:Dict[]=batch.requests!;
- requests.push({updateCells:{start:{sheetId:map.sheet_gid,rowIndex:7,columnIndex:1},
-  rows:plan.sorted.map((r,i)=>({values:[r.name?{userEnteredValue:{numberValue:i+1}}:{}]})),fields:"userEnteredValue"}});
+ const requests:Dict[]=[...serialRequests.slice(0,1),...batch.requests!,...serialRequests.slice(1)];
  try{
   await sheetBatch(link.spreadsheet_id,requests,token);
  }catch(error){
@@ -614,9 +635,24 @@ async function cloneClassTab(id:string,template:Dict,className:string,schoolName
  // Atomic duplicate + clearing: a failed cleanup must not leave a visible tab
  // containing another classroom's pupil data.
  const newId=Math.floor(100000000+Math.random()*1900000000);
- await sheetBatch(id,[{duplicateSheet:{
+ const cleanup=freshTabRequests(newId,className,schoolName);
+ const source=await api("https://sheets.googleapis.com/v4/spreadsheets/"+id+"/values/"+a1(template.title,"A5:CT70")+"?valueRenderOption=FORMULA",token);
+ const rows=(await source.json()).values||[];
+ for(const [i,row] of rows.entries()){
+  if(i<1)continue;
+  for(const [column,value] of row.entries()){
+   if(typeof value==="string"&&value.startsWith("=")){
+    const cell={startRowIndex:i+4,endRowIndex:i+5,startColumnIndex:column,endColumnIndex:column+1};
+    cleanup.push({copyPaste:{source:{sheetId:template.id,...cell},destination:{sheetId:newId,...cell},pasteType:"PASTE_FORMULA"}});
+   }
+  }
+ }
+ const cloned=await sheetBatch(id,[{duplicateSheet:{
    sourceSheetId:template.id,newSheetId:newId,newSheetName:tabTitle
- }},...freshTabRequests(newId,className,schoolName)],token);
+ }},...cleanup],token);
+ const result=cloned.replies?.[0]?.duplicateSheet?.properties;
+ if(result?.sheetId!==newId||result.title!==tabTitle)
+  throw fail("Google Sheets trả về tab khác với lớp "+className+". Cần kiểm tra tên tab trước khi liên kết.",409);
  return newId;
 }
 async function writeScheduleFromWeb(db:any,link:Dict,map:Dict,token:string){
@@ -776,7 +812,7 @@ async function syncSchool(db:any,link:Dict,token:string,ownerId:string,offset=0,
     errors.push(name+": ánh xạ cũ khác ID tab hiện tại; cần kiểm tra liên kết.");continue;
    }
    if(!sheet){
-    const template=tabs.find(t=>t.title===link.template_tab)||tabs.find(t=>t.title==="Gốc")||tabs.find(t=>classroomName(t.title));
+    const template=tabs.find(t=>t.title==="Gốc")||tabs.find(t=>t.title===link.template_tab)||tabs.find(t=>classroomName(t.title));
     if(!template){errors.push("Thiếu tab mẫu để tạo "+name);continue;}
     const id=await cloneClassTab(link.spreadsheet_id,template,name,school.name,token,tabTitle);
     sheet={id,title:tabTitle};tabs.push(sheet);fresh=true;created.push(name);
@@ -1095,23 +1131,8 @@ Deno.serve(async(req:Request)=>{
    const template=tabs.find((s:Dict)=>s.title===source);
    if(!template)throw fail("Không tìm thấy tab mẫu "+source+".");
    if(tabs.some((s:Dict)=>s.title===classTabTitle(className)))throw fail("Tab đã tồn tại; chọn Gắn tab có sẵn.",409);
-   const newId=Math.floor(100000000+Math.random()*1900000000);
-   const requests:Dict[]=[
-    {duplicateSheet:{sourceSheetId:template.id,newSheetId:newId,newSheetName:classTabTitle(className)}},
-    {repeatCell:{range:{sheetId:newId,startRowIndex:7,endRowIndex:70,startColumnIndex:2,endColumnIndex:9},
-      cell:{},fields:"userEnteredValue"}},
-    {repeatCell:{range:{sheetId:newId,startRowIndex:7,endRowIndex:70,startColumnIndex:79,endColumnIndex:98},
-      cell:{},fields:"userEnteredValue"}},
-    {repeatCell:{range:{sheetId:newId,startRowIndex:7,endRowIndex:70,startColumnIndex:9,endColumnIndex:79},
-      cell:{userEnteredValue:{boolValue:false}},fields:"userEnteredValue"}},
-    {repeatCell:{range:{sheetId:newId,startRowIndex:5,endRowIndex:6,startColumnIndex:9,endColumnIndex:79},
-      cell:{},fields:"userEnteredValue"}},
-    {updateCells:{start:{sheetId:newId,rowIndex:1,columnIndex:3},
-      rows:[{values:[{userEnteredValue:{stringValue:"Lớp: "+className}}]}],fields:"userEnteredValue"}}
-   ];
-   await api("https://sheets.googleapis.com/v4/spreadsheets/"+link.spreadsheet_id+":batchUpdate",
-    token,{method:"POST",body:JSON.stringify({requests})});
    const {data:school}=await db.from("schools").select("name").eq("id",link.school_id).maybeSingle();
+   const newId=await cloneClassTab(link.spreadsheet_id,template,className,school?.name||"",token);
    const mapped=await upsertMapping(db,link,className,newId,ownerId,school?.name||"");
    return respond(200,{success:true,tab:mapped,created:true,info:"Tab mới đã giữ định dạng và công thức mẫu; dữ liệu học sinh cũ đã được làm sạch."},origin);
   }
