@@ -7,7 +7,7 @@ import {searchName,comparePC,compareStudentName,properName} from './lib/students
 const scoreKeys=['QT1','QT2','HK1','QT3','QT4','HK2',...Array.from({length:5},(_,i)=>`TEST ${i+1}`),...Array.from({length:5},(_,i)=>`Mô phỏng lần ${i+1}`)];
 const date=s=>s?s.split('-').reverse().join('/'):'';
 const statusText={present:'Có mặt',absent:'Vắng',late:'Trễ',excused:'Có phép'};
-export function StudentRoster({profile,refresh,ping}){
+export function StudentRoster({profile,refresh,syncRefresh,ping}){
  const [centers,setCenters]=useState([]);
  const [logoSource,setLogoSource]=useState('school');
  const [temporaryLogo,setTemporaryLogo]=useState(null);
@@ -141,7 +141,7 @@ export function StudentRoster({profile,refresh,ping}){
  }
  return <section className="panel roster"><h2>Danh sách học sinh</h2><p className="muted">Cấu trúc theo mẫu: hồ sơ, điểm danh theo buổi, điểm kiểm tra và nhận xét. Ô trống = có mặt, bấm ô để đánh dấu vắng. Số tiết và buổi học riêng cho từng lớp.</p>
  <SheetsConnectionPanel profile={profile} classes={classes} sessions={data.sessions}
-   refresh={refresh} rosterVersion={version} logoData={reportLogo} logoLabel={center?.name||profile.school_name||'IC3'}
+   refresh={refresh} syncRefresh={syncRefresh} rosterVersion={version} logoData={reportLogo} logoLabel={center?.name||profile.school_name||'IC3'}
    onSynced={()=>setVersion(v=>v+1)}/>
  <div className="roster-export-options">
   <label>Logo trong file Excel

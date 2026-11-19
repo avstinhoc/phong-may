@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {PGlite} from '@electric-sql/pglite';
-import {studentSheetSortPlan} from '../supabase/functions/google-sheets-sync/nameSort.js';
+import {studentSheetSortPlan,studentRowMoves,matchedStudentBatches} from '../supabase/functions/google-sheets-sync/nameSort.js';
 
 const file=relative=>readFileSync(new URL('../'+relative,import.meta.url),'utf8');
 const names=file('supabase/migrations/20261120101000_vietnamese_real_name_review.sql');
@@ -67,15 +67,22 @@ test('teaching-day expiry happens at exactly 18:00 Vietnam time, not earlier',as
 });
 
 test('Sheets sorts by final name while preserving the entire student row and mapping',()=>{
- const grid=['Nguyễn Khoa Đăng','Vũ Thanh Ngân','Ngô Hoàng Tú Anh'].map(name=>['id',2,name,'DOB',true,'grade']);
- const plan=studentSheetSortPlan(grid);
- assert.equal(plan.safe,true);
- assert.equal(plan.needsSort,true);
- assert.deepEqual(plan.sorted.filter(x=>x.name).map(x=>x.name),['Ngô Hoàng Tú Anh','Nguyễn Khoa Đăng','Vũ Thanh Ngân']);
- assert.equal(studentSheetSortPlan([grid[0],grid[0]]).safe,false);
- assert.match(edge,/sortRange:\{range:/);
- assert.match(edge,/startColumnIndex:0,endColumnIndex:104/);
- assert.match(edge,/student_rows:studentRows/);
- assert.match(edge,/B8:B70/);
- assert.match(edge,/sortStudentTab\(db,link,await getMap/);
+ const names=['Nguyễn Khoa Đăng','Vũ Thanh Ngân','Ngô Hoàng Tú Anh','Vũ Thanh Ngân','Trần Danh'];
+ const grid=names.map((name,i)=>[i,i+1,name,'DOB',i%2===0,'grade'+i,'custom'+i]);
+ const plan=studentSheetSortPlan(grid,8,12);
+ const after=[...grid];
+ for(const {moveDimension:{source,destinationIndex}} of studentRowMoves(plan,77)){
+  assert.equal(source.sheetId,77);
+  after.splice(destinationIndex-7,0,...after.splice(source.startIndex-7,1));
+ }
+ assert.deepEqual(after,[grid[2],grid[4],grid[0],grid[1],grid[3]]);
+ assert.equal(studentSheetSortPlan(after,8,12).needsSort,false);
+ assert.deepEqual(plan.sorted.map(r=>grid[r.sheetRow-8]),after);
+});
+test('40 matched pupils need one result read, 63 need two, ambiguous rows are excluded',()=>{
+ const pairs=Array.from({length:63},(_,id)=>({student:{id}}));
+ assert.equal(matchedStudentBatches(pairs.slice(0,40)).length,1);
+ const batches=matchedStudentBatches([...pairs,pairs[0],{student:{id:99},ambiguous:true}]);
+ assert.deepEqual(batches.map(x=>x.length),[60,3]);
+ assert.deepEqual(batches.flat(),pairs.map(p=>p.student.id));
 });

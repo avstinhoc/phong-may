@@ -94,6 +94,7 @@ function App() {
   const [notice, setNotice] = useState("");
   const [authMode, setAuthMode] = useState("login");
   const [mobileNav, setMobileNav] = useState(false);
+  const [manualRefresh,setManualRefresh]=useState(0);
   const [refresh, setRefresh] = useState(0);
   useEffect(()=>{
     try{sessionStorage.setItem('qlpm.page',page);sessionStorage.setItem('qlpm.schoolId',schoolId);}catch{}
@@ -174,7 +175,7 @@ function App() {
     setNotice(msg);
     setTimeout(() => setNotice(""), 3500);
   };
-  const reload = () => setRefresh(v => v + 1);
+  const reload = () => {setRefresh(v => v + 1);setManualRefresh(v => v + 1);};
   const signOut = async () => {
     await supabase.auth.signOut();
     try{sessionStorage.removeItem('qlpm.page');sessionStorage.removeItem('qlpm.schoolId');}catch{}
@@ -283,7 +284,7 @@ function App() {
           {!schoolId && !["workplaces","schools","settings","finance","reports","accounts","personal"].includes(page) && <div className="notice-box">Thêm trường đầu tiên để bắt đầu quản lý học sinh và lịch dạy.</div>}
           {schoolId && <>
           {page === "dashboard" && <Dashboard profile={profile} refresh={refresh} setPage={setPage} />}
-          {page === "roster" && <StudentRoster profile={profile} refresh={refresh} ping={ping} />}
+          {page === "roster" && <StudentRoster profile={profile} refresh={refresh} syncRefresh={manualRefresh} ping={ping} />}
           {page === "students" && isTeacher && <Students profile={profile} refresh={refresh} reload={reload} ping={ping} navigate={setPage} />}
           {page === "computers" && <Computers profile={profile} refresh={refresh} reload={reload} ping={ping} />}
           {page === "rollcall" && isTeacher && <RollCallView profile={profile} refresh={refresh} reload={reload} ping={ping} focusDate={calendarDate} setFocusDate={setCalendarDate} />}

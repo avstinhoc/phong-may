@@ -1,28 +1,34 @@
-// Google Sheets uses a hidden temporary sort key so full student rows move
-// together (PC IDs, 70 attendance checkboxes, grades and formulas stay attached).
-// Column C is HỌ & TÊN; the last Vietnamese word is the primary A–Z key.
-const fold=value=>String(value||'').normalize('NFD')
- .replace(/[\u0300-\u036f]/g,'').replace(/[đĐ]/g,'d')
- .toLowerCase().replace(/\s+/g,' ').trim();
-export const studentNameSortKey=(name,rowIndex=0)=>{
- const words=fold(name).split(' ').filter(Boolean);
- if(!words.length)return 'zzzzzz:'+String(rowIndex).padStart(4,'0');
- return 'qlpm:'+words.at(-1)+'|'+words.slice(0,-1).join(' ')+'|'+String(rowIndex).padStart(4,'0');
-};
-export const studentSheetSortPlan=(rawStudentRows=[],firstRow=8,lastRow=70)=>{
- const rows=Array.from({length:lastRow-firstRow+1},(_,i)=>{
-   const sheetRow=firstRow+i;
-   const name=String((rawStudentRows[i]||[])[2]||'').normalize('NFC').replace(/\s+/g,' ').trim();
-   return {sheetRow,name,key:studentNameSortKey(name,sheetRow)};
- });
- const filled=rows.filter(r=>r.name);
- const names=new Set();
- for(const row of filled){
-   const normalized=fold(row.name);
-   if(names.has(normalized))return {safe:false,reason:'Trùng họ tên trên Google Sheets, cần xác minh trước khi sắp xếp.',rows,keys:[],needsSort:false};
-   names.add(normalized);
- }
- const sorted=[...rows].sort((a,b)=>a.key.localeCompare(b.key,'en'));
- const needsSort=sorted.some((r,i)=>r.sheetRow!==firstRow+i);
- return {safe:true,rows,keys:rows.map(x=>[x.key]),needsSort,sorted};
-};
+const collator = new Intl.Collator('vi', { sensitivity: 'accent', numeric: true });
+
+export function studentSheetSortPlan(rawRows = [], firstRow = 8, lastRow = 70) {
+  const rows = Array.from({length: lastRow - firstRow + 1}, (_, i) => {
+    const name = String(rawRows[i]?.[2] ?? '').normalize('NFC').trim().replace(/\s+/gu, ' ');
+    return {sheetRow: firstRow + i, name, given: name.split(' ').at(-1)};
+  });
+  const sorted = [...rows].sort((a, b) =>
+    Number(!a.name) - Number(!b.name) || collator.compare(a.given, b.given) ||
+    collator.compare(a.name, b.name) || a.sheetRow - b.sheetRow);
+  return {rows, sorted, needsSort: sorted.some((row, i) => row !== rows[i])};
+}
+
+// Each move uses indices in the grid resulting from all preceding moves.
+export function studentRowMoves(plan, sheetId) {
+  const order = plan.rows.map(r => r.sheetRow);
+  const first = order[0] - 1;
+  const requests = [];
+  for (const [i, row] of plan.sorted.entries()) {
+    const from = order.indexOf(row.sheetRow);
+    if (from === i) continue;
+    requests.push({moveDimension:{source:{sheetId, dimension:'ROWS',
+      startIndex:first + from, endIndex:first + from + 1}, destinationIndex:first + i}});
+    order.splice(i, 0, ...order.splice(from, 1));
+  }
+  return requests;
+}
+
+export function matchedStudentBatches(pairs) {
+  const ids = [...new Set(pairs.filter(p => p.student && !p.ambiguous).map(p => p.student.id))];
+  const batches = [];
+  for (let i = 0; i < ids.length; i += 60) batches.push(ids.slice(i, i + 60));
+  return batches;
+}

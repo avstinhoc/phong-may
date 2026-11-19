@@ -23,7 +23,7 @@ const getMessage=async error=>{
  }
  return error?.message||'Không thể kết nối Google Sheets.';
 };
-export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=null,logoLabel='',rosterVersion=0,refresh=0,onSynced}){
+export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=null,logoLabel='',rosterVersion=0,refresh=0,syncRefresh=0,onSynced}){
  const [open,setOpen]=useState(false),[link,setLink]=useState(null),
   [url,setUrl]=useState(''),[tabs,setTabs]=useState([]),[bindings,setBindings]=useState([]),
   [busy,setBusy]=useState(''),[error,setError]=useState(''),[message,setMessage]=useState(''),
@@ -103,7 +103,7 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
  },[link?.id,link?.status,profile.school_id]);
  useEffect(()=>{
   if(!link?.id||!link.auto_sync||link.status!=='verified')return;
-  const key=[link.id,rosterVersion,refresh].join(':');
+  const key=[link.id,rosterVersion,syncRefresh].join(':');
   if(autoSyncedForRef.current===key)return;
   autoSyncedForRef.current=key;
   let cancelled=false;
@@ -112,8 +112,12 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
    try{
     let offset=0,checked=0,added=0,written=0,created=0,issues=0,allErrors=[];
     // Small server batches keep the free-tier Edge Function within time limits.
-    for(let batch=0;batch<24&&!cancelled;batch++){
+    let total=0;
+    while(!cancelled){
+      setMessage(total?'Đã đối chiếu '+checked+'/'+total+' lớp · Đang xử lý lớp thứ '+(offset+1)+' đến '+Math.min(offset+3,total)+'.':'Đang đọc danh sách lớp và đồng bộ nhóm lớp đầu tiên…');
       const data=await api({action:'auto_sync_school',offset});
+      if(cancelled)return;
+      total=data.totalClasses||0;
       checked+=data.classesChecked||0;
       created+=(data.createdTabs||[]).length;
       added+=(data.report||[]).reduce((n,r)=>n+(r.addedStudents||0),0);
@@ -130,14 +134,14 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
     if(issues)setError(allErrors.slice(0,4).join(' | ')||'Có '+issues+' khác biệt dữ liệu cần kiểm tra trước khi ghi đè.');
     await load();
     if(added||created){
-      autoSyncedForRef.current=[link.id,rosterVersion+1,refresh].join(':');
+      autoSyncedForRef.current=[link.id,rosterVersion+1,syncRefresh].join(':');
       onSynced?.();
     }
    }catch(e){if(!cancelled)setError('Tự đồng bộ: '+(e.message||String(e)));}
    finally{if(!cancelled)setBusy('');}
   })();
   return()=>{cancelled=true;};
- },[link?.id,link?.status,link?.auto_sync,profile.school_id,rosterVersion,refresh]);
+ },[link?.id,link?.status,link?.auto_sync,profile.school_id,rosterVersion,syncRefresh]);
  async function changeAuto(enabled){
   if(!link)return;
   const {error}=await supabase.from('school_sheet_links').update({auto_sync:enabled}).eq('id',link.id);

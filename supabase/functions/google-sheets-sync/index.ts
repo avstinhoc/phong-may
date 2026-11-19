@@ -1,6 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2.119.0";
 import { importPKCS8, SignJWT } from "npm:jose@5.10.0";
-import { studentSheetSortPlan } from "./nameSort.js";
+import { studentSheetSortPlan, studentRowMoves, matchedStudentBatches } from "./nameSort.js";
 
 type Dict = Record<string, any>;
 const ORIGIN="https://phong-may.vercel.app";
@@ -323,6 +323,13 @@ async function syncClass(db:any,link:Dict,map:Dict,token:string,actorId:string,m
     .eq("school_id",link.school_id).eq("class_name",map.class_name).eq("status","inactive");
   if(inactiveError)throw fail("Không kiểm tra được học sinh đã ẩn.",500);
   const archivedNames=new Set((inactive||[]).map(x=>normalize(x.full_name)));
+  const priorByStudent=new Map<string,Dict>();
+  for(const ids of matchedStudentBatches(pairs)){
+   const {data,error}=await db.from("student_results").select("student_id,scores,classification,comment,gender,standard_met,exam_result")
+     .in("student_id",ids);
+   if(error)throw fail("Không đọc được điểm hiện tại của lớp.",503);
+   for(const row of data||[])priorByStudent.set(row.student_id,row);
+  }
   for(const p of pairs){
    if(p.ambiguous){conflicts.push("Tên trùng hoặc đã đổi ở dòng "+p.rowNo+": "+p.name+" (cần rà soát trước).");continue;}
    let s=p.student;
@@ -355,9 +362,12 @@ async function syncClass(db:any,link:Dict,map:Dict,token:string,actorId:string,m
        .eq("id",s.id).eq("school_id",link.school_id);
      if(schoolUpdateError)conflicts.push("Chưa cập nhật trường cho "+p.name+": "+schoolUpdateError.message);
    }
-   const {data:prior,error:priorError}=await db.from("student_results").select("id,scores,classification,comment,gender,standard_met,exam_result")
-       .eq("student_id",s.id).maybeSingle();
-   if(priorError){conflicts.push("Không đọc điểm của "+p.name);continue;}
+   let prior=priorByStudent.get(s.id);
+   if(!p.student){
+    const result=await db.from("student_results").select("scores,classification,comment,gender,standard_met,exam_result").eq("student_id",s.id).maybeSingle();
+    if(result.error){conflicts.push("Không đọc điểm của "+p.name);continue;}
+    prior=result.data;
+   }
    let patch:Dict={...(prior?.scores||{})};let changed=false;
    for(const [key,value] of Object.entries(p.proposedScores)){
     if(!nonblank(patch[key])){patch[key]=value;changed=true;}
@@ -532,64 +542,37 @@ async function sheetBatch(id:string,requests:Dict[],token:string){
  return await response.json();
 }
 
-/** Sort whole A:CZ rows using hidden CZ keys; attendance, grades and IDs move together. */
 async function sortStudentTab(db:any,link:Dict,map:Dict,token:string){
  const grid=await readTab(link.spreadsheet_id,map.sheet_title,token);
- const plan=studentSheetSortPlan(grid.slice(3,66),8,70);
- if(!plan.safe)return {sorted:false,warning:plan.reason};
+ if(grid.slice(66).some((r:any[])=>nonblank(r?.[2])))
+  return {sorted:false,warning:"Có tên ngoài vùng danh sách dòng 8–70. Cần kiểm tra mẫu lớp."};
+ const plan=studentSheetSortPlan(grid.slice(3,66));
  if(!plan.needsSort)return {sorted:false};
- const students=await studentsFromDB(db,link.school_id,map.class_name);
- const byName=new Map<string,Dict>();
- for(const st of students){
-  const k=normalize(st.full_name);
-  if(byName.has(k))return {sorted:false,warning:"Có hai học sinh trùng tên; không tự sắp xếp."};
-  byName.set(k,st);
- }
- if(plan.rows.some((r:Dict)=>r.name&&!byName.has(normalize(r.name))))
-  return {sorted:false,warning:"Có tên Sheets chưa khớp học sinh Web; không tự sắp xếp."};
  const meta=await metadata(link.spreadsheet_id,token);
- const tab=meta.sheets?.find((x:Dict)=>x.properties.sheetId===map.sheet_gid&&x.properties.title===map.sheet_title);
- if(!tab)throw fail("Tab Sheets đã thay đổi trước lúc sắp xếp.",409);
- const cols=tab.properties.gridProperties?.columnCount||0;
- if(cols>103){
-  const endpoint="https://sheets.googleapis.com/v4/spreadsheets/"+link.spreadsheet_id+
-   "/values/"+a1(map.sheet_title,"CZ8:CZ70")+"?valueRenderOption=UNFORMATTED_VALUE";
-  const prev=(await(await api(endpoint,token)).json()).values||[];
-  if(prev.some((row:unknown[])=>row.some(v=>nonblank(v)&&!String(v).startsWith("qlpm:")&&!String(v).startsWith("zzzzzz:"))))
-   return {sorted:false,warning:"Cột CZ đã có dữ liệu ngoài QLPM; bỏ qua sắp xếp để không ghi đè."};
+ if(!meta.sheets?.some((s:Dict)=>s.properties.sheetId===map.sheet_gid&&s.properties.title===map.sheet_title))
+  throw fail("Tab lớp đã thay đổi trước khi sắp xếp.",409);
+ const positions=new Map(plan.sorted.map((row,i)=>[row.sheetRow,i+8]));
+ const studentRows:Dict={};
+ for(const [id,row] of Object.entries(map.student_rows||{})){
+  if(!plan.rows[Number(row)-8]?.name)return {sorted:false,warning:"Ánh xạ trỏ tới dòng trống. Cần rà soát lớp."};
+  studentRows[id]=positions.get(Number(row));
  }
- if(cols<104)await sheetBatch(link.spreadsheet_id,[
-  {appendDimension:{sheetId:map.sheet_gid,dimension:"COLUMNS",length:104-cols}}
- ],token);
- await batchValues(link.spreadsheet_id,[{
-  range:sheetName(map.sheet_title)+"!CZ8:CZ70",values:plan.keys
- }],token);
- await sheetBatch(link.spreadsheet_id,[
-  {sortRange:{range:{sheetId:map.sheet_gid,startRowIndex:7,endRowIndex:70,
-    startColumnIndex:0,endColumnIndex:104},
-    sortSpecs:[{dimensionIndex:103,sortOrder:"ASCENDING"}]}},
-  {updateDimensionProperties:{range:{sheetId:map.sheet_gid,dimension:"COLUMNS",
-    startIndex:103,endIndex:104},properties:{hiddenByUser:true},fields:"hiddenByUser"}}
- ],token);
+ // Invalidate old coordinates before moving rows. If Google or the final save
+ // fails, matching falls back to checked identities and flags ambiguous names.
+ const cleared=await db.from("school_sheet_tabs").update({student_rows:{}})
+  .eq("id",map.id).eq("link_id",link.id).eq("student_rows",JSON.stringify(map.student_rows||{})).select("id").maybeSingle();
+ if(cleared.error||!cleared.data)throw fail("Ánh xạ lớp đã thay đổi. Vui lòng đồng bộ lại.",409);
+ const requests:Dict[]=studentRowMoves(plan,map.sheet_gid);
+ requests.push({updateCells:{start:{sheetId:map.sheet_gid,rowIndex:7,columnIndex:1},
+  rows:plan.sorted.map((r,i)=>({values:[r.name?{userEnteredValue:{numberValue:i+1}}:{}]})),fields:"userEnteredValue"}});
+ await sheetBatch(link.spreadsheet_id,requests,token);
  const post=await readTab(link.spreadsheet_id,map.sheet_title,token);
- const studentRows:Dict={},serial:Dict[]=[],seen=new Set<string>();
- for(let i=0;i<63;i++){
-  const name=clean((post[i+3]||[])[2]),student=byName.get(normalize(name));
-  if(name&&!student)throw fail("Tên Sheets thay đổi trong lúc sắp xếp; cần đối soát lại.",409);
-  if(student){
-   if(seen.has(student.id))throw fail("Trùng tên sau khi sắp xếp; cần đối soát.",409);
-   seen.add(student.id);studentRows[student.id]=i+8;
-  }
-  serial.push([student?seen.size:""]);
- }
- const {error}=await db.from("school_sheet_tabs").update({
-  student_rows:studentRows,last_synced_at:new Date().toISOString()
- }).eq("id",map.id).eq("link_id",link.id);
- if(error)throw fail("Đã xếp Sheets nhưng chưa cập nhật ánh xạ dòng: "+error.message,503);
- await batchValues(link.spreadsheet_id,[{
-  range:sheetName(map.sheet_title)+"!B8:B70",values:serial
- }],token);
- return {sorted:true,studentCount:seen.size};
+ if(plan.sorted.some((r,i)=>[0,2,3].some(c=>String(post[i+3]?.[c]??"")!==String(grid[r.sheetRow-5]?.[c]??""))))
+  throw fail("Danh sách đã thay đổi trong lúc sắp xếp. Cần đối chiếu lại ánh xạ.",409);
+ const saved=await db.from("school_sheet_tabs").update({student_rows:studentRows,last_synced_at:new Date().toISOString()})
+  .eq("id",map.id).eq("link_id",link.id).eq("student_rows","{}").select("id").maybeSingle();
+ if(saved.error||!saved.data)throw fail("Đã xếp Sheets nhưng chưa lưu được ánh xạ. Vui lòng đồng bộ lại.",503);
+ return {sorted:true};
 }
 
 function freshTabRequests(newId:number,title:string,schoolName:string):Dict[]{
@@ -800,7 +783,7 @@ async function syncSchool(db:any,link:Dict,token:string,ownerId:string,offset=0,
    map=await getMap(db,link.id,name);
    const pushed=await syncClass(db,link,map,token,ownerId,fresh?"push":"reconcile");
    let sortWarning="";
-   if(!(pulled.conflicts||[]).length&&!(pushed.conflicts||[]).length){
+   {
     const sorted=await sortStudentTab(db,link,await getMap(db,link.id,name),token);
     sortWarning=sorted.warning||"";
    }
@@ -815,7 +798,7 @@ async function syncSchool(db:any,link:Dict,token:string,ownerId:string,offset=0,
  }
  }
  const ordered=[...tabs].sort((a,b)=>classCompare(a.title,b.title));
- await sheetBatch(link.spreadsheet_id,ordered.map((t,i)=>({updateSheetProperties:{
+ if(ordered.some((t,i)=>t.id!==tabs[i]?.id))await sheetBatch(link.spreadsheet_id,ordered.map((t,i)=>({updateSheetProperties:{
   properties:{sheetId:t.id,index:i},fields:"index"
  }})),token);
  // Do not claim a successful full sync when a class failed.
@@ -1149,7 +1132,7 @@ Deno.serve(async(req:Request)=>{
   if(["preview","pull","push"].includes(action)){
    if(action!=="preview"&&payload.confirm!==true)throw fail("Cần xem trước và xác nhận trước khi ghi dữ liệu.");
    const result=await syncClass(db,link,map,token,ownerId,action);
-   if(action!=="preview"&&!(result.conflicts||[]).length){
+   if(action!=="preview"){
     const sorted=await sortStudentTab(db,link,await getMap(db,link.id,className),token);
     if(sorted.warning)result.conflicts=[...(result.conflicts||[]),sorted.warning];
     result.sortedByGivenName=Boolean(sorted.sorted);
