@@ -130,7 +130,12 @@ export function ClassSettings({refresh,profile,ping,schools=[],onChanged}){
    if(error)ping(error.message);
    else{
      setDeleting(null);setConfirm('');
-     ping(deleting.restore?'Đã kích hoạt lại mã lớp':'Đã xóa lớp và dừng đồng bộ Sheets.');
+     if(deleting.restore)ping('Đã kích hoạt lại mã lớp');
+     else{
+       const {data:link,error:lookup}=await supabase.from('school_sheet_links').select('id').eq('school_id',deleting.school_id).maybeSingle();
+       const result=link?await supabase.functions.invoke('google-sheets-sync',{body:{action:'finish_class_deletion',link_id:link.id}}):null;
+       ping(lookup||result?.error?'Đã đóng lớp. Sẽ thử lại phần Sheets khi đồng bộ.':result?.data?.messages?.join(' ')||'Đã đóng lớp và xử lý liên kết Sheets.');
+     }
      await load();onChanged?.();
    }
  }
@@ -207,7 +212,7 @@ export function ClassSettings({refresh,profile,ping,schools=[],onChanged}){
   {deleting&&<div className="modal-backdrop"><div className="modal">
     <div className="modal-head"><h3>{deleting.restore?'Khôi phục mã lớp':'Xóa lớp vĩnh viễn'}</h3>
       <button type="button" className="btn outline" onClick={()=>setDeleting(null)}>Đóng</button></div>
-    <p className="muted">{deleting.restore?'Kích hoạt lại mã lớp.':'Lớp sẽ đóng vĩnh viễn và ngừng đồng bộ Sheets. Lịch sử học sinh, điểm và lịch dạy được giữ lại. Nếu tab cũ còn trên Sheets, bạn có thể xóa thủ công.'} Nhập tên lớp để xác nhận.</p>
+    <p className="muted">{deleting.restore?'Kích hoạt lại mã lớp.':'Lớp sẽ đóng vĩnh viễn và ngừng đồng bộ Sheets. Lịch sử học sinh, điểm và lịch dạy được giữ lại. Tab điểm danh đã liên kết riêng với lớp sẽ bị xóa khỏi Google Sheets.'} Nhập tên lớp để xác nhận.</p>
     <form className="form-stack" onSubmit={remove}>
       <label>Tên lớp: <b>{deleting.class_name}</b><input required autoComplete="off"
         value={confirm} onChange={e=>setConfirm(e.target.value)}/></label>

@@ -251,11 +251,18 @@ async function ensureClass(db:any,schoolId:string,className:string,ownerId:strin
 }
 async function upsertMapping(db:any,link:Dict,title:string,gid:number,ownerId:string,schoolName:string,tabTitle=classTabTitle(title)){
  if(!validClass(title))throw fail("Tên tab lớp không hợp lệ.");
- await ensureClass(db,link.school_id,title,ownerId,schoolName);
+ const classId=await ensureClass(db,link.school_id,title,ownerId,schoolName);
  const {data,error}=await db.from("school_sheet_tabs").upsert({
    link_id:link.id,class_name:title,sheet_title:tabTitle,sheet_gid:gid
  },{onConflict:"link_id,class_name"}).select("id,link_id,class_name,sheet_title,sheet_gid,lesson_columns,student_rows").single();
  if(error)throw fail("Không lưu được liên kết tab lớp: "+error.message,409);
+ if(tabTitle!=="Gốc"&&tabTitle!==link.template_tab){
+  const {admin}=await workbookPeerLinks(link);
+  const {error:pinError}=await admin.from("class_tab_identity").upsert({
+   class_id:classId,school_id:link.school_id,link_id:link.id,workbook:link.spreadsheet_id,gid,class_name:title
+  },{onConflict:"class_id",ignoreDuplicates:true});
+  if(pinError)throw fail("Không lưu được ID lớp và tab.",503);
+ }
  return data;
 }
 const scoreValues=(row:any[])=>Object.fromEntries(SCORE_KEYS.map((k,i)=>[k,row[79+i]]).filter(([,v])=>nonblank(v)));
@@ -614,6 +621,52 @@ async function archivedClassNames(db:any,schoolId:string){
  for(const name of active)blocked.delete(name);
  return blocked;
 }
+async function reconcileClassTabs(admin:any,link:Dict,meta:Dict,token:string){
+ if(meta.spreadsheetId!==link.spreadsheet_id||!Array.isArray(meta.sheets)||!meta.sheets.length||
+    meta.sheets.some((s:Dict)=>!Number.isInteger(s.properties?.sheetId)||!s.properties.title))
+   throw fail("Chưa đọc đủ danh sách tab để đối chiếu.",503);
+ const {data:identities,error}=await admin.from("class_tab_identity").select("*").eq("workbook",link.spreadsheet_id);
+ if(error||!identities||identities.length>=1000)throw fail("Không đọc đủ ánh xạ lớp.",503);
+ const blocked=new Set<string>(),ignoredTabs=new Set<string>(),messages:string[]=[];
+ for(const row of identities.filter((b:Dict)=>b.link_id===link.id&&b.school_id===link.school_id)){
+  const sheet=meta.sheets.find((s:Dict)=>s.properties.sheetId===row.gid);
+  if(row.state==="done")continue;
+  const identity=admin.from("class_tab_identity");
+  if(row.state==="delete_requested"){
+   blocked.add(row.class_name);
+   if(sheet){
+    const title=sheet.properties.title;
+    const {data:links,error:le}=await admin.from("school_sheet_links").select("id").eq("spreadsheet_id",link.spreadsheet_id);
+    if(le||!links||links.length>=1000)throw fail("Không xác minh được các hồ sơ dùng chung file.",503);
+    const {data:claims,error:ce}=await admin.from("school_sheet_tabs").select("link_id").in("link_id",links.map((l:Dict)=>l.id)).eq("sheet_gid",row.gid).limit(1);
+    if(ce)throw fail("Không xác minh được quyền xóa tab.",503);
+    if(claims?.length||identities.some((b:Dict)=>b.class_id!==row.class_id&&b.gid===row.gid&&b.state==="active")||
+      title==="Gốc"||title===link.template_tab||meta.sheets.length<=1){
+      messages.push(row.class_name+": giữ tab đang dùng chung, tab mẫu hoặc tab cuối.");continue;
+    }
+    await sheetBatch(link.spreadsheet_id,[{deleteSheet:{sheetId:row.gid}}],token);
+    meta.sheets=meta.sheets.filter((s:Dict)=>s!==sheet);
+   }
+   const {error}=await identity.update({state:"done"}).eq("class_id",row.class_id).eq("state","delete_requested");
+   if(error)throw fail("Chưa lưu được kết quả xóa tab.",503);
+  }else if(!sheet){
+   blocked.add(row.class_name);
+   const {error}=await admin.rpc("observe_missing_class_tab",{p_class:row.class_id,p_link:link.id,p_workbook:row.workbook,p_gid:row.gid});
+   if(error)throw fail("Chưa xác minh được lớp có tab bị xóa.",503);
+   messages.push(row.class_name+": tab đã mất; dừng đồng bộ và kiểm tra lại sau một phút.");
+  }else{
+   if(row.missing_since){
+    const {error}=await identity.update({missing_since:null}).eq("class_id",row.class_id).eq("state","active");
+    if(error)throw fail("Chưa lưu được trạng thái tab.",503);
+   }
+   if(sheet.properties.title!==classTabTitle(row.class_name)){
+    blocked.add(row.class_name);ignoredTabs.add(sheet.properties.title);
+    messages.push(row.class_name+": tab đã đổi tên, giữ lớp và tab để rà soát.");
+   }
+  }
+ }
+ return {blocked,ignoredTabs,messages};
+}
 async function syncSchool(db:any,link:Dict,token:string,ownerId:string,offset=0,onlyClass=""){
  const {data:school,error:schoolError}=await db.from("schools").select("id,name").eq("id",link.school_id).maybeSingle();
  if(schoolError||!school)throw fail("Không có quyền đọc trường.",403);
@@ -628,21 +681,23 @@ async function syncSchool(db:any,link:Dict,token:string,ownerId:string,offset=0,
  }
  const shared=await workbookPeerLinks(link);
  const meta=await metadata(link.spreadsheet_id,token);
+ const lifecycle=await reconcileClassTabs(shared.admin,link,meta,token);
  const tabs=(meta.sheets||[]).map((x:Dict)=>({id:x.properties.sheetId,title:x.properties.title}));
  // When multiple school IDs use one workbook, a tab cannot identify its owner.
  // Only auto-discover every Sheets tab in the single-school-ID case.
  if(!shared.peers.length){
   for(const t of tabs){
    const label=classFromSheetTab(t.title);
+   if(lifecycle.ignoredTabs.has(t.title))continue;
    if(label)seen.add(label);
   }
  }
  const archived=await archivedClassNames(db,link.school_id);
- for(const name of archived)seen.delete(name);
+ for(const name of [...archived,...lifecycle.blocked])seen.delete(name);
  if(onlyClass&&!seen.has(onlyClass))throw fail("Lớp chưa tồn tại trong trường đang chọn.",404);
  const allClasses=onlyClass?[onlyClass]:[...seen].sort(classCompare).slice(0,60);
  const classNames=allClasses.slice(offset,offset+3);
- const created:string[]=[],linked:string[]=[],errors:string[]=[],report:Dict[]=[];
+ const created:string[]=[],linked:string[]=[],errors:string[]=[...lifecycle.messages],report:Dict[]=[];
  for(const name of classNames){
   try{
    const canWrite=await sharedClassWriteAllowed(shared.admin,link,shared.peers,name);
@@ -655,6 +710,9 @@ async function syncSchool(db:any,link:Dict,token:string,ownerId:string,offset=0,
    const tabTitle=existing?.sheet_title||classTabTitle(name);
    let sheet=tabs.find(t=>t.title===tabTitle);
    let fresh=false;
+   if(existing&&(!sheet||existing.sheet_gid!==sheet.id)){
+    errors.push(name+": ánh xạ cũ khác ID tab hiện tại; cần kiểm tra liên kết.");continue;
+   }
    if(!sheet){
     const template=tabs.find(t=>t.title===link.template_tab)||tabs.find(t=>t.title==="Gốc")||tabs.find(t=>classroomName(t.title));
     if(!template){errors.push("Thiếu tab mẫu để tạo "+name);continue;}
@@ -865,6 +923,11 @@ Deno.serve(async(req:Request)=>{
   const token=await googleToken();
   // Existing workbooks remain usable as-is. New links are checked in the QLPM root at creation.
   // Never check retired per-school folder records in the new flat-folder model.
+  if(action==="finish_class_deletion"){
+   const shared=await workbookPeerLinks(link);
+   const result=await reconcileClassTabs(shared.admin,link,await metadata(link.spreadsheet_id,token),token);
+   return respond(200,{success:true,messages:result.messages},origin);
+  }
   if(action==="auto_sync_school"){
    const offset=Math.max(0,Math.min(60,Number(payload.offset)||0));
    const result=await syncSchool(db,link,token,ownerId,offset);
@@ -955,7 +1018,11 @@ Deno.serve(async(req:Request)=>{
   if(!await sharedClassWriteAllowed(shared.admin,link,shared.peers,className))
    throw fail("Lớp do hồ sơ khác cùng trường quản lý, không được ghi đè Google Sheets.",409);
   const meta=await metadata(link.spreadsheet_id,token);
+  const lifecycle=await reconcileClassTabs(shared.admin,link,meta,token);
   const tabs=(meta.sheets||[]).map((s:Dict)=>({id:s.properties.sheetId,title:s.properties.title}));
+  if(lifecycle.blocked.has(className)||lifecycle.ignoredTabs.has(clean(payload.tab_title)))
+    throw fail("Liên kết lớp đã thay đổi hoặc đang chờ xác minh.",409);
+  if(action==="clone"&&await getMap(db,link.id,className))throw fail("Lớp đã có ánh xạ, không tạo lại tab.",409);
   if(action==="clone"){
    const source=clean(payload.source_tab||"6.1");
    const template=tabs.find((s:Dict)=>s.title===source);
@@ -983,6 +1050,8 @@ Deno.serve(async(req:Request)=>{
   }
   if(action==="bind"){
    const existing=tabs.find((s:Dict)=>s.title===clean(payload.tab_title));
+   const previous=await getMap(db,link.id,className);
+   if(previous&&previous.sheet_gid!==existing?.id)throw fail("ID tab đã đổi; không thay thế ánh xạ cũ.",409);
    if(!existing)throw fail("Tab không tồn tại trong file Google Sheets.");
    if(existing.title!==classTabTitle(className))throw fail("Tên tab phải tương ứng với lớp (dấu / của lớp hiển thị thành ／ trên Google Sheets).");
    const {data:school}=await db.from("schools").select("name").eq("id",link.school_id).maybeSingle();
