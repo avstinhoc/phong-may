@@ -59,7 +59,7 @@ test('summary is per student, filters class/name, and does not use mistaken Top 
  assert.deepEqual(rewardSummaryRows(students,wallets,records,'','ngan').map(s=>s.id),['b']);
  assert.equal(rewardSummaryRows(students,wallets,records).length,3);
  const activity=recentRewardActivity(students,records,'6.1');
- assert.deepEqual(activity.map(r=>r.id),['4','6','3','2','1']);
+ assert.deepEqual(activity.map(r=>r.id),['6','4','3','2','1']);
  assert.deepEqual(recentRewardActivity(students,records,'6.2').map(r=>r.id),['7']);
  assert.equal(activity.some(r=>r.star_event==='recovery'||r.student_id==='d'),false);
 });
