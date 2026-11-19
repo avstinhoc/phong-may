@@ -1,6 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2.119.0";
 import { importPKCS8, SignJWT } from "npm:jose@5.10.0";
-import { canReconcileMissingRows, studentSheetSortPlan, mergedRowMoves, verifiedCodeMatch, matchedStudentBatches } from "./nameSort.js";
+import { canReconcileMissingRows, studentSheetSortPlan, mergedRowMoves, verifiedCodeMatch, matchedStudentBatches, verifiedRowMapping } from "./nameSort.js";
 
 type Dict = Record<string, any>;
 const ORIGIN="https://phong-may.vercel.app";
@@ -660,36 +660,68 @@ async function sortStudentTab(db:any,link:Dict,map:Dict,token:string){
   if(serialRequests.length)await sheetBatch(link.spreadsheet_id,serialRequests,token);
   return {sorted:false};
  }
+ const oldMapping=map.student_rows||{};
+ const preflight=verifiedRowMapping(grid,grid,oldMapping);
+ if(!preflight.safe)return {sorted:false,warning:preflight.reason};
  const batch=mergedRowMoves(plan,map.sheet_gid,tab.merges||[]);
  if(batch.warning)return {sorted:false,warning:batch.warning};
- const positions=new Map(plan.sorted.map((row,i)=>[row.sheetRow,i+8]));
- const studentRows:Dict={};
- for(const [id,row] of Object.entries(map.student_rows||{})){
-  if(!plan.rows[Number(row)-8]?.name)return {sorted:false,warning:"Ánh xạ trỏ tới dòng trống. Cần rà soát lớp."};
-  studentRows[id]=positions.get(Number(row));
- }
- // Invalidate old coordinates before moving rows. If Google or the final save
- // fails, matching falls back to checked identities and flags ambiguous names.
+
+ // Temporarily invalidate row coordinates while Google is moving rows.
+ // A concurrent attendance sync must not write to old row numbers.
  const cleared=await db.from("school_sheet_tabs").update({student_rows:{}})
-  .eq("id",map.id).eq("link_id",link.id).eq("student_rows",JSON.stringify(map.student_rows||{})).select("id").maybeSingle();
- if(cleared.error||!cleared.data)throw fail("Ánh xạ lớp đã thay đổi. Vui lòng đồng bộ lại.",409);
- const requests:Dict[]=[...serialRequests.slice(0,1),...batch.requests!,...serialRequests.slice(1)];
+  .eq("id",map.id).eq("link_id",link.id)
+  .eq("student_rows",JSON.stringify(oldMapping)).select("id").maybeSingle();
+ if(cleared.error||!cleared.data)
+  throw fail("Ánh xạ lớp đã thay đổi. Hãy thử đồng bộ lại.",409);
+
+ let googleError:any=null;
  try{
-  await sheetBatch(link.spreadsheet_id,requests,token);
- }catch(error){
-  if((error as any)?.googleStatus===400){
-   const restore=await db.from("school_sheet_tabs").update({student_rows:map.student_rows||{}})
-    .eq("id",map.id).eq("link_id",link.id).eq("student_rows","{}").select("id").maybeSingle();
-   if(restore.error||!restore.data)throw fail("Sheets từ chối sắp xếp. Cần đối chiếu lại ánh xạ dòng.",409);
+  // A large Google spreadsheets.batchUpdate with dozens of moveDimension
+  // requests can return INTERNAL 500. Submit independent moves in small,
+  // ordered groups; the plan's indices already account for preceding moves.
+  // For merged cells keep the original unmerge/move/remerge transaction
+  // atomic instead of leaving broken merges between separate requests.
+  const requests=batch.requests||[];
+  const hasMerges=requests.some((r:Dict)=>!r.moveDimension);
+  if(hasMerges){
+   await sheetBatch(link.spreadsheet_id,requests,token);
+  }else{
+   const groupSize=6;
+   for(let i=0;i<requests.length;i+=groupSize)
+    await sheetBatch(link.spreadsheet_id,requests.slice(i,i+groupSize),token);
   }
-  throw error;
+  // Never clear or copy the STT formula before moving rows: a Google 500 must
+  // not leave column B blank if part of the sort was interrupted.
+  if(serialRequests.length)await sheetBatch(link.spreadsheet_id,serialRequests,token);
+ }catch(e){
+  googleError=e;
+  // Do not replay a failed move blindly: a Google 500 may be returned after
+  // some rows already moved. Recover the actual current positions first.
+  console.warn("google_sheets_sort_failed",map.class_name,(e as any)?.googleStatus||"unknown");
  }
- const post=await readTab(link.spreadsheet_id,map.sheet_title,token);
- if(plan.sorted.some((r,i)=>[0,2,3].some(c=>String(post[i+3]?.[c]??"")!==String(grid[r.sheetRow-5]?.[c]??""))))
-  throw fail("Danh sách đã thay đổi trong lúc sắp xếp. Cần đối chiếu lại ánh xạ.",409);
- const saved=await db.from("school_sheet_tabs").update({student_rows:studentRows,last_synced_at:new Date().toISOString()})
-  .eq("id",map.id).eq("link_id",link.id).eq("student_rows","{}").select("id").maybeSingle();
- if(saved.error||!saved.data)throw fail("Đã xếp Sheets nhưng chưa lưu được ánh xạ. Vui lòng đồng bộ lại.",503);
+ let post:any[]=[];
+ try{
+  post=await readTab(link.spreadsheet_id,map.sheet_title,token);
+ }catch(readError){
+  throw fail("Google Sheets bị lỗi khi đọc lại dòng sau sắp xếp. Ánh xạ đã tạm khóa để tránh ghi nhầm học sinh; thử đồng bộ lại.",503);
+ }
+ const verified=verifiedRowMapping(grid,post,oldMapping);
+ if(!verified.safe)
+  throw fail("Sheets đổi dòng nhưng chưa xác minh được học sinh: "+verified.reason+" Ánh xạ đang được khóa để tránh ghi sai.",409);
+ const complete=!studentSheetSortPlan(post.slice(3,66)).needsSort;
+ const saved=await db.from("school_sheet_tabs").update({
+   student_rows:verified.mapping,last_synced_at:new Date().toISOString()
+ }).eq("id",map.id).eq("link_id",link.id)
+   .eq("student_rows","{}").select("id").maybeSingle();
+ if(saved.error||!saved.data)
+  throw fail("Đã kiểm tra tên sau khi sắp xếp nhưng chưa lưu được ánh xạ học sinh; cần đồng bộ lại.",503);
+ if(googleError){
+  return {sorted:complete,warning:complete
+   ?"Google Sheets báo lỗi tạm thời nhưng thứ tự tên đã được xác minh và ánh xạ được phục hồi."
+   :"Google Sheets tạm lỗi khi sắp xếp. Đã phục hồi ánh xạ từng học sinh; thử đồng bộ lại để tiếp tục sắp xếp."};
+ }
+ if(!complete)
+  return {sorted:false,warning:"Sheets chưa hoàn tất sắp xếp; đã lưu lại đúng vị trí học sinh để đồng bộ lần sau."};
  return {sorted:true};
 }
 
@@ -918,9 +950,11 @@ async function syncSchool(db:any,link:Dict,token:string,ownerId:string,offset=0,
    map=await getMap(db,link.id,name);
    const pushed=await syncClass(db,link,map,token,ownerId,fresh?"push":"reconcile");
    let sortWarning="";
-   {
+   if(!(pulled.conflicts||[]).length&&!(pushed.conflicts||[]).length){
     const sorted=await sortStudentTab(db,link,await getMap(db,link.id,name),token);
     sortWarning=sorted.warning||"";
+   }else{
+    sortWarning="Lớp còn xung đột dữ liệu; tạm bỏ qua sắp xếp để bảo vệ điểm danh và hồ sơ.";
    }
    report.push({class_name:name,
      retiredOnWeb:pulled.retiredOnWeb,retiredOnSheet:pulled.retiredOnSheet,addedStudents:pulled.createdStudents||0,cellsWritten:pushed.counts?.cellsWritten||0,
@@ -1252,10 +1286,12 @@ Deno.serve(async(req:Request)=>{
   if(["preview","pull","push"].includes(action)){
    if(action!=="preview"&&payload.confirm!==true)throw fail("Cần xem trước và xác nhận trước khi ghi dữ liệu.");
    const result=await syncClass(db,link,map,token,ownerId,action);
-   if(action!=="preview"){
+   if(action!=="preview"&&!(result.conflicts||[]).length){
     const sorted=await sortStudentTab(db,link,await getMap(db,link.id,className),token);
     if(sorted.warning)result.conflicts=[...(result.conflicts||[]),sorted.warning];
     result.sortedByGivenName=Boolean(sorted.sorted);
+   }else if(action!=="preview"){
+    result.conflicts=[...(result.conflicts||[]),"Còn xung đột dữ liệu; chưa tự sắp xếp tên để tránh sai dòng."];
    }
    return respond(200,{success:true,...result},origin);
   }
