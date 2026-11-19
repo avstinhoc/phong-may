@@ -219,12 +219,13 @@ export function StudentRewardManagement({profile,refresh,onNavigate}){
                  onClick={()=>setEditing(editing?.id===r.id?null:r)}
                  title={r.star_event==='recovery'?'Không thể sửa trực tiếp lượt khôi phục':'Chỉnh sửa ghi nhận khi chọn nhầm học sinh'}>✏️ Sửa</button>
              </div>
-             {editing?.id===r.id&&<RecordCorrectionEditor key={r.id} record={r} students={students}
-               onCancel={()=>setEditing(null)}
-               onSaved={message=>{setEditing(null);setSuccess(message);setLocalRefresh(n=>n+1);}}/>}
+
            </React.Fragment>)}
            {!history.length&&<p className="srm-message">Chưa có ghi nhận cho học sinh này.</p>}
          </div>
+         {editing&&<RecordCorrectionEditor key={editing.id} record={editing} students={students}
+           onCancel={()=>setEditing(null)}
+           onSaved={message=>{setEditing(null);setSuccess(message);setLocalRefresh(n=>n+1);}}/>}
        </section>
      </div>
    </>}
