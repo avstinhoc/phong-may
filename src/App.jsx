@@ -19,7 +19,7 @@ import { ReportsCenter } from "./ReportsCenter";
 import { HelpAssistant } from "./HelpAssistant";
 import { ProfileSettings } from "./ProfileSettings";
 import { properName, searchName, comparePC, compareStudentName } from "./lib/students";
-import {fireStyle,flameEffect,groupedHistory,isFormalViolation} from "./lib/stars";
+import {flameEffect,groupedHistory,isFormalViolation} from "./lib/stars";
 import {FlameBadge} from "./FlameBadge";
 import { normalizeComputerCode,validFullName } from "./lib/registration";
 import {pendingRegistrationsForClass,nextFriendRegistration,canConfirmFlaggedName} from "./lib/studentRegistrationUI";
@@ -232,7 +232,7 @@ function App() {
         </div>
         <nav className="nav-scroll" aria-label="Menu chính">
           {[["GIẢNG DẠY", ["dashboard", "attendance", "rollcall", "roster", "records", "student_rewards", "evaluation"]],
-            ["PHÒNG MÁY", ["computers", "leaderboard", "students", "cleaning", "settings"]],
+            ["PHÒNG MÁY", ["computers", "students", "settings", "leaderboard", "cleaning"]],
             ["QUẢN LÝ", ["workplaces", "schools", "finance", "reports", "accounts"]]].map(([group, ids]) => <React.Fragment key={group}>
             <div className="nav-label">{group}</div>
             <ChevronRight size={17} className="profile-chevron"/>
@@ -1397,7 +1397,6 @@ function Records({ profile, refresh, reload, ping }) {
   const [nameQuery,setNameQuery]=useState("");
   const [editHistory,setEditHistory]=useState(false),[editingRecord,setEditingRecord]=useState(null);
   const [awardStars,setAwardStars]=useState(1);
-  const [redeemBusy,setRedeemBusy]=useState("");
   const [threshold,setThreshold]=useState(3);
   const [reports,setReports]=useState([]);
   const [reportNote,setReportNote]=useState({});
@@ -1408,10 +1407,6 @@ function Records({ profile, refresh, reload, ping }) {
   const classes=[...new Set(students.rows.map(x=>x.class_name).filter(Boolean))].sort();
   const allowedStudents=students.rows.filter(st=>(!selectedClass||st.class_name===selectedClass)&&st.status==="active" &&
     searchName(st.full_name).includes(searchName(nameQuery)));
-  const wallets=useRows("ic3_star_wallets",profile,refresh);
-  const leaderboard=allowedStudents.map(st=>({...st,stars:wallets.rows.find(w=>w.student_id===st.id)}))
-    .filter(st=>st.stars).sort((a,b)=>b.stars.earned-a.stars.earned||b.stars.available-a.stars.available).slice(0,5);
-  const [amounts,setAmounts]=useState({});
   const [penalty,setPenalty]=useState(2);
   const disorder=form.record_type==='violation'&&['mất trật tự','lỗi mất trật tự'].includes(form.title.trim().toLowerCase());
   const filteredRecords=records.rows.filter(r=>{
@@ -1458,26 +1453,6 @@ function Records({ profile, refresh, reload, ping }) {
       ping((disorder||form.record_type==="break")?"Đã trừ sao do mất trật tự, lửa giảm 1 cấp.":form.record_type==="violation"?"Đã ghi nhận một lần vi phạm. Nếu đủ ngưỡng sẽ có biên bản nháp.":"Đã lưu ghi nhận");
       setForm(old=>({...old,note:"",record_date:today()}));reload();
     }
-  }
-  async function redeemOneStar(st){
-    const amount=Number(amounts[st.id]??2);
-    if(redeemBusy||!Number.isSafeInteger(amount)||amount<2||amount>st.stars.available)
-      return ping('Đổi quà tối thiểu 2 sao, không vượt số dư hiện có.');
-    if(!window.confirm('Đổi '+amount+' sao của '+st.full_name+' lấy quà?'))return;
-    setRedeemBusy(st.id);
-    const {error}=await supabase.rpc('ic3_redeem_student_stars',{
-      p_student_id:st.id,p_stars:amount,p_note:'Giáo viên đã xác nhận đổi quà'
-    });
-    setRedeemBusy('');
-    if(error)ping('Chưa đổi thưởng: '+error.message);
-    else{ping('Đã đổi '+amount+' ⭐ cho '+st.full_name);reload();}
-  }
-  async function restore(st){
-    setRedeemBusy(st.id);
-    const {error}=await supabase.from('student_records').insert({school_id:profile.school_id,student_id:st.id,created_by:profile.id,
-      record_type:'reward',star_event:'recovery',points:0,title:'Phục hồi chuỗi sao',record_date:today()});
-    setRedeemBusy('');
-    if(error)ping(error.message);else{ping('Đã phục hồi hiệu ứng');reload();}
   }
   async function changeThreshold(value){
     setBusy(true);
@@ -1610,32 +1585,6 @@ function Records({ profile, refresh, reload, ping }) {
           onSaved={message=>{setEditingRecord(null);ping(message);reload();}}/>}
       </div>
     </div>
-    <section className="panel star-leaderboard-panel">
-      <div className="panel-head"><div><h3>🏆 TOP 5 sao & đổi quà</h3>
-        <p>⭐ Sao hiện có được dùng để đổi thưởng; sao đã kiếm vẫn được giữ để xếp hạng theo lớp.</p></div>
-        <span className="status active">{leaderboard.length} học sinh</span></div>
-      <div className="star-wallet-grid">
-        {leaderboard.map((st,i)=><article className={'star-wallet '+(flameEffect(st.stars).visible?flameEffect(st.stars).className:'')} style={fireStyle(st.stars)} key={st.id}>
-          <span className="star-place">{i===0?'🥇':i===1?'🥈':i===2?'🥉':'#'+(i+1)}</span>
-          <div className="star-wallet-label"><b>{st.full_name} </b><small>Lớp {st.class_name} · Đã kiếm {st.stars.earned} ⭐</small></div>
-          <strong>⭐ {st.stars.available} <FlameBadge wallet={st.stars}/></strong>
-          <label>Số sao muốn đổi (ít nhất 2)<input type="number" min="2" step="1" max={Math.max(2,st.stars.available)} value={amounts[st.id]??2}
-            onChange={e=>setAmounts(old=>({...old,[st.id]:e.target.value}))}/></label>
-          {st.stars.can_restore&&<button type="button" className="mini-btn flame-restore-button"
-            disabled={!!redeemBusy} onClick={()=>restore(st)}>↻ Khôi phục lửa xám · Còn {st.stars.chances}/3 lượt (không hoàn sao)</button>}
-          {st.stars.earned>=20&&<small className="star-streak-state">
-            {st.stars.flame_state==='gray'?'Lửa đang xám, cần khôi phục hoặc kiếm sao.':
-             st.stars.flame_state==='cooling'?'Lửa đang yếu dần – hãy kiếm sao để giữ chuỗi.':
-             st.stars.flame_state==='off'?'Khung đã tắt do mất chuỗi.':
-             'Đang giữ chuỗi · '+(st.stars.inactivity_days??0)+' ngày kể từ lần cộng sao.'}
-          </small>}
-          <button type="button" className="mini-btn success" disabled={!!redeemBusy||st.stars.available<2} onClick={()=>redeemOneStar(st)}>
-            {redeemBusy===st.id?'Đang đổi…':'Xác nhận đổi quà'}
-          </button>
-        </article>)}
-        {!leaderboard.length&&<p className="muted">Chưa có sao thưởng. Chọn loại Thưởng 1 ⭐ để ghi nhận thành tích.</p>}
-      </div>
-    </section>
     <section className="panel incident-reports-panel">
       <h3>Biên bản vi phạm</h3>
       <p className="muted">Đủ {threshold} lần vi phạm sẽ tạo biên bản nháp. Bản in kết hợp mẫu học sinh tường trình, bảng lỗi đã ghi nhận và phần ký xác nhận; học sinh tự điền phần giải trình. Giáo viên kiểm tra rồi xác nhận, không tự áp dụng hình thức kỷ luật.</p>

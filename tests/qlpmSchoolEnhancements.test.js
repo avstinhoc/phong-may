@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 import {starTotals,starLeaderboard} from '../src/lib/stars.js';
 
 const edge=readFileSync(new URL('../supabase/functions/google-sheets-sync/index.ts',import.meta.url),'utf8');
-const app=readFileSync(new URL('../src/App.jsx',import.meta.url),'utf8');
+const rewards=readFileSync(new URL('../src/StudentRewardManagement.jsx',import.meta.url),'utf8');
 const portal=readFileSync(new URL('../src/StudentPortal.jsx',import.meta.url),'utf8');
 
 test('class identifiers are not conflated and slash receives a legal Google tab name',()=>{
@@ -45,6 +45,8 @@ test('star history remains after spending while spendable balance decreases',()=
  const ranks=starLeaderboard([{id:student_id,full_name:'Bạn A',status:'active'},
   {id:'b',full_name:'Bạn B',status:'active'}],rows);
  assert.equal(ranks[0].id,student_id);
- assert.ok(app.includes('ic3_redeem_student_stars'));
+ // Redemption moved out of Records to the dedicated reward-management screen.
+ assert.ok(rewards.includes('ic3_redeem_student_stars'));
+ assert.ok(rewards.includes("kind==='redeem'"));
  assert.ok(portal.includes('ic3_class_stars'));
 });
