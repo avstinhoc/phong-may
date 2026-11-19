@@ -719,6 +719,19 @@ function Students({ profile, refresh, reload, ping, navigate }) {
   },[reviewKey,reviewRevision]);
   const possiblePairs=namePairs(rows.filter(s=>s.status==='active'&&(profile.role==='admin'||
     ownedClasses.some(c=>s.class_id?c.id===s.class_id:c.class_name===s.class_name)))).filter(p=>!reviewedPairs.has(p.id));
+  async function removeReviewed(student,other){
+    if(reviewBusy)return;
+    const label=s=>s.full_name+' · '+(s.student_code||s.id);
+    if(!window.confirm('Lớp '+student.class_name+'\nXóa khỏi danh sách: '+label(student)+'\nGiữ lại: '+label(other)+'\nĐiểm và lịch sử của hồ sơ được xóa vẫn được lưu.'))return;
+    setReviewBusy(student.id);
+    try{
+      const {error}=await supabase.from('students').update({status:'inactive'})
+        .eq('school_id',profile.school_id).eq('id',student.id).eq('status','active').select('id').single();
+      if(error)throw error;
+      ping('Đã xóa '+student.full_name+' khỏi danh sách lớp');reload();
+    }catch(e){ping('Chưa xóa được hồ sơ: '+e.message);}
+    finally{setReviewBusy(null);}
+  }
   function confirmSeparate(id){
     localStorage.setItem(reviewKey,JSON.stringify([...reviewedPairs,id]));
     setReviewRevision(v=>v+1);
@@ -883,7 +896,7 @@ function Students({ profile, refresh, reload, ping, navigate }) {
     <section className="panel"><h3>Rà soát hồ sơ trùng hoặc gần giống ({possiblePairs.length})</h3>
       {!possiblePairs.length&&<p>Chưa có cặp tên cần đối chiếu.</p>}
       {possiblePairs.map(pair=><div className="task-row" key={pair.id}><b>Lớp {pair.students[0].class_name}</b>
-        {pair.students.map(st=><button className="mini-btn" key={st.id} onClick={()=>setNameEditing({id:st.id,full_name:st.full_name})}>Sửa tên · {st.full_name}</button>)}
+        {pair.students.map((st,i)=><span key={st.id}><button className="mini-btn" onClick={()=>setNameEditing({id:st.id,full_name:st.full_name})}>Sửa tên · {st.full_name}</button> <button className="mini-btn danger" disabled={!!reviewBusy} aria-label={"Xóa "+st.full_name+" khỏi danh sách lớp"} onClick={()=>removeReviewed(st,pair.students[1-i])}>Xóa</button></span>)}
         <button className="mini-btn success" onClick={()=>confirmSeparate(pair.id)}>Xác nhận hai học sinh riêng</button>
       </div>)}
     </section>
