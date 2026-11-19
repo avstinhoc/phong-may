@@ -64,3 +64,26 @@
 .srm-history-row strong{flex:none}
 .srm-history-row .record-correction-edit-button{flex:none}
 @media(max-width:700px){.srm-filter{grid-template-columns:1fr}}
+
+/* Profile summary editing: clearly scoped to the three aggregate totals. */
+.srm-student-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.srm-edit-totals-btn{padding:10px 13px;border:1px solid #afdcd1;border-radius:10px;background:#fff;color:#0b766d;font-size:12px;font-weight:900;cursor:pointer;white-space:nowrap;box-shadow:0 4px 12px #185b4d12}
+.srm-edit-totals-btn:hover,.srm-edit-totals-btn:focus-visible{background:#eaf9f5;border-color:#65c4ac}
+.srm-edit-totals-btn:disabled{opacity:.5;cursor:default}
+.srm-totals-editor{margin-top:17px;padding:20px;border:1px solid #a2d9cd;background:#fff;border-radius:14px;display:grid;gap:14px}
+.srm-totals-editor-header h4{margin:0 0 4px;font-size:16px;color:#0b6964}
+.srm-totals-editor-header p{font-size:11px;color:#6a8588;margin:0;line-height:1.6}
+.srm-totals-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.srm-totals-fields label,.srm-totals-reason{display:flex;flex-direction:column;gap:7px;font-size:12px;font-weight:850;color:#315f67}
+.srm-totals-fields input,.srm-totals-reason textarea{width:100%;min-width:0;border:1px solid #cee1e0;border-radius:10px;padding:11px 12px;color:#123d46;background:#fff;font-size:14px;font-family:inherit}
+.srm-totals-fields input:focus-visible,.srm-totals-reason textarea:focus-visible{outline:2px solid #129e93;outline-offset:2px}
+.srm-totals-warning{background:#f7f9ed;border:1px solid #e7e9b9;color:#6b721e;padding:11px 12px;border-radius:9px;font-size:11px;line-height:1.6;margin:0}
+.srm-totals-actions{display:flex;justify-content:flex-end;align-items:center;gap:10px;flex-wrap:wrap}
+.srm-total-audit{margin-top:13px;border-top:1px solid #d5ebe6;padding-top:11px;color:#426b70;font-size:11px}
+.srm-total-audit summary{cursor:pointer;font-weight:850}
+.srm-audit-items{display:grid;gap:7px;margin-top:9px}
+.srm-audit-item{background:#fff;border:1px solid #e0e9e9;border-radius:9px;padding:10px 12px}
+.srm-audit-item strong{font-size:11px;color:#2b5d63}
+.srm-audit-item p{margin:4px 0 6px;font-size:11px;line-height:1.5;overflow-wrap:break-word}
+.srm-audit-item small{font-size:11px;color:#647f86;line-height:1.5}
+@media(max-width:740px){.srm-totals-fields{grid-template-columns:1fr}.srm-totals-editor{padding:13px}.srm-edit-totals-btn{width:100%}}
