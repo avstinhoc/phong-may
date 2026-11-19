@@ -217,6 +217,7 @@ export function StudentRewardManagement({profile,refresh,onNavigate}){
          <div className="srm-student-title"><div className="srm-avatar" aria-hidden="true">{student.full_name.slice(0,1)}</div>
            <div><small>HỒ SƠ THI ĐUA</small><h3>{student.full_name} <FlameBadge wallet={wallet||{earned:0,effect_score:0}} compact/></h3>
              <p>Lớp {student.class_name||'Chưa phân lớp'} · {wallet?.flame_state==='gray'?'Lửa đang xám':wallet?.flame_state==='cooling'?'Cần giữ chuỗi':'Theo dõi thưởng & kỷ luật'}</p>
+             {adjusted&&<small className="srm-stat-adjusted">🧾 Chỉ số đã được đối soát thủ công · Xem lịch sử chỉnh sửa bên dưới</small>}
            </div>
          </div>
          <button className="srm-edit-totals-btn" type="button" onClick={()=>showTotalsEditor?setShowTotalsEditor(false):openTotalsEditor()}
