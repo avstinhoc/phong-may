@@ -263,3 +263,24 @@
  .school-public-main #school-classes{scroll-margin-top:215px}
 }
 @media(prefers-reduced-motion:reduce){.school-grade-launcher{transition:none}}
+
+/* Keep three grade leaderboards directly beneath school Top 5, with readable names and links. */
+.school-three-grades{align-items:stretch}
+.school-three-grades .school-grade-board{display:flex;flex-direction:column;min-width:0}
+.school-three-grades .school-grade-list{flex:1}
+.school-three-grades .school-grade-row{min-height:65px;padding:10px 9px;gap:8px}
+.school-three-grades .school-grade-info b{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:break-word;word-break:normal;font-size:12px;line-height:1.35}
+.school-three-grades .school-grade-info small{font-size:11px}
+.school-three-grades .school-grade-place{flex:0 0 27px}
+.school-grade-board-link{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:auto 13px 14px;padding:12px 13px;color:#096a66;text-decoration:none;border:1px solid #cce9e0;border-radius:11px;background:#effaf6;font-size:12px;font-weight:850}
+.school-grade-board-link:hover,.school-grade-board-link:focus-visible{background:#ddf5ee;border-color:#85c7b4}
+.school-grade-board-link>span{font-size:17px}
+@media(max-width:900px){
+ .school-three-grades .school-grade-board:last-child{grid-column:1/-1}
+}
+@media(max-width:640px){
+ .school-three-grades{grid-template-columns:minmax(0,1fr)}
+ .school-three-grades .school-grade-row{min-height:61px}
+ .school-three-grades .school-grade-info b{font-size:13px}
+ .school-three-grades .school-grade-info small{font-size:11px}
+}
