@@ -470,3 +470,36 @@ $correction$;
 
 revoke all on function public.ic3_correct_student_record(uuid,uuid,text,text,numeric,date,text,text) from public,anon;
 grant execute on function public.ic3_correct_student_record(uuid,uuid,text,text,numeric,date,text,text) to authenticated;
+
+
+-- Redemption must validate the EFFECTIVE balance, including audited corrections.
+-- Validation trigger already reads ic3_star_wallets, so keep both checks aligned.
+create or replace function public.ic3_redeem_student_stars(
+ p_student_id uuid,p_stars integer default 2,p_note text default 'Đổi quà'
+) returns integer language plpgsql security definer set search_path=public,pg_temp
+as $redeem$
+declare v_school uuid;v_available numeric;
+begin
+ if auth.uid() is null then raise exception 'Bạn cần đăng nhập.'; end if;
+ if p_stars is null or p_stars<2 then raise exception 'Cần ít nhất 2 sao để đổi quà.'; end if;
+ select s.school_id into v_school from public.students s
+ where s.id=p_student_id and s.status='active' for update;
+ if v_school is null then raise exception 'Không tìm thấy học sinh đang học.'; end if;
+ if not exists(select 1 from public.profiles p where p.id=auth.uid()
+  and p.is_active=true and p.role in ('admin','teacher','staff'))
+ or not (exists(select 1 from public.school_members m where m.user_id=auth.uid() and m.school_id=v_school)
+   or exists(select 1 from public.profiles p where p.id=auth.uid() and p.school_id=v_school))
+ then raise exception 'Bạn không có quyền đổi thưởng tại trường này.'; end if;
+ select coalesce((select w.available from public.ic3_star_wallets w
+   where w.school_id=v_school and w.student_id=p_student_id),0)
+ into v_available;
+ if v_available<p_stars then raise exception 'Số sao khả dụng không đủ để đổi.'; end if;
+ insert into public.student_records(school_id,student_id,record_type,title,points,note,created_by,record_date)
+ values(v_school,p_student_id,'reward','Đã đổi quà',-p_stars,
+  left(coalesce(nullif(trim(p_note),''),'Giáo viên đã xác nhận đổi quà'),500),
+  auth.uid(),(now() at time zone 'Asia/Ho_Chi_Minh')::date);
+ return floor(v_available-p_stars)::integer;
+end;
+$redeem$;
+revoke all on function public.ic3_redeem_student_stars(uuid,integer,text) from public,anon;
+grant execute on function public.ic3_redeem_student_stars(uuid,integer,text) to authenticated;
