@@ -31,7 +31,7 @@ test('Top 5 winner is centered and grade links handle 6A1, 6/1, 6-1 and 6.1',()=
  assert.ok(school.includes("['8','7','6'].map"));
  assert.ok(vercel.rewrites.some(x=>x.source==='/school'));
  assert.ok(vercel.rewrites.some(x=>x.source==='/school/grade/:grade'));
- assert.ok(app.includes('school/grade'));
+ assert.ok(app.includes('window.location.pathname === "/school" ||'));
 });
 
 test('SQL school portal collects multiple teachers but isolates same-name schools and adds new class codes automatically',async()=>{
