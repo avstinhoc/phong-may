@@ -69,7 +69,7 @@ test('audited corrections reassign reward and violations, rebuild drafts, preven
   assert.equal(ok.rows[0].success,true);
   const corrected=await db.query('select student_id,title,points from public.student_records where id=$1',[reward]);
   assert.equal(corrected.rows[0].student_id,second);
-  assert.equal(corrected.rows[0].points,5);
+  assert.equal(Number(corrected.rows[0].points),5);
   const audit=await db.query('select previous_data,corrected_data,reason,corrected_by from public.student_record_corrections where record_id=$1',[reward]);
   assert.equal(audit.rows.length,1);
   assert.equal(audit.rows[0].corrected_by,actor);
