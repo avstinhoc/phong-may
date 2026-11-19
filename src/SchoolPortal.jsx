@@ -90,7 +90,7 @@ export function SchoolPortal({initialCode='',embedded=false}){
      if(apiError)throw apiError;
      if(!result?.school_name){setData(null);throw Error('Không tìm thấy trường từ mã lớp này. Hãy sử dụng mã lớp đang hoạt động.');}
      setData(result);setCode(normalized);setUpdatedAt(new Date());
-     if(!embedded)window.history.replaceState(null,'',(selectedGrade?'/school/grade/'+selectedGrade:'/school')+'?code='+encodeURIComponent(normalized));
+     if(!embedded)window.history.replaceState(null,'',(selectedGrade?'/school/grade/'+selectedGrade:'/school')+'?code='+encodeURIComponent(normalized)+window.location.hash);
    }catch(e){setError('Không tải được BXH: '+(e.message||String(e)));}
    finally{setBusy(false);}
  }
@@ -98,6 +98,11 @@ export function SchoolPortal({initialCode='',embedded=false}){
    const initial=initialCode||new URLSearchParams(window.location.search).get('code');
    if(initial)reload(initial);
  },[initialCode]);
+ useEffect(()=>{
+   if(!data||!window.location.hash)return;
+   const id=decodeURIComponent(window.location.hash.slice(1));
+   document.getElementById(id)?.scrollIntoView({block:'start'});
+ },[data,selectedGrade]);
  const classes=Array.isArray(data?.classes)?data.classes:[];
  const matches=search.trim()?classes.filter(item=>String(item.class_name||'').toLocaleLowerCase('vi').includes(search.trim().toLocaleLowerCase('vi'))).slice(0,8):[];
  function findClass(e){
