@@ -35,7 +35,7 @@ function SchoolPodium({rows}){
    </div>
  </div>;
 }
-function GradeLeaderboard({grade,items}){
+function GradeLeaderboard({grade,items,schoolCode=''}){
  const rows=(items||[]).slice(0,10);
  return <section className={'school-grade-board school-grade-board--'+grade} aria-label={'Top 10 học sinh khối '+grade}>
    <div className="school-grade-board-head">
@@ -54,6 +54,9 @@ function GradeLeaderboard({grade,items}){
        </li>;
      })}
    </ol>:<div className="school-grade-empty"><span>✨</span><p>Khối {grade} chưa có sao thưởng.</p><small>Hãy cùng cố gắng để lên bảng vàng!</small></div>}
+   {schoolCode&&<a className="school-grade-board-link" href={gradeLink(grade,schoolCode)}>
+     Xem trang khối {grade} và danh sách lớp <span aria-hidden="true">↗</span>
+   </a>}
  </section>;
 }
 function GradeClassSection({grade,rows,query=''}) {
@@ -168,6 +171,11 @@ export function SchoolPortal({initialCode='',embedded=false}){
            {data.top_school?.length?<SchoolPodium rows={topFive(data.top_school)}/>:
              <div className="school-main-empty">🌟 Chưa có học sinh nào được cộng sao. Hãy là người đầu tiên lên bảng vàng!</div>}
          </section>
+         <div className="school-three-grades" aria-label="Bảng xếp hạng Top 10 của ba khối">
+           <GradeLeaderboard grade="8" items={data.top_8} schoolCode={code}/>
+           <GradeLeaderboard grade="6" items={data.top_6} schoolCode={code}/>
+           <GradeLeaderboard grade="7" items={data.top_7} schoolCode={code}/>
+         </div>
          <section className="school-grade-launchers" aria-label="Chọn khối để xem Top 10 và các lớp">
            <div className="school-standings-heading"><div><span>3 ĐẤU TRƯỜNG THEO KHỐI</span><h2>✨ Chọn khối của bạn</h2>
              <p>Mỗi khối có bảng Top 10 riêng và danh sách lớp bên dưới. Chọn khối để khám phá nhé!</p></div></div>
