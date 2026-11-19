@@ -584,6 +584,18 @@ async function sharedClassWriteAllowed(admin:any,link:Dict,peers:Dict[],name:str
  return [link.id,...others.map((p:Dict)=>p.id)].sort()[0]===link.id;
 }
 
+async function archivedClassNames(db:any,schoolId:string){
+ const blocked=new Set<string>(), active=new Set<string>();
+ for(let offset=0;;offset+=250){
+  const {data,error}=await db.from("classes").select("class_name,archived_at").eq("school_id",schoolId)
+    .order("id").range(offset,offset+249);
+  if(error)throw fail("Không kiểm tra được trạng thái lớp.",503);
+  for(const row of data)(row.archived_at?blocked:active).add(clean(row.class_name));
+  if(data.length<250)break;
+ }
+ for(const name of active)blocked.delete(name);
+ return blocked;
+}
 async function syncSchool(db:any,link:Dict,token:string,ownerId:string,offset=0,onlyClass=""){
  const {data:school,error:schoolError}=await db.from("schools").select("id,name").eq("id",link.school_id).maybeSingle();
  if(schoolError||!school)throw fail("Không có quyền đọc trường.",403);
@@ -607,6 +619,8 @@ async function syncSchool(db:any,link:Dict,token:string,ownerId:string,offset=0,
    if(label)seen.add(label);
   }
  }
+ const archived=await archivedClassNames(db,link.school_id);
+ for(const name of archived)seen.delete(name);
  if(onlyClass&&!seen.has(onlyClass))throw fail("Lớp chưa tồn tại trong trường đang chọn.",404);
  const allClasses=onlyClass?[onlyClass]:[...seen].sort(classCompare).slice(0,60);
  const classNames=allClasses.slice(offset,offset+3);
@@ -862,6 +876,7 @@ Deno.serve(async(req:Request)=>{
    ]);
    if(!student||student.status!=="active"||!lesson||student.class_name!==lesson.class_name)
      throw fail("Học sinh và buổi học không thuộc cùng lớp tại trường này.",403);
+   if((await archivedClassNames(db,link.school_id)).has(student.class_name))throw fail("Lớp đã đóng.",409);
    const map=await getMap(db,link.id,student.class_name);
    if(!map)throw fail("Lớp chưa được liên kết với tab Sheets.",409);
    const rowNo=Number((map.student_rows||{})[studentId]);
@@ -916,6 +931,7 @@ Deno.serve(async(req:Request)=>{
   }
   const className=clean(payload.class_name);
   if(!validClass(className))throw fail("Tên lớp không hợp lệ.");
+  if((await archivedClassNames(db,link.school_id)).has(className))throw fail("Lớp đã đóng.",409);
   const shared=await workbookPeerLinks(link);
   if(!await sharedClassWriteAllowed(shared.admin,link,shared.peers,className))
    throw fail("Lớp do hồ sơ khác cùng trường quản lý, không được ghi đè Google Sheets.",409);

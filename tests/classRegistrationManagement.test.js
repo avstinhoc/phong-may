@@ -8,7 +8,7 @@ const migration=readFileSync(new URL('../supabase/migrations/20261117200332_teac
 
 test('class owner can edit, archive and restore a registration code safely',()=>{
  assert.ok(management.includes('Sửa mã'));
- assert.ok(management.includes('Xóa mã'));
+ assert.ok(management.includes('Xóa lớp vĩnh viễn') && management.includes("'ic3_retire_class'"));
  assert.ok(management.includes('Khôi phục mã'));
  assert.ok(management.includes("'ic3_manage_class_registration'"));
  assert.ok(!management.includes("profile.role==='admin'&&"));

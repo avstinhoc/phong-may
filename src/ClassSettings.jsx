@@ -48,7 +48,7 @@ export function ClassSettings({refresh,profile,ping,schools=[],onChanged}){
    setLoading(true);
    const {data,error}=await supabase.from('classes')
      .select('id,school_id,class_name,registration_code,archived_at,auto_approve,created_by')
-     .eq('school_id',activeSchool).eq('created_by',profile.id).order('class_name');
+     .eq('school_id',activeSchool).eq('created_by',profile.id).is('retired_at',null).order('class_name');
    setLoading(false);
    if(error)ping(error.message);else setRows(data||[]);
  }
@@ -125,15 +125,12 @@ export function ClassSettings({refresh,profile,ping,schools=[],onChanged}){
    e.preventDefault();
    if(!deleting||deleting.class_name!==confirm)return;
    setBusy(true);
-   const {data,error}=await supabase.rpc('ic3_manage_class_registration',{
-     p_class_id:deleting.id,p_confirmation:confirm,
-     p_action:deleting.archived_at?'restore':'archive'
-   });
+   const {error}=deleting.restore ? await supabase.rpc('ic3_manage_class_registration',{p_class_id:deleting.id,p_confirmation:confirm,p_action:'restore'}) : await supabase.rpc('ic3_retire_class',{p_class_id:deleting.id,p_confirmation:confirm});
    setBusy(false);
    if(error)ping(error.message);
    else{
      setDeleting(null);setConfirm('');
-     ping(data.archived_at?'Đã ngừng mã đăng ký; hồ sơ học sinh và lịch học vẫn giữ nguyên.':'Đã kích hoạt lại mã lớp');
+     ping(deleting.restore?'Đã kích hoạt lại mã lớp':'Đã xóa lớp và dừng đồng bộ Sheets.');
      await load();onChanged?.();
    }
  }
@@ -175,7 +172,8 @@ export function ClassSettings({refresh,profile,ping,schools=[],onChanged}){
       <button type="button" className="mini-btn" disabled={busy||!!row.archived_at}
         onClick={()=>{setEditingCode(row);setUpdatedCode(row.registration_code);}}>Sửa mã</button>
       <button type="button" className="mini-btn danger" disabled={busy}
-        onClick={()=>{setDeleting(row);setConfirm('');}}>{row.archived_at?'Khôi phục mã':'Xóa mã'}</button>
+        onClick={()=>{setDeleting(row);setConfirm('');}}>Xóa lớp</button>
+      {row.archived_at&&<button className="mini-btn" onClick={()=>{setDeleting({...row,restore:true});setConfirm('');}}>Khôi phục mã</button>}
      </div></td>
    </tr>)}</tbody>
   </table>{!rows.length&&!loading&&<p className="muted" style={{padding:16}}>Bạn chưa tạo lớp ở trường này. Lớp do người khác tạo sẽ không hiển thị tại đây.</p>}
@@ -207,14 +205,14 @@ export function ClassSettings({refresh,profile,ping,schools=[],onChanged}){
     </form>
   </div></div>}
   {deleting&&<div className="modal-backdrop"><div className="modal">
-    <div className="modal-head"><h3>{deleting.archived_at?'Khôi phục mã lớp':'Xác nhận xóa mã đăng ký'}</h3>
+    <div className="modal-head"><h3>{deleting.restore?'Khôi phục mã lớp':'Xóa lớp vĩnh viễn'}</h3>
       <button type="button" className="btn outline" onClick={()=>setDeleting(null)}>Đóng</button></div>
-    <p className="muted">Mã lớp sẽ ngừng hoạt động nhưng học sinh, điểm, lịch và hồ sơ đăng ký cũ được giữ nguyên. Nhập tên lớp để xác nhận:</p>
+    <p className="muted">{deleting.restore?'Kích hoạt lại mã lớp.':'Lớp sẽ đóng vĩnh viễn và ngừng đồng bộ Sheets. Lịch sử học sinh, điểm và lịch dạy được giữ lại. Nếu tab cũ còn trên Sheets, bạn có thể xóa thủ công.'} Nhập tên lớp để xác nhận.</p>
     <form className="form-stack" onSubmit={remove}>
       <label>Tên lớp: <b>{deleting.class_name}</b><input required autoComplete="off"
         value={confirm} onChange={e=>setConfirm(e.target.value)}/></label>
       <button className="btn danger" disabled={busy||confirm!==deleting.class_name}>
-        {busy?'Đang xử lý…':deleting.archived_at?'Khôi phục mã':'Xóa mã đăng ký'}</button>
+        {busy?'Đang xử lý…':deleting.restore?'Khôi phục mã':'Xóa lớp vĩnh viễn'}</button>
     </form>
   </div></div>}
  </section>;
