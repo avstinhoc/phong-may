@@ -27,6 +27,17 @@ test('Top 5 winner is centered and grade links handle 6A1, 6/1, 6-1 and 6.1',()=
  assert.ok(school.includes('schoolPodiumOrder(rows)'));
  assert.ok(school.includes('const rows=(items||[]).slice(0,10)'));
  assert.ok(school.includes('GradeLeaderboard grade={selectedGrade}'));
+ // Homepage shows all 3 live grade leaderboards directly beneath school Top 5,
+ // while retaining the dedicated grade pages and their class directory.
+ const homeStart=school.indexOf('!selectedGrade&&<>');
+ const schoolTop=school.indexOf('id="school-standings"',homeStart);
+ const gradePanels=school.indexOf('className="school-three-grades"',homeStart);
+ const gradeLaunchers=school.indexOf('className="school-grade-launchers"',homeStart);
+ assert.ok(homeStart>=0&&schoolTop>homeStart&&gradePanels>schoolTop&&gradeLaunchers>gradePanels);
+ for(const grade of ['8','6','7']){
+  assert.ok(school.includes('GradeLeaderboard grade="'+grade+'" items={data.top_'+grade+'} schoolCode={code}'));
+ }
+ assert.ok(school.includes('Xem trang khối {grade} và danh sách lớp'));
  assert.ok(school.includes('gradeLink(grade,code)'));
  assert.ok(school.includes("['8','7','6'].map"));
  assert.ok(vercel.rewrites.some(x=>x.source==='/school'));
