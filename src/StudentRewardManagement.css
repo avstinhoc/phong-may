@@ -89,3 +89,42 @@
 @media(max-width:740px){.srm-totals-fields{grid-template-columns:1fr}.srm-totals-editor{padding:13px}.srm-edit-totals-btn{width:100%}}
 
 .srm-stat-adjusted{display:block;margin-top:7px;color:#0e8276;font-size:10px;font-weight:800;line-height:1.5}
+
+/* School reward/point directory: replaces the old Top 5 redemption leaderboard. */
+.srm-class-summary{margin-top:5px;padding:23px;border:1px solid #d6e9e7;background:linear-gradient(135deg,#fffef8 0%,#f4fbfa 100%);min-width:0}
+.srm-class-summary-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:17px}
+.srm-class-summary-eyebrow{display:block;font-size:10px;letter-spacing:1.1px;font-weight:850;color:#0b8e7d;margin-bottom:7px}
+.srm-class-summary-head h3{font-size:18px;margin:0 0 5px;color:#174c51}
+.srm-class-summary-head p{font-size:11px;line-height:1.65;color:#789096;margin:0;max-width:800px}
+.srm-summary-count{font-size:11px;font-weight:800;color:#087e6d;background:#e3f6ef;border:1px solid #bfe7db;border-radius:30px;padding:7px 12px;white-space:nowrap}
+.srm-class-summary-filters{display:grid;grid-template-columns:minmax(180px,260px) minmax(220px,1fr);gap:14px;margin-bottom:17px;align-items:end}
+.srm-class-summary-filters label{display:flex;flex-direction:column;gap:6px;font-size:11px;font-weight:800;color:#3f6e72}
+.srm-class-summary-filters input,.srm-class-summary-filters select{width:100%;min-width:0;padding:12px 13px;border:1px solid #ccdddf;border-radius:10px;font:inherit;font-size:13px;background:#fff;color:#173f49}
+.srm-class-summary-filters input:focus-visible,.srm-class-summary-filters select:focus-visible{outline:2px solid #16ab96;outline-offset:2px}
+.srm-class-summary-table-wrap{overflow-x:auto;overscroll-behavior-x:contain;border:1px solid #e0e9e9;border-radius:12px;background:white}
+.srm-class-summary-table{width:100%;border-collapse:collapse;min-width:760px;font-size:12px}
+.srm-class-summary-table th{background:#e9f5f2;color:#3f6c72;font-size:10px;font-weight:850;text-transform:none;white-space:nowrap;letter-spacing:0;padding:13px 11px}
+.srm-class-summary-table td{color:#526d73;padding:12px 11px;border-top:1px solid #edf2f1;vertical-align:middle}
+.srm-class-summary-table tbody tr:hover{background:#f7fcfa}
+.srm-class-summary-table td strong{font-size:12px;color:#234956;font-weight:800;overflow-wrap:anywhere}
+.srm-class-summary-table .srm-summary-stars{font-size:17px;color:#0c9674}
+.srm-class-summary-table .srm-summary-earned{font-size:17px;color:#b67a1b}
+.srm-class-summary-actions{display:flex;gap:6px;flex-wrap:wrap}
+.srm-class-summary-actions button{border-radius:8px;padding:8px 10px;font-size:10px;font-weight:850;border:1px solid #bce4d9;background:#effaf5;color:#187865;white-space:nowrap}
+.srm-class-summary-actions .srm-summary-redeem{border-color:#eedbb1;background:#fff9e9;color:#a17317}
+.srm-class-summary-actions button:hover:not(:disabled){filter:brightness(.97)}
+.srm-class-summary-actions button:focus-visible{outline:2px solid #16ab96;outline-offset:2px}
+.srm-class-summary-actions button:disabled{opacity:.45;cursor:not-allowed}
+.srm-summary-load-more{display:block;margin:15px auto 0;padding:10px 18px;border:1px solid #b8dcd6;border-radius:10px;color:#176e67;background:white;font-size:12px;font-weight:800}
+.srm-reward-activity{margin-top:18px;border-top:1px solid #d8e9e5;padding-top:15px}
+.srm-reward-activity summary{cursor:pointer;color:#216a69;font-size:12px;font-weight:800;line-height:1.6}
+.srm-reward-activity>.srm-class-summary-table-wrap{margin-top:13px}
+.srm-reward-activity td.srm-negative{color:#cd5454;font-weight:850}
+.srm-reward-activity td.srm-positive{color:#138364;font-weight:850}
+#srm-student-search{scroll-margin-top:100px}
+@media(max-width:750px){
+ .srm-class-summary{padding:15px}
+ .srm-class-summary-head h3{font-size:16px}
+ .srm-class-summary-filters{grid-template-columns:1fr}
+ .srm-class-summary-table{min-width:730px}
+}
