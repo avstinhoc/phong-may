@@ -1,6 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2.119.0";
 import { importPKCS8, SignJWT } from "npm:jose@5.10.0";
-import { studentSheetSortPlan, studentRowMoves, matchedStudentBatches } from "./nameSort.js";
+import { studentSheetSortPlan, mergedRowMoves, verifiedCodeMatch, matchedStudentBatches } from "./nameSort.js";
 
 type Dict = Record<string, any>;
 const ORIGIN="https://phong-may.vercel.app";
@@ -39,9 +39,9 @@ const api=async(url:string,token:string,options:RequestInit={})=>{
  const response=await fetch(url,{...options,headers:{Authorization:"Bearer "+token,...(options.body?{"Content-Type":"application/json"}:{}),...(options.headers||{})}});
  if(!response.ok){
   let error="";try{const e=await response.json();error=String(e?.error?.message||e?.error||"");}catch{}
-  throw fail(response.status===403?"Tài khoản Google đang kết nối chưa có quyền với file Sheets này. Hãy dùng đúng Google Account hoặc chia sẻ file cho tài khoản đó.":
+  throw Object.assign(fail(response.status===403?"Tài khoản Google đang kết nối chưa có quyền với file Sheets này. Hãy dùng đúng Google Account hoặc chia sẻ file cho tài khoản đó.":
     response.status===404?"Google không tìm thấy file Sheets này hoặc chưa được chia sẻ.":
-    "Google Sheets API: "+(error||response.status),response.status===429?429:502);
+    "Google Sheets API: "+(error||response.status),response.status===429?429:502),{googleStatus:response.status});
  }
  return response;
 };
@@ -189,7 +189,7 @@ async function callOwnerCopyScript(schoolId:string,title:string,rootId:string){
  return result;
 }
 async function metadata(id:string,token:string){
- const url="https://sheets.googleapis.com/v4/spreadsheets/"+id+"?fields=spreadsheetId,properties(title),sheets(properties(sheetId,title,gridProperties))";
+ const url="https://sheets.googleapis.com/v4/spreadsheets/"+id+"?fields=spreadsheetId,properties(title),sheets(properties(sheetId,title,gridProperties),merges)";
  return await (await api(url,token)).json();
 }
 async function readTab(id:string,title:string,token:string){
@@ -282,9 +282,12 @@ async function syncClass(db:any,link:Dict,map:Dict,token:string,actorId:string,m
  for(const s of students){const k=normalize(s.full_name);byName.set(k,[...(byName.get(k)||[]),s]);}
  // Duplicate names on an unlinked sheet may represent different students.
  // Do not silently attach both rows to one website ID or create twins.
+ const codeCount=new Map<string,number>();
  const rowNameCount=new Map<string,number>();
  for(let r=8;r<=rows.length+4;r++){
   const name=normalize((rows[r-5]||[])[2]);
+  const code=clean(rows[r-5]?.[0]);
+  if(name&&code)codeCount.set(code,(codeCount.get(code)||0)+1);
   if(name)rowNameCount.set(name,(rowNameCount.get(name)||0)+1);
  }
  const pairs:Dict[]=[];const sheetNonempty=new Set<number>();
@@ -297,9 +300,11 @@ async function syncClass(db:any,link:Dict,map:Dict,token:string,actorId:string,m
   const names=byName.get(normalize(name))||[];
   const renamedRow=Boolean(mappedStudent&&normalize(mappedStudent.full_name)!==normalize(name));
   const duplicatedOnSheet=(rowNameCount.get(normalize(name))||0)>1;
-  const chosen=renamedRow?null:(mappedStudent||(names.length===1&&!duplicatedOnSheet?names[0]:null));
+  const coded=verifiedCodeMatch(a[0],names,codeCount.get(clean(a[0]))===1);
+  const codeConflict=Boolean(mappedStudent&&coded&&coded.id!==mappedStudent.id);
+  const chosen=renamedRow||codeConflict?null:(mappedStudent||coded||(names.length===1&&!duplicatedOnSheet?names[0]:null));
   pairs.push({rowNo:r,raw:a,name,student:chosen,
-    ambiguous:Boolean(linked&&!mappedStudent)||Boolean(chosen&&chosen.date_of_birth&&nonblank(a[3])&&asDate(a[3])!==chosen.date_of_birth)||renamedRow||(!mappedStudent&&duplicatedOnSheet)||(names.length>1&&!chosen),
+    ambiguous:Boolean(linked&&!mappedStudent)||Boolean(chosen&&chosen.date_of_birth&&nonblank(a[3])&&asDate(a[3])!==chosen.date_of_birth)||renamedRow||codeConflict||(!chosen&&duplicatedOnSheet)||(names.length>1&&!chosen),
     matchedId:chosen?.id||null,proposedScores:scoreValues(a)});
  }
  const counts={sheetStudents:pairs.length,websiteStudents:students.length,
@@ -549,8 +554,11 @@ async function sortStudentTab(db:any,link:Dict,map:Dict,token:string){
  const plan=studentSheetSortPlan(grid.slice(3,66));
  if(!plan.needsSort)return {sorted:false};
  const meta=await metadata(link.spreadsheet_id,token);
- if(!meta.sheets?.some((s:Dict)=>s.properties.sheetId===map.sheet_gid&&s.properties.title===map.sheet_title))
+ const tab=meta.sheets?.find((s:Dict)=>s.properties.sheetId===map.sheet_gid&&s.properties.title===map.sheet_title);
+ if(!tab)
   throw fail("Tab lớp đã thay đổi trước khi sắp xếp.",409);
+ const batch=mergedRowMoves(plan,map.sheet_gid,tab.merges||[]);
+ if(batch.warning)return {sorted:false,warning:batch.warning};
  const positions=new Map(plan.sorted.map((row,i)=>[row.sheetRow,i+8]));
  const studentRows:Dict={};
  for(const [id,row] of Object.entries(map.student_rows||{})){
@@ -562,10 +570,19 @@ async function sortStudentTab(db:any,link:Dict,map:Dict,token:string){
  const cleared=await db.from("school_sheet_tabs").update({student_rows:{}})
   .eq("id",map.id).eq("link_id",link.id).eq("student_rows",JSON.stringify(map.student_rows||{})).select("id").maybeSingle();
  if(cleared.error||!cleared.data)throw fail("Ánh xạ lớp đã thay đổi. Vui lòng đồng bộ lại.",409);
- const requests:Dict[]=studentRowMoves(plan,map.sheet_gid);
+ const requests:Dict[]=batch.requests!;
  requests.push({updateCells:{start:{sheetId:map.sheet_gid,rowIndex:7,columnIndex:1},
   rows:plan.sorted.map((r,i)=>({values:[r.name?{userEnteredValue:{numberValue:i+1}}:{}]})),fields:"userEnteredValue"}});
- await sheetBatch(link.spreadsheet_id,requests,token);
+ try{
+  await sheetBatch(link.spreadsheet_id,requests,token);
+ }catch(error){
+  if((error as any)?.googleStatus===400){
+   const restore=await db.from("school_sheet_tabs").update({student_rows:map.student_rows||{}})
+    .eq("id",map.id).eq("link_id",link.id).eq("student_rows","{}").select("id").maybeSingle();
+   if(restore.error||!restore.data)throw fail("Sheets từ chối sắp xếp. Cần đối chiếu lại ánh xạ dòng.",409);
+  }
+  throw error;
+ }
  const post=await readTab(link.spreadsheet_id,map.sheet_title,token);
  if(plan.sorted.some((r,i)=>[0,2,3].some(c=>String(post[i+3]?.[c]??"")!==String(grid[r.sheetRow-5]?.[c]??""))))
   throw fail("Danh sách đã thay đổi trong lúc sắp xếp. Cần đối chiếu lại ánh xạ.",409);

@@ -86,3 +86,18 @@ test('40 matched pupils need one result read, 63 need two, ambiguous rows are ex
  assert.deepEqual(batches.map(x=>x.length),[60,3]);
  assert.deepEqual(batches.flat(),pairs.map(p=>p.student.id));
 });
+
+test('merged roster cells follow their students and header merges stay intact',async()=>{
+ const {mergedRowMoves,verifiedCodeMatch}=await import('../supabase/functions/google-sheets-sync/nameSort.js');
+ const plan=studentSheetSortPlan([[0,1,'Trần Nam'],[1,2,'Vũ An']],8,9);
+ const range={sheetId:4,startRowIndex:7,endRowIndex:8,startColumnIndex:20,endColumnIndex:22};
+ const header={...range,startRowIndex:1,endRowIndex:4};
+ const batch=mergedRowMoves(plan,4,[header,range]);
+ assert.deepEqual(batch.requests.map(x=>Object.keys(x)[0]),['unmergeCells','moveDimension','mergeCells']);
+ assert.deepEqual(batch.requests[2].mergeCells.range,{...range,startRowIndex:8,endRowIndex:9});
+ assert.ok(mergedRowMoves(plan,4,[{...range,endRowIndex:9}]).warning);
+ const twins=[{id:1,student_code:'02'},{id:2,student_code:'03'}];
+ assert.equal(verifiedCodeMatch('03',twins,true)?.id,2);
+ assert.equal(verifiedCodeMatch('03',twins,false),null);
+ assert.equal(verifiedCodeMatch('3',twins,true),null);
+});

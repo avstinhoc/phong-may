@@ -32,3 +32,30 @@ export function matchedStudentBatches(pairs) {
   for (let i = 0; i < ids.length; i += 60) batches.push(ids.slice(i, i + 60));
   return batches;
 }
+
+// Google validates every move against the current merges. Unmerge only ranges
+// touched by a move and restore each range against its original rows atomically.
+export function mergedRowMoves(plan, sheetId, merges) {
+  const moves = studentRowMoves(plan, sheetId);
+  const positions = new Map(plan.sorted.map((r,i) => [r.sheetRow-1, plan.rows[0].sheetRow-1+i]));
+  const before = [], after = [];
+  for (const merge of merges) {
+    const start = merge.startRowIndex ?? 0, end = merge.endRowIndex;
+    if (!moves.some(({moveDimension:m}) => start < m.source.endIndex && end > m.destinationIndex)) continue;
+    const target = positions.get(start) ?? start;
+    for (let i=start+1; i<end; i++) {
+      if ((positions.get(i) ?? i) !== target+i-start)
+        return {warning:'Có ô gộp dọc qua nhiều dòng học sinh. Cần kiểm tra vùng gộp ở dòng '+(start+1)+'–'+end+' trước khi xếp tên.'};
+    }
+    before.push({unmergeCells:{range:merge}});
+    after.push({mergeCells:{range:{...merge,startRowIndex:target,endRowIndex:target+end-start},mergeType:'MERGE_ALL'}});
+  }
+  return {requests:[...before,...moves,...after]};
+}
+
+export function verifiedCodeMatch(code, candidates, uniqueOnSheet) {
+  const key=String(code ?? '').trim();
+  if (!key || !uniqueOnSheet) return null;
+  const matches=candidates.filter(s => String(s.student_code ?? '').trim()===key);
+  return matches.length===1 ? matches[0] : null;
+}
