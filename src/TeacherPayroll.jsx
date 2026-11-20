@@ -32,7 +32,7 @@ export function TeacherPayroll({profile,refresh,ping,schools=[],workplaces=[],wo
      return rows;
    };
    Promise.all([
-     readAll('class_sessions','id,school_id,teacher_id,teacher_name,class_name,session_date,start_time,end_time,period_count','id'),
+     readAll('class_sessions','id,school_id,teacher_id,teacher_name,class_name,session_date,start_time,end_time,period_count,is_cancelled','id'),
      readAll('teacher_pay_rates','school_id,teacher_id,hourly_rate','teacher_id')
    ]).then(values=>{if(!live)return;setLoading(false);
      setLessons(values[0]||[]);setRates(values[1]||[]);
@@ -53,7 +53,7 @@ export function TeacherPayroll({profile,refresh,ping,schools=[],workplaces=[],wo
  const schoolById=Object.fromEntries(schools.map(sc=>[sc.id,sc.name]));
  useEffect(()=>{setEditingRate(String(rate));},[rate,teacher.id]);
  const dates=monthEnds(month);
- const filtered=lessons.filter(s=>s.teacher_id===teacher.id&&s.session_date>=dates.from&&s.session_date<=dates.to&&(!payrollSchool||s.school_id===payrollSchool))
+ const filtered=lessons.filter(s=>!s.is_cancelled&&s.teacher_id===teacher.id&&s.session_date>=dates.from&&s.session_date<=dates.to&&(!payrollSchool||s.school_id===payrollSchool))
    .map(s=>({...s,school_name:schoolById[s.school_id]||''}));
  const rows=teacherRows(filtered,dates.from,dates.to,rateFor,schoolLabel);
  const total=teacherTotals(rows);
