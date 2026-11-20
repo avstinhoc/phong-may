@@ -131,7 +131,7 @@ function createSheet(wb,params,sessions,firstIndex,chunkIndex){
 export async function exportAttendanceReference(params){
  const Excel=await getExcelJS(),wb=new Excel.Workbook();
  wb.creator='IC3 GS6 Computer Lab';wb.created=new Date();
- const sessions=partitionAttendanceSessions(params.sessions||[]);
+ const sessions=partitionAttendanceSessions((params.sessions||[]).filter(x=>!x.is_cancelled));
  let offset=0;
  for(let i=0;i<sessions.length;i++){
   createSheet(wb,params,sessions[i],offset,i);
