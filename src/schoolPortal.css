@@ -284,3 +284,19 @@
  .school-three-grades .school-grade-info b{font-size:13px}
  .school-three-grades .school-grade-info small{font-size:11px}
 }
+
+/* All class-code grades 1–9: responsive cards and an elastic navigation bar. */
+.school-three-grades,.school-grade-launcher-grid{
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));
+}
+.school-public-nav>a.school-nav-grade1,.school-public-nav>a.school-nav-grade2,
+.school-public-nav>a.school-nav-grade3,.school-public-nav>a.school-nav-grade4,
+.school-public-nav>a.school-nav-grade5{background:#168b77;color:white;border-color:#73d2b6}
+.school-public-nav>a.school-nav-grade9{background:#4e6bb8;color:white;border-color:#adc1ef}
+@media(max-width:900px){
+ .school-three-grades .school-grade-board:last-child{grid-column:auto}
+}
+@media(max-width:640px){
+ .school-three-grades{grid-template-columns:minmax(0,1fr)}
+ .school-public-nav{grid-template-columns:repeat(auto-fit,minmax(76px,1fr))}
+}
