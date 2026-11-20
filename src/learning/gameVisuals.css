@@ -1,0 +1,237 @@
+/* Original pixel-art game visual system: intentionally self-contained in learning preview.
+   All visual elements are original SVG pixel sprites, CSS scenery and drawn effects.
+   No copied reference-game images, audio, character assets or fonts. */
+.ic3-learning-app{--arcade-navy:#262147;--arcade-ink:#302954;--arcade-teal:#1499a2}
+.ic3-battle-polished,.ic3-fishing-page{color:var(--arcade-ink)}
+.ic3-pixel-sprite{display:inline-flex;align-items:center;justify-content:center;image-rendering:pixelated;filter:drop-shadow(0 8px 0 #1c2c4861)}
+.ic3-pixel-sprite svg{display:block;width:100%;height:100%;image-rendering:pixelated;overflow:visible}
+.ic3-pixel-hero{width:120px;height:150px}
+.ic3-pixel-monster{width:154px;height:154px}
+.ic3-pixel-fish{width:66px;height:45px}
+.ic3-pixel-sprite svg rect{shape-rendering:crispEdges}
+
+/* Hero selection uses the playful cream / colorful-card styling the user
+   appreciated, with wholly original 12 original sprite designs. */
+.ic3-picker-backdrop{position:fixed;inset:0;z-index:2000;background:#101532bc;backdrop-filter:blur(7px);display:flex;align-items:center;justify-content:center;padding:18px}
+.ic3-picker-modal{width:min(1070px,96vw);max-height:94vh;overflow:auto;background:linear-gradient(145deg,#fff8df,#fff3d9);border:4px solid #f7cc73;border-radius:33px;box-shadow:0 20px 0 #3429572b,0 45px 80px #12132f77;padding:24px 28px 26px}
+.ic3-picker-header{display:flex;gap:16px;align-items:flex-start;justify-content:space-between;margin-bottom:19px}
+.ic3-picker-header h2{font-size:clamp(24px,2.8vw,33px);color:#d76520;margin:5px 0 7px;letter-spacing:-.03em}
+.ic3-picker-header p{font-size:13px;color:#766d85;margin:0;line-height:1.5}
+.ic3-picker-kicker{letter-spacing:.14em;font-size:12px;font-weight:900;color:#b66539}
+.ic3-picker-close{flex-shrink:0;display:flex;align-items:center;gap:5px;font-weight:800;border:2px solid #c5d3eb;background:white;color:#343262;border-radius:25px;padding:12px 19px;box-shadow:0 5px 0 #b9c5df}
+.ic3-picker-gallery{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:11px}
+.ic3-picker-card{position:relative;display:flex;flex-direction:column;align-items:center;gap:5px;text-align:center;padding:9px 7px 11px;min-height:199px;border:3px solid #efdfb1;border-radius:19px;background:#fffefb;color:#30294c;box-shadow:0 5px 0 #e6d7ad;transition:transform .15s,box-shadow .15s,border-color .15s}
+.ic3-picker-card:hover{transform:translateY(-3px);box-shadow:0 8px 0 #d9cbac}
+.ic3-picker-card.selected{border-color:#13ac63;background:#e7fbef;box-shadow:0 6px 0 #23a366}
+.ic3-picker-sprite{display:flex;align-items:center;justify-content:center;height:123px;width:100%;border-radius:12px;background:radial-gradient(circle at 50% 75%,#eaf8fa 0 23%,transparent 24%),linear-gradient(#f5fcff,#fff9ee)}
+.ic3-picker-sprite .ic3-pixel-hero{width:94px;height:117px;filter:drop-shadow(0 5px 0 #6d6f8c33)}
+.ic3-picker-card strong{font-size:12px;line-height:1.26;min-height:29px}
+.ic3-picker-role{font-size:11px;color:#8d8298}
+.ic3-picker-selected{position:absolute;top:8px;right:7px;display:flex;align-items:center;gap:2px;font-size:10px;background:#10a967;color:white;border-radius:30px;padding:3px 5px}
+.ic3-picker-bottom{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:13px;margin-top:23px;padding-top:15px;border-top:1px dashed #d8ca9d}
+.ic3-picker-bottom span{display:flex;align-items:center;gap:6px;font-size:12px;color:#7b7187}
+.ic3-picker-confirm{display:flex;align-items:center;gap:8px;border:0;border-radius:15px;background:linear-gradient(#18bd83,#0d9b70);color:white;padding:12px 19px;font-weight:850;box-shadow:0 5px 0 #087b59}
+.ic3-avatar-spotlight{display:flex;gap:23px;align-items:center;padding:15px 25px;border:2px solid #b0e4db;background:linear-gradient(115deg,#e1fbf3,#eaf3ff,#fff7eb);border-radius:21px;margin:15px 0 26px;box-shadow:0 7px 22px #1e8ca525}
+.ic3-avatar-frame{display:flex;align-items:center;justify-content:center;min-width:160px;min-height:166px;border:3px solid #c8dce5;border-radius:19px;background:linear-gradient(180deg,#ffffffcc,#d0f4f0)}
+.ic3-avatar-frame .ic3-pixel-hero{width:125px;height:158px}
+.ic3-avatar-details small{font-size:11px;font-weight:900;color:#43878a;letter-spacing:.12em}
+.ic3-avatar-details h3{font-size:26px;letter-spacing:-.035em;margin:6px 0}
+.ic3-avatar-details p{margin:0 0 9px;color:#6b7289}
+.ic3-pixel-skin-choices{display:grid;grid-template-columns:repeat(auto-fill,minmax(135px,1fr))}
+.ic3-pixel-skin-choices button{min-width:0}
+.ic3-pixel-skin-choices .ic3-pixel-hero{width:100px;height:115px}
+.ic3-start-arcade{background:linear-gradient(110deg,#e6f9f6,#fff2db);border:2px solid #9fddcf}
+
+/* Fantasy-tech battlefield with layered sunset sky, animated parallax scenery,
+   foreground, dedicated UI plane and separate accessible question panel. */
+.ic3-arcade-stage{position:relative;isolation:isolate;width:100%;min-height:495px;overflow:hidden;border:5px solid #496c9a;border-radius:25px;
+ background:linear-gradient(180deg,#8cd9ef 0%,#81d6ef 21%,#e0b4c1 55%,#55558a 78%,#253e67 100%);
+ box-shadow:0 9px 0 #22345d,0 22px 45px #16264b4c}
+.ic3-arcade-sky{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.ic3-arcade-sky:before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 54px,#ffffff0a 55px 57px);
+ opacity:.45;mix-blend-mode:overlay}
+.ic3-sky-sun{position:absolute;top:18%;left:50%;width:185px;height:185px;transform:translate(-50%,-30%);border-radius:50%;
+ background:radial-gradient(circle,#fffdf2 0 35%,#ffdfae 43%,#ffffff4d 57%,transparent 73%);filter:blur(1px);
+ box-shadow:0 0 120px #fff3d8b0}
+.ic3-cloud{position:absolute;width:210px;height:47px;border-radius:60%;background:#fffbe6a6;filter:blur(14px);animation:ic3-cloud-drift 17s linear infinite}
+.ic3-cloud.cloud-a{top:15%;left:-20%}.ic3-cloud.cloud-b{top:24%;right:-26%;animation-duration:25s;animation-direction:reverse}
+.ic3-back-hill{position:absolute;bottom:22%;width:60%;height:165px;background:#56699b9a;clip-path:polygon(0 100%,11% 43%,19% 75%,29% 16%,39% 69%,53% 34%,61% 76%,75% 18%,88% 60%,100% 100%);}
+.ic3-back-hill.hill-one{left:-5%;background:#7e8eb0b0}
+.ic3-back-hill.hill-two{right:-8%;transform:scaleX(-1);background:#5b6e97ab}
+.ic3-cityline{position:absolute;left:0;bottom:23%;right:0;display:flex;align-items:flex-end;justify-content:space-between;gap:4px;padding:0 5%;height:170px}
+.ic3-cityline span{display:block;position:relative;flex:1;max-width:60px;height:calc(var(--h)*1px);background:linear-gradient(180deg,#6587a8,#394b77);clip-path:polygon(0 7%,28% 7%,28% 0,67% 0,67% 7%,100% 7%,100% 100%,0 100%)}
+.ic3-cityline span:after{content:"";position:absolute;inset:17% 14%;background:repeating-linear-gradient(90deg,#bdf8cb99 0 2px,transparent 3px 11px),repeating-linear-gradient(0deg,#bdf8cb80 0 2px,transparent 3px 13px);opacity:.32}
+.ic3-cityline.foreground{bottom:19%;height:135px;opacity:.7;transform:scaleX(-1)}
+.ic3-cityline.foreground span{background:linear-gradient(180deg,#375678,#1c315e)}
+.ic3-stage-bits{position:absolute;inset:0;z-index:2;pointer-events:none}
+.ic3-stage-bits span{position:absolute;left:calc(var(--x)*1%);top:calc(var(--y)*1%);width:4px;height:4px;border-radius:50%;background:#fce5a4;box-shadow:0 0 14px #fff4cf;animation:ic3-spark-float 5s ease-in-out infinite;animation-delay:calc(var(--delay)*-1s)}
+.ic3-stage-ground{position:absolute;z-index:3;bottom:0;left:0;right:0;height:26%;pointer-events:none;
+ background:linear-gradient(0deg,#213651 0%,#37527b 29%,#576c87 58%,#7a9b9e 66%,#374b6d 70%,transparent 71%)}
+.ic3-ground-platform{position:absolute;inset:15% 0 0;background:repeating-linear-gradient(90deg,transparent 0 61px,#97c3c82e 62px 64px);
+ border-top:6px solid #b2e4d0a8;transform:perspective(600px) rotateX(22deg) scale(1.02);box-shadow:0 -15px 22px #a2f2dd33}
+.ic3-ground-runes{position:absolute;bottom:16px;left:0;right:0;font-size:25px;letter-spacing:2em;text-align:center;white-space:nowrap;color:#80fbd26e;text-shadow:0 0 18px #8fe9d9}
+.ic3-stage-top{position:absolute;z-index:10;top:16px;left:18px;right:18px;display:flex;justify-content:space-between;gap:10px;align-items:center}
+.ic3-stage-round{background:#212648e8;color:#fffde7;border:2px solid #a6cbe0a3;border-radius:14px;padding:10px 13px;font-weight:900;font-size:12px;letter-spacing:.05em;box-shadow:0 5px 0 #1e284a50}
+.ic3-stage-round b{color:#ffd07d}.ic3-stage-controls{display:flex;gap:8px;flex-wrap:wrap}
+.ic3-arcade-control{background:#ffffffea;border:2px solid #b6cde7;border-radius:30px;padding:8px 12px;display:inline-flex;align-items:center;gap:7px;color:#253c64;font-size:12px!important;font-weight:850;box-shadow:0 4px 0 #6277a85e}
+.ic3-arcade-control:hover{background:#f4fdff}
+.ic3-stage-healthbox{position:absolute;z-index:10;top:80px;right:8%;width:46%;max-width:400px;border:2px solid #9be4e0b8;background:#1e3158d9;border-radius:15px;padding:10px 14px;box-shadow:0 6px 16px #152a4f52}
+.ic3-health-label{display:flex;align-items:center;justify-content:space-between;gap:10px;color:#fef5ed;font-size:12px;font-weight:850;margin-bottom:8px}
+.ic3-health-label strong{white-space:nowrap;color:#ffe59c}
+.ic3-arcade-hp{height:19px;border:2px solid #fff3dbc0;background:#171d37;border-radius:16px;overflow:hidden}
+.ic3-arcade-hp>span{display:block;height:100%;transition:width .35s cubic-bezier(.25,.8,.2,1);background:repeating-linear-gradient(90deg,#f57098 0 20px,#ff8db0 21px 23px);box-shadow:inset 0 4px 4px #ffc7dc96}
+.ic3-stage-actors{position:absolute;z-index:6;inset:27% 8% 14%;display:grid;grid-template-columns:minmax(0,1fr) 90px minmax(0,1fr);align-items:end;gap:0}
+.ic3-stage-actor{position:relative;display:flex;align-items:center;flex-direction:column;justify-content:flex-end;text-align:center;min-width:0;height:100%}
+.ic3-stage-actor .ic3-pixel-hero{width:150px;height:186px;position:relative;z-index:2;animation:ic3-pixel-idle 2.4s ease-in-out infinite}
+.ic3-stage-actor .ic3-pixel-monster{width:175px;height:175px;position:relative;z-index:2;animation:ic3-pixel-idle 2.9s ease-in-out infinite reverse}
+.ic3-stage-actor .ic3-stage-aura{position:absolute;z-index:1;width:180px;height:180px;bottom:33px;border-radius:50%;opacity:.9}
+.ic3-stage-actor.hero .ic3-stage-aura{background:radial-gradient(circle,#7affdf84,transparent 70%)}
+.ic3-stage-actor.enemy .ic3-stage-aura{background:radial-gradient(circle,#ffb0e67d,transparent 70%)}
+.ic3-actor-name{position:relative;z-index:3;background:#1e2549e6;border:2px solid #ffffffae;border-radius:13px;padding:7px 12px;color:white;font-weight:900;font-size:12px;min-width:150px;max-width:245px;box-shadow:0 5px 0 #16294f61}
+.ic3-actor-name span{display:block;color:#d4e7f0;font-size:10px;font-weight:600;margin-top:3px}
+.ic3-stage-hearts{position:relative;z-index:3;display:flex;justify-content:center;gap:8px;margin-top:9px;filter:drop-shadow(0 2px 2px #11224980)}
+.ic3-stage-center{height:100%;position:relative;display:flex;align-items:center;justify-content:center}
+.ic3-stage-versus{font-size:clamp(22px,3.4vw,44px);font-weight:1000;color:#fff1bd;font-style:italic;text-shadow:3px 4px 0 #dc7c64,0 0 20px #fff1c0}
+.ic3-slash-wave{position:absolute;inset:0;z-index:3;pointer-events:none}
+.ic3-slash-wave span{position:absolute;top:40%;left:18%;height:9px;width:175px;background:linear-gradient(90deg,transparent,#fcfff9,#8dfdec,#23b1e3,transparent);
+ border-radius:100%;transform:rotate(-32deg) scaleX(0);filter:drop-shadow(0 0 10px #adfff1)}
+.ic3-slash-wave span:nth-child(1){animation:ic3-slash .42s ease-out forwards}
+.ic3-slash-wave span:nth-child(2){top:46%;transform:rotate(15deg) scaleX(0);animation:ic3-slash .42s ease-out .07s forwards}
+.ic3-slash-wave span:nth-child(3){top:50%;transform:rotate(-10deg) scaleX(0);animation:ic3-slash .42s ease-out .12s forwards}
+.ic3-impact-text{position:absolute;z-index:8;top:24%;left:-55%;width:210%;text-align:center;display:flex;align-items:center;justify-content:center;gap:5px;color:#fff0ad;
+ font-size:clamp(20px,3vw,34px);font-weight:1000;text-shadow:3px 3px 0 #c3583d,0 0 16px #fff;animation:ic3-damage-popup 1.1s ease-out both}
+.ic3-impact-text.incorrect{color:#ffcad7;text-shadow:3px 3px 0 #932d64}
+.ic3-stage-actor.hero.attacking .ic3-pixel-hero{animation:ic3-hero-dash .5s ease-out both}
+.ic3-stage-actor.enemy.attacking .ic3-pixel-monster{animation:ic3-enemy-dash .55s ease-out both}
+.ic3-stage-actor.hit .ic3-pixel-sprite{animation:ic3-sprite-hit .6s ease-in-out both}
+.ic3-attack-frame{animation:ic3-stage-correct .48s ease-out}
+.ic3-counter-frame{animation:ic3-stage-wrong .42s ease-out}
+.ic3-stage-status{position:absolute;z-index:10;left:18px;right:18px;bottom:10px;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;
+ color:#e5f5fc;font-weight:750;font-size:11px;text-shadow:0 2px 3px #16233f}
+.ic3-battle-polished>.ic3-battle-question{box-shadow:0 9px 0 #b7c7e4;background:#fffdf8;border:3px solid #c5d7ef}
+.ic3-battle-question .ic3-question-card h3{color:#282649}
+.ic3-battle-polished .ic3-option{border-radius:15px;border-width:3px;min-height:76px;font-size:15px}
+.ic3-battle-polished .ic3-option-letter{background:#e5ecff;color:#354585;font-weight:900}
+.ic3-battle-polished .ic3-explanation{font-size:15px}
+.ic3-battle-result{margin-top:12px;border-top:1px dashed #c7d7ed}
+.ic3-battle-result strong{font-size:14px;color:#244868}
+
+/* A playable reference-inspired fishing quiz – fully original underwater scene
+   and fish sprite art; no copied textures, game characters or animations. */
+.ic3-fishing-page{background:linear-gradient(165deg,#eaf4ff,#fbfdff);border:2px solid #d5e4f8;padding:20px;border-radius:23px;box-shadow:0 10px 24px #2f60851b}
+.ic3-fishing-head{display:flex;align-items:flex-start;justify-content:space-between;gap:15px}
+.ic3-fishing-heading{display:flex;align-items:center;gap:10px}
+.ic3-fishing-heading>span{font-size:38px}
+.ic3-fishing-heading h2{font-size:clamp(18px,2.2vw,25px);margin:2px 0 5px;color:#29509a}
+.ic3-fishing-heading p{margin:0;color:#677e9d;font-size:12px}
+.ic3-fishing-stats{display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin:18px 0}
+.ic3-fishing-stats>span,.ic3-fish-end{display:inline-flex;gap:9px;align-items:center;background:white;border:3px solid #c4d6f1;color:#292957;
+ font-weight:900;border-radius:26px;padding:11px 15px;box-shadow:0 5px 0 #b7c9e7}
+.ic3-fishing-stats>span.ic3-fishing-hearts{gap:5px}
+.ic3-fish-end{font-size:13px}
+.ic3-fishing-question{padding:16px 21px;border:3px solid #bed2ef;border-bottom-width:7px;background:white;
+ border-radius:20px;color:#292645;font-size:clamp(17px,2.1vw,23px);font-weight:900;line-height:1.4;margin-bottom:13px}
+.ic3-fishing-question strong{color:#1884a9}
+.ic3-fishing-ocean{position:relative;isolation:isolate;overflow:hidden;aspect-ratio:1.95/1;min-height:390px;border:4px solid #2683aa;border-radius:25px;background:#2e96cc;
+ box-shadow:inset 0 0 40px #144c8a5e,0 10px 0 #bad5eb}
+.ic3-fishing-sun{position:absolute;z-index:1;top:-20%;left:45%;width:180px;height:120px;border-radius:50%;background:#fff7bd;
+ filter:blur(22px);box-shadow:0 0 80px #fff3bd}
+.ic3-fishing-coast{position:absolute;z-index:4;inset:0 0 auto;height:24%;background:
+ radial-gradient(ellipse at 12% -30%,#805779 0 18%,transparent 20%),
+ radial-gradient(ellipse at 91% -22%,#895c74 0 23%,transparent 25%),
+ radial-gradient(ellipse at 25% 15%,#b16c75 0 12%,transparent 14%),
+ linear-gradient(180deg,#f7d29e 0%,#b3dfd0 60%,#39b3ce 100%);opacity:.96}
+.ic3-fishing-coast:after{content:"";position:absolute;inset:70% 0 0;background:repeating-linear-gradient(90deg,#ffffff53 0 20px,transparent 21px 55px);opacity:.25;filter:blur(3px)}
+.ic3-fishing-sea{position:absolute;inset:17% 0 0;overflow:hidden;background:linear-gradient(180deg,#35b3d6a6 0%,#258fc4 36%,#1468a6 73%,#124e87 100%)}
+.ic3-fishing-rays{position:absolute;inset:0;background:repeating-linear-gradient(110deg,#b2f7fa26 0 40px,transparent 41px 94px);opacity:.84;animation:ic3-sea-rays 9s ease-in-out infinite alternate}
+.ic3-fishing-bubble{position:absolute;z-index:1;bottom:-25px;left:var(--x);width:var(--size);height:var(--size);border:2px solid #baf5ffb4;border-radius:50%;
+ box-shadow:inset 2px 2px 1px #fff7;animation:ic3-bubble 10s linear infinite;animation-delay:calc(var(--delay)*-1)}
+.ic3-fishing-extra-fish{position:absolute;z-index:2;opacity:.68;pointer-events:none;animation:ic3-fish-drift 6s ease-in-out infinite;animation-delay:calc(var(--delay)*-1)}
+.ic3-fishing-extra-fish .ic3-pixel-fish{width:48px;height:32px}
+.ic3-fishing-fish{position:absolute;z-index:5;display:flex;align-items:center;gap:4px;border:0;background:transparent;padding:5px;animation:ic3-fish-drift 4s ease-in-out infinite;
+ filter:drop-shadow(1px 2px 0 #0e345463);min-width:195px;max-width:43%;transition:filter .15s}
+.ic3-fishing-fish:hover:not(:disabled){filter:brightness(1.12) drop-shadow(0 0 12px #fff)}
+.ic3-fishing-fish .ic3-pixel-fish{flex:0 0 65px}
+.ic3-fishing-fish>span:last-child{display:block;text-align:left;padding:10px 13px;border:3px solid #bdd9ec;border-radius:17px;background:#ffffffed;color:#342f5a;
+ font-size:clamp(11px,1.1vw,14px);font-weight:850;line-height:1.25;box-shadow:0 5px 0 #aec9de;max-width:220px}
+.ic3-fishing-fish.caught>span:last-child,.ic3-fishing-fish.answer>span:last-child{background:#e1ffe6;border-color:#39cc86;color:#1f6544}
+.ic3-fishing-fish.lost>span:last-child{background:#ffe9e7;border-color:#e78791;color:#a3404f}
+.ic3-fish-pos-0{left:5%;top:12%}.ic3-fish-pos-1{left:50%;top:24%;animation-delay:-1.3s}
+.ic3-fish-pos-2{left:8%;top:59%;animation-delay:-2.1s}.ic3-fish-pos-3{left:50%;top:67%;animation-delay:-.5s}
+.ic3-fishing-seabed{position:absolute;z-index:3;bottom:0;height:11%;background:linear-gradient(180deg,#e9c078,#c88c46);left:0;right:0;border-top:4px solid #fff1bc}
+.ic3-reef,.ic3-shell{position:absolute;bottom:40%;font-size:35px;color:#84d359;text-shadow:3px 3px 0 #155d2c}
+.ic3-reef.r1{left:8%}.ic3-reef.r2{left:54%}.ic3-reef.r3{left:86%;color:#ef8daf}.ic3-shell{font-size:22px;color:#ffe6a6;text-shadow:2px 3px 0 #995d40}.ic3-shell.s1{left:26%}.ic3-shell.s2{left:73%}
+.ic3-fishing-hero{position:absolute;z-index:8;top:0;left:48%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center}
+.ic3-fishing-hero .ic3-pixel-hero{height:110px;width:89px;filter:drop-shadow(0 5px 3px #29486b75);animation:ic3-pixel-idle 3s ease-in-out infinite}
+.ic3-fishing-hero>span:last-child{display:inline-block;background:#fff6da;color:#6d4e37;font-size:10px;border:2px solid #f5d59e;border-radius:12px;padding:2px 8px;font-weight:850;white-space:nowrap}
+.ic3-fishing-rod{position:absolute;z-index:6;left:52%;top:10%;height:47%;width:2px;background:linear-gradient(#553c43,#ffffffcf);transform:rotate(-15deg);transform-origin:top}
+.ic3-fishing-float{position:absolute;z-index:6;left:57%;top:54%;height:14px;width:10px;border-radius:50% 50% 45% 45%;background:linear-gradient(#fa546a 0 50%,#fff 50%);box-shadow:0 0 7px #ffffff82;animation:ic3-float 2s ease-in-out infinite}
+.ic3-fishing-splash{position:absolute;z-index:11;top:34%;left:43%;font-size:26px;font-weight:1000;color:#fff6ad;text-shadow:3px 4px 0 #125880,0 0 18px white;animation:ic3-damage-popup 1.2s ease-out}
+.ic3-fishing-hint{padding:14px;color:#567a94;text-align:center;font-weight:750;font-size:12px}
+.ic3-fishing-feedback{margin-top:15px;border:3px solid #b5d9c1;background:#e6f9ec;color:#2d5e42;padding:15px;border-radius:19px;display:flex;justify-content:space-between;align-items:center;gap:15px}
+.ic3-fishing-feedback.wrong{background:#fff0e7;color:#8f503f;border-color:#efcead}
+.ic3-fishing-feedback p{line-height:1.6;margin:7px 0}.ic3-fishing-feedback small{opacity:.75}
+.ic3-fishing-feedback .ic3-main-btn{flex-shrink:0}
+.ic3-fishing-complete{text-align:center;padding:54px 20px;background:linear-gradient(145deg,#fff5dd,#d9f7f6);border-radius:18px;color:#285a76}
+.ic3-fishing-complete svg{color:#df9e3f}.ic3-fishing-complete h2{margin:12px 0 20px}
+.ic3-fishing-source-note{font-size:11px;color:#8e7993;text-align:center;margin:18px 0 2px}
+.ic3-mini-playable{border:2px solid #49bea7;background:linear-gradient(145deg,#fff,#effff6);box-shadow:0 6px 0 #9ddbc8}
+.ic3-mini-playable .ic3-mini-index{background:#e1fff5;color:#159879}
+.ic3-mini-playable .ic3-main-btn{margin-top:8px;font-size:13px;padding:10px 12px}
+
+/* Animations are decorative; suppress motion when requested or OS setting says reduce. */
+@keyframes ic3-cloud-drift{from{transform:translateX(0)}to{transform:translateX(135vw)}}
+@keyframes ic3-spark-float{0%,100%{transform:translateY(0);opacity:.3}50%{transform:translateY(-23px);opacity:1}}
+@keyframes ic3-pixel-idle{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+@keyframes ic3-hero-dash{0%{transform:translateX(0)}42%{transform:translateX(120px) rotate(-4deg)}80%{transform:translateX(23px)}100%{transform:translateX(0)}}
+@keyframes ic3-enemy-dash{0%{transform:translateX(0)}42%{transform:translateX(-95px) rotate(8deg)}80%{transform:translateX(-12px)}100%{transform:translateX(0)}}
+@keyframes ic3-sprite-hit{0%,100%{opacity:1;transform:translateX(0)}18%,55%{opacity:.18;transform:translateX(12px)}35%{transform:translateX(-8px)}}
+@keyframes ic3-slash{0%{opacity:0;transform:rotate(-28deg) scaleX(0)}60%{opacity:1;transform:rotate(-28deg) scaleX(1.15)}100%{opacity:0;transform:rotate(-28deg) scaleX(1.4)}}
+@keyframes ic3-stage-correct{0%,100%{filter:brightness(1)}30%{filter:brightness(1.27)}65%{filter:brightness(.98)}}
+@keyframes ic3-stage-wrong{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}50%{transform:translateX(6px)}75%{transform:translateX(-2px)}}
+@keyframes ic3-damage-popup{0%{opacity:0;transform:translateY(35px) scale(.7)}25%{opacity:1;transform:translateY(-8px) scale(1.13)}80%{opacity:1;transform:translateY(-24px)}100%{opacity:0;transform:translateY(-36px)}}
+@keyframes ic3-fish-drift{0%,100%{transform:translate(0,0)}40%{transform:translate(15px,-7px)}70%{transform:translate(-10px,5px)}}
+@keyframes ic3-bubble{0%{transform:translateY(0);opacity:0}15%{opacity:.8}85%{opacity:.8}100%{transform:translateY(-470px);opacity:0}}
+@keyframes ic3-sea-rays{0%{transform:translateX(-25px)}100%{transform:translateX(30px)}}
+@keyframes ic3-float{0%,100%{transform:translateY(0)}50%{transform:translateY(7px)}}
+
+/* Typical classroom monitors: compact toolbar and clear student-facing text. */
+@media(max-width:1080px){
+ .ic3-picker-gallery{grid-template-columns:repeat(4,minmax(0,1fr))}
+ .ic3-fishing-fish{max-width:48%;min-width:160px}
+ .ic3-fishing-fish .ic3-pixel-fish{flex-basis:52px;width:52px;height:37px}
+ .ic3-fishing-fish>span:last-child{padding:9px 10px}
+}
+@media(max-width:700px){
+ .ic3-picker-modal{padding:16px;border-radius:21px}.ic3-picker-gallery{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+ .ic3-picker-card{min-height:166px;padding:5px;border-radius:12px}.ic3-picker-sprite{height:93px}
+ .ic3-picker-sprite .ic3-pixel-hero{width:72px;height:90px}.ic3-picker-card strong{font-size:10px}
+ .ic3-picker-close{padding:8px 11px;font-size:12px!important}
+ .ic3-picker-bottom{flex-direction:column;align-items:stretch}
+ .ic3-avatar-spotlight{padding:12px;gap:13px}.ic3-avatar-frame{min-width:105px;min-height:122px}
+ .ic3-avatar-frame .ic3-pixel-hero{width:85px;height:115px}.ic3-avatar-details h3{font-size:17px}
+ .ic3-avatar-details .ic3-main-btn{padding:9px;font-size:11px!important}
+ .ic3-arcade-stage{min-height:410px}.ic3-stage-top{top:9px;left:8px;right:8px;flex-wrap:wrap}
+ .ic3-stage-round{padding:7px;font-size:10px}.ic3-stage-controls{gap:4px}
+ .ic3-arcade-control{font-size:10px!important;padding:6px}
+ .ic3-stage-healthbox{top:101px;width:69%;right:4%;padding:7px}
+ .ic3-health-label{font-size:10px}
+ .ic3-stage-actors{inset:36% 2% 15%;grid-template-columns:1fr 46px 1fr}
+ .ic3-stage-actor .ic3-pixel-hero{width:94px;height:120px}
+ .ic3-stage-actor .ic3-pixel-monster{width:108px;height:108px}
+ .ic3-actor-name{min-width:105px;max-width:140px;font-size:9px;padding:5px}
+ .ic3-stage-versus{font-size:20px}.ic3-stage-hearts svg{width:19px}
+ .ic3-stage-status{font-size:9px}
+ .ic3-fishing-page{padding:9px}.ic3-fishing-ocean{min-height:395px;aspect-ratio:auto}
+ .ic3-fishing-heading h2{font-size:16px}.ic3-fishing-stats{gap:7px}
+ .ic3-fishing-stats>span,.ic3-fish-end{font-size:11px;padding:7px}
+ .ic3-fishing-question{font-size:17px;padding:11px}
+ .ic3-fishing-fish{min-width:165px;max-width:48%;gap:0}
+ .ic3-fishing-fish>span:last-child{font-size:10px;padding:7px;border-width:2px}
+ .ic3-fish-pos-0{top:22%;left:0}.ic3-fish-pos-1{top:35%;left:51%}.ic3-fish-pos-2{top:56%;left:0}.ic3-fish-pos-3{top:70%;left:51%}
+ .ic3-fishing-fish .ic3-pixel-fish{width:42px;height:31px;flex-basis:42px}
+ .ic3-fishing-hero .ic3-pixel-hero{height:87px;width:68px}
+ .ic3-fishing-feedback{flex-direction:column;align-items:flex-start}
+}
+.ic3-reduce-motion *{animation:none!important;transition:none!important}
+@media(prefers-reduced-motion:reduce){.ic3-fishing-page *,.ic3-picker-modal *,.ic3-arcade-stage *{animation:none!important;transition:none!important}}
