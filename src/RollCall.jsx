@@ -41,19 +41,20 @@ export function RollCall({profile,sessions,refresh,onSaved,ping,selectedSessionI
  const update=(id,key,value)=>setRows(rs=>rs.map(r=>r.student_id===id?{...r,[key]:value}:r));
  const absent=rows.filter(r=>r.status==='absent'||r.status==='excused').length;
  async function save(){
-  if(!sessionId||busy)return;setBusy(true);setError('');
+  if(!sessionId||busy||lesson?.is_cancelled)return;setBusy(true);setError('');
   const {error:err}=await supabase.rpc('save_roll_call',{target_session:sessionId,entries:rows.map(({student_id,status,note})=>({student_id,status,note}))});
   setBusy(false);if(err)setError(err.message);else{ping('Đã lưu điểm danh '+rows.length+' học sinh');onSaved?.();}
  }
  return <section className="panel roll-call" id="rollcall-panel">
   <h2>Điểm danh học sinh</h2>
   <p className="muted">Bước 1: Bấm vào ô tiết học đúng ngày/lớp trên thời khóa biểu phía trên. Bước 2: Đánh dấu học sinh vắng, có phép hoặc đi trễ. Bước 3: Bấm Lưu điểm danh. Mặc định tất cả có mặt.</p>
+  {lesson?.is_cancelled&&<div className="notice-box" role="status">🌤️ Buổi học này đã đánh dấu nghỉ{lesson.cancel_reason?' ('+lesson.cancel_reason+')':''}. Không thể điểm danh; lịch sử cũ vẫn được giữ nguyên.</div>}
   {lesson?<div className="roll-lesson-selected" role="status">
      <div><span className="roll-selected-kicker">ĐANG ĐIỂM DANH</span>
       <strong>{teachingLessonLabel(lesson)}</strong>
       <small>{lesson.period_count||1} tiết · Giáo viên: {lesson.teacher_name||profile.full_name}</small>
      </div>
-     <button className="btn outline" disabled={!rows.length||busy} onClick={()=>setRows(rs=>rs.map(r=>({...r,status:'present'})))}>Đánh dấu tất cả có mặt</button>
+     <button className="btn outline" disabled={!rows.length||busy||!!lesson?.is_cancelled} onClick={()=>setRows(rs=>rs.map(r=>({...r,status:'present'})))}>Đánh dấu tất cả có mặt</button>
    </div>:<div className="roll-select-prompt" role="status">
      <span aria-hidden="true">☝️</span>
      <strong>Chọn tiết học trên thời khóa biểu để bắt đầu điểm danh</strong>
@@ -67,15 +68,15 @@ export function RollCall({profile,sessions,refresh,onSaved,ping,selectedSessionI
     <div className="table-wrap"><table><thead><tr><th>Máy</th><th>Học sinh</th><th>Trạng thái</th><th>Ghi chú</th></tr></thead><tbody>
     {rows.map(r=><tr key={r.student_id}>
       <td>{r.pc}</td><td><b>{r.name}</b></td>
-      <td><button type="button" className={'roster-mark '+(r.status==='absent'?'absent':'present')} title="Đổi nhanh Có mặt / Vắng" disabled={busy} onClick={()=>update(r.student_id,'status',r.status==='absent'?'present':'absent')}>{r.status==='absent'?'☑ Vắng':'☐'}</button>
-        <select aria-label={'Điểm danh '+r.name} value={r.status} disabled={busy} onChange={e=>update(r.student_id,'status',e.target.value)}>
+      <td><button type="button" className={'roster-mark '+(r.status==='absent'?'absent':'present')} title="Đổi nhanh Có mặt / Vắng" disabled={busy||!!lesson?.is_cancelled} onClick={()=>update(r.student_id,'status',r.status==='absent'?'present':'absent')}>{r.status==='absent'?'☑ Vắng':'☐'}</button>
+        <select aria-label={'Điểm danh '+r.name} value={r.status} disabled={busy||!!lesson?.is_cancelled} onChange={e=>update(r.student_id,'status',e.target.value)}>
         {Object.entries(labels).map(([k,label])=><option key={k} value={k}>{label}</option>)}
         </select>
       </td>
-      <td><input value={r.note} disabled={busy} aria-label={'Ghi chú '+r.name} onChange={e=>update(r.student_id,'note',e.target.value)}/></td>
+      <td><input value={r.note} disabled={busy||!!lesson?.is_cancelled} aria-label={'Ghi chú '+r.name} onChange={e=>update(r.student_id,'note',e.target.value)}/></td>
     </tr>)}
     </tbody></table></div>
-    <button className="btn primary" disabled={busy} onClick={save}>{busy?'Đang lưu…':'Lưu điểm danh lớp'}</button>
+    <button className="btn primary" disabled={busy||!!lesson?.is_cancelled} onClick={save}>{busy?'Đang lưu…':'Lưu điểm danh lớp'}</button>
   </>}
  </section>;
 }
