@@ -67,6 +67,31 @@ export const PROTOTYPE_QUESTIONS=[
  mc('l03-q03',3,22,'Nhận biết Chromebook','Chromebook trong bài học sử dụng hệ điều hành gì?',
   [['a','ChromeOS'],['b','MS-DOS'],['c','watchOS'],['d','FreeDOS']],'a',
   'Chromebook là dòng máy tính xách tay sử dụng ChromeOS.', ['chromebook','os'])
+ ,
+ mc('l11-q01',11,18,'Nhận biết nút Stop','Nút Stop của trình duyệt dùng để làm gì?',
+  [['a','Thêm dấu trang'],['b','Dừng tải trang web'],['c','Làm mới trang'],['d','Về trang chủ']],'b',
+  'Stop dừng quá trình tải trang web đang diễn ra; không phải nút đóng trình duyệt.', ['browser','stop']),
+ mc('l11-q02',11,17,'Nhận biết nút Refresh','Nút Refresh có tác dụng gì?',
+  [['a','Làm mới trang web'],['b','Xóa tất cả dấu trang'],['c','Tắt máy tính'],['d','Mở trình phát nhạc']],'a',
+  'Refresh tải lại hoặc làm mới trạng thái trang web đang xem.', ['browser','refresh']),
+ mc('l11-q03',11,15,'Nhận biết nút Back','Nút Back (mũi tên quay lại) dùng để làm gì?',
+  [['a','Đóng hết tab'],['b','Đặt lại mật khẩu'],['c','Quay lại trang đã xem trước đó'],['d','Chụp màn hình']],'c',
+  'Nút Back giúp quay lại trang web đã xem trước đó.', ['browser','back']),
+ mc('l11-q04',11,19,'Nhận biết nút Home','Nút Home trên trình duyệt có chức năng gì?',
+  [['a','Làm mới trang'],['b','Chuyển đến trang mặc định (trang chủ)'],['c','Xóa lịch sử'],['d','Tắt Wi-Fi']],'b',
+  'Home đưa người dùng tới trang chủ hoặc trang mặc định của trình duyệt.', ['browser','home']),
+ mc('l11-q05',11,20,'Sử dụng Bookmark','Bookmark (Dấu trang) giúp người dùng làm gì?',
+  [['a','Lưu một trang web để quay lại lần sau'],['b','Tăng tốc RAM'],['c','Tạo tài khoản Windows'],['d','Thay đổi kích thước màn hình']],'a',
+  'Bookmark giúp đánh dấu và lưu địa chỉ trang web muốn truy cập lại.', ['bookmark']),
+ mc('l11-q06',11,21,'Tạo Bookmark','Sau khi nhấn biểu tượng ngôi sao và đặt tên dấu trang, học sinh cần chọn gì để lưu?',
+  [['a','Refresh'],['b','Back'],['c','Stop'],['d','Done']],'d',
+  'Theo hướng dẫn trong slide 21: nhấn ngôi sao, đặt tên dấu trang rồi chọn Done.', ['bookmark','thao tác']),
+ mc('l11-q07',11,4,'Khái niệm trình duyệt','Trình duyệt web là gì?',
+  [['a','Một hệ điều hành'],['b','Phần mềm ứng dụng để xem, truy cập và điều hướng trang web'],['c','Thiết bị để in tài liệu'],['d','Ổ lưu trữ ngoài']],'b',
+  'Trình duyệt là phần mềm ứng dụng, giúp xem và điều hướng nội dung trên Web.', ['browser','khái niệm']),
+ mc('l11-q08',11,22,'Xóa Bookmark','Theo bài giảng, có thể xóa dấu trang bằng thao tác nào?',
+  [['a','Nháy phải vào dấu trang và chọn Delete'],['b','Nhấn nút Home'],['c','Tắt loa'],['d','Mở máy tính']],'a',
+  'Slide 22 hướng dẫn nháy chuột phải vào dấu trang rồi chọn Delete.', ['bookmark','thao tác'])
 ];
 export const lessonQuestions=id=>PROTOTYPE_QUESTIONS.filter(q=>q.lessonId===id);
 export function validateQuestion(q){
