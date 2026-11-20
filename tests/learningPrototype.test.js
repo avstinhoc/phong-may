@@ -147,7 +147,7 @@ test('pixel-art redesign includes twelve original selectable skins and screensho
  const app=readFileSync(new URL('../src/learning/LearningPrototype.jsx',import.meta.url),'utf8');
  const style=readFileSync(new URL('../src/learning/gameVisuals.css',import.meta.url),'utf8');
  assert.equal((sprites.match(/\{id:'(?:warrior|archer|mage)-/g)||[]).length,12);
- assert.ok(sprites.includes('pixelated'));
+ assert.ok(style.includes('image-rendering:pixelated'));
  assert.ok(sprites.includes('PixelHero'));
  assert.ok(sprites.includes('PixelMonster'));
  assert.ok(sprites.includes('PixelFish'));
