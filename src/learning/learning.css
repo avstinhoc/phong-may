@@ -1,0 +1,116 @@
+/* Self-contained prototype CSS; intentionally not imported by the production QLPM app. */
+:root{color-scheme:light}
+*{box-sizing:border-box}
+.ic3-learning-app{--ink:#203451;--muted:#657793;--line:#dce5f0;--teal:#137f85;--navy:#121f39;font-family:Inter,system-ui,-apple-system,"Segoe UI",Arial,sans-serif;min-height:100vh;color:var(--ink);background:linear-gradient(180deg,#edf6fb 0%,#f8f9fd 35%,#f4f6fc 100%);font-size:15px}
+.ic3-learning-app button{font:inherit;cursor:pointer}
+.ic3-learning-app button:disabled{cursor:not-allowed}
+.ic3-learning-app a{color:inherit;text-decoration:none}
+.ic3-head{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.95);backdrop-filter:blur(14px);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:18px;padding:12px max(18px,calc((100vw - 1250px)/2))}
+.ic3-logo{display:flex;align-items:center;gap:10px;min-width:195px}
+.ic3-logo strong,.ic3-logo small{display:block}.ic3-logo small{font-size:11px;color:#617994;margin-top:3px}
+.ic3-brand-icon{display:grid;place-items:center;color:white;font-size:22px;font-weight:900;background:linear-gradient(135deg,#02aaa3,#355bba);border-radius:13px;width:42px;height:42px;box-shadow:0 7px 20px #0ca6a92b}
+.ic3-head nav{display:flex;gap:8px}
+.ic3-head nav button,.ic3-level-tabs button,.ic3-mode-tabs button,.ic3-game-tabs button{border:0;background:transparent;padding:11px 15px;border-radius:12px;color:#536c86;display:inline-flex;align-items:center;justify-content:center;gap:7px;font-weight:750}
+.ic3-head nav button.active,.ic3-level-tabs button.active,.ic3-mode-tabs button.active,.ic3-game-tabs button.active{background:#e0f5f3;color:#086e73}
+.ic3-preview-label{font-size:11px;color:#557b78;border:1px solid #b5d8cd;padding:7px 10px;border-radius:50px;display:flex;align-items:center;gap:5px;white-space:nowrap}
+.ic3-learning-app main{max-width:1250px;padding:20px;margin:auto}
+.ic3-intro{background:linear-gradient(120deg,#183454,#116a79 70%,#128a8c);border-radius:23px;box-shadow:0 10px 30px #123b6130;padding:31px 35px;color:white}
+.ic3-eyebrow{letter-spacing:.15em;color:#a7f3e3;font-size:11px;font-weight:850}
+.ic3-intro h1{font-size:clamp(24px,3vw,37px);letter-spacing:-.03em;margin:11px 0}
+.ic3-intro h1 span{color:#fadd7b}.ic3-intro p{color:#e4f1f6;max-width:750px;line-height:1.6}
+.ic3-level-tabs,.ic3-mode-tabs,.ic3-game-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:20px 0}
+.ic3-level-tabs button{border:1px solid #d9e4ed;background:white}.ic3-level-tabs button:disabled{opacity:.55}
+.ic3-panel-title{margin:23px 0 16px}.ic3-panel-title h2{margin:0 0 7px;display:flex;align-items:center;gap:9px;font-size:clamp(21px,2vw,28px);letter-spacing:-.025em}
+.ic3-panel-title p{margin:0;color:#5d7590;line-height:1.6}
+.ic3-lesson-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(184px,1fr));gap:12px;margin-bottom:22px}
+.ic3-lesson-card{position:relative;min-height:155px;padding:16px;background:white;border:2px solid #e4eaf3;border-radius:18px;box-shadow:0 4px 12px #1b3f5610;display:flex;flex-direction:column;align-items:flex-start;gap:5px;text-align:left;transition:transform .15s,border-color .15s,box-shadow .15s}
+.ic3-lesson-card:hover:not(:disabled){transform:translateY(-2px);border-color:#5bcbbd;box-shadow:0 9px 25px #137f8526}
+.ic3-lesson-card.is-selected{border-color:#15a39d;background:linear-gradient(150deg,#fff,#eafff9)}
+.ic3-lesson-card.is-locked{background:#f5f7fa;color:#8290a5;box-shadow:none}
+.ic3-lesson-index{display:grid;place-items:center;width:36px;height:34px;border-radius:10px;background:#e4edf6;color:#346084;font-weight:800}
+.ic3-lesson-card.is-selected .ic3-lesson-index{background:#137f85;color:white}
+.ic3-lesson-card strong{font-size:14px}.ic3-lesson-card>span:not(.ic3-lesson-index){font-size:12px;line-height:1.45}
+.ic3-lesson-card small{font-size:11px;margin-top:auto;color:#69859b}.ic3-lock{position:absolute;right:15px;top:19px}
+.ic3-viewer,.ic3-panel{background:white;border:1px solid #dae4f0;border-radius:21px;padding:20px;box-shadow:0 7px 25px #133b5a10}
+.ic3-viewer-bar,.ic3-viewer-foot{display:flex;justify-content:space-between;align-items:center;gap:16px}
+.ic3-viewer-bar h3{margin:0 0 6px;font-size:20px}.ic3-viewer-bar p{margin:0;color:#687e97;font-size:13px;line-height:1.6}
+.ic3-viewer-bar a,.ic3-viewer-foot button,.ic3-back{white-space:nowrap;display:flex;align-items:center;gap:6px;border:1px solid #d6e2ec;padding:9px 13px;border-radius:11px;background:#f5fbfd;color:#147d88;font-weight:750}
+.ic3-slide-frame{margin:19px 0;border-radius:14px;background:#152338;overflow:hidden;aspect-ratio:16/9;min-height:270px}
+.ic3-slide-frame iframe{display:block;width:100%;height:100%;border:0}
+.ic3-viewer-foot{color:#73849b;font-size:12px}
+.ic3-mode-tabs{margin-top:5px}.ic3-mode-tabs button{padding:13px 23px;background:white;border:1px solid #dce7f0}
+.ic3-mode-tabs button.active{color:white;background:linear-gradient(120deg,#147e90,#15776a);border-color:transparent}
+.ic3-warning,.ic3-note{display:flex;gap:8px;align-items:flex-start;padding:12px 14px;background:#fff8e6;border:1px solid #f1e2b4;border-radius:12px;color:#8c6819;font-size:13px;line-height:1.6}
+.ic3-panel-title+.ic3-warning{margin-bottom:14px}
+.ic3-progress{height:8px;background:#e5edf4;border-radius:10px;overflow:hidden;margin:20px 0}
+.ic3-progress span{display:block;height:100%;background:linear-gradient(90deg,#18b2a0,#6bc7d7);transition:width .2s}
+.ic3-question-card h3{font-size:clamp(18px,2vw,24px);line-height:1.45;margin:12px 0 20px}
+.ic3-question-eyebrow{display:flex;justify-content:space-between;gap:9px;color:#607e96;font-weight:700;font-size:12px}
+.ic3-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}
+.ic3-option{min-height:65px;text-align:left;background:#f5f8fd;color:#28415c;border:2px solid #e1e9f1;border-radius:13px;padding:11px 13px;display:flex;align-items:center;gap:10px;font-weight:700;transition:background .14s,border-color .14s}
+.ic3-option:hover:not(:disabled){border-color:#3bb7ad;background:#f0fffc}.ic3-option.selected{border-color:#2f87ba}
+.ic3-option.correct{background:#e1f7eb;border-color:#36b876;color:#17623d}
+.ic3-option.incorrect{background:#fff0ef;border-color:#ee8181;color:#922a38}
+.ic3-option-letter{display:grid;place-items:center;flex:0 0 32px;width:32px;height:32px;background:white;border-radius:9px;color:#496b86;border:1px solid #e0e8f0}
+.ic3-explanation{padding:15px 16px;margin:15px 0;background:#f0f9ee;border:1px solid #c8e7bc;border-radius:13px;color:#376742}
+.ic3-explanation.review{background:#fff6ee;border-color:#f2d4b1;color:#8a4d21}
+.ic3-explanation p{margin:8px 0 0;line-height:1.7}
+.ic3-main-btn{display:inline-flex;align-items:center;gap:8px;justify-content:center;background:linear-gradient(120deg,#0c8c88,#167da2);border:none;border-radius:12px;padding:13px 22px;margin-top:15px;color:white;font-weight:800;box-shadow:0 7px 17px #008b8541}
+.ic3-main-btn:hover{filter:brightness(1.06)}
+.ic3-device-art{text-align:center;max-width:270px;margin:0 auto 15px;border-radius:15px;padding:9px;background:linear-gradient(145deg,#ddf5f4,#e6eefb)}
+.ic3-device-art svg{width:100%;max-height:130px}.ic3-device-art figcaption{font-size:12px;color:#43637f;font-weight:700}
+.ic3-finish{text-align:center;padding:30px 15px;color:#217e87}.ic3-finish h2{margin:12px 0;color:#163b56}.ic3-finish p{color:#536b83}
+.ic3-game-tabs{border-bottom:1px solid #dbe5ee;padding-bottom:10px}
+.ic3-hero-choices{display:flex;flex-wrap:wrap;gap:12px;margin:10px 0 25px}
+.ic3-hero-choices button{background:white;border:2px solid #dce6ef;border-radius:15px;padding:15px;min-width:130px;display:flex;flex-direction:column;align-items:center;gap:5px}
+.ic3-hero-choices button.selected{border-color:#03a59b;background:#e8fbf5}
+.ic3-hero-choices button span{font-size:35px}.ic3-hero-choices small{font-size:11px;color:#6f8195}
+.ic3-start-panel{background:#e8f6f5;padding:15px;border:1px solid #b2dddb;border-radius:16px;margin:17px 0}
+.ic3-start-panel p{font-size:13px;color:#375c62}.ic3-start-panel small{display:block;margin-top:13px;color:#527a7b}
+.ic3-battle-layout{margin-top:16px}.ic3-arena{position:relative;overflow:hidden;background:radial-gradient(ellipse at 50% 100%,#2f8c9c 0%,#273f6b 45%,#152c48 100%);border:4px solid #385a86;border-radius:23px;color:white;box-shadow:0 10px 30px #122b4e40;padding:15px 20px}
+.ic3-arena:before{content:"";position:absolute;left:0;right:0;bottom:58px;height:58px;background:repeating-linear-gradient(90deg,#152b4060 0 15px,#1b506e70 15px 30px);border-top:4px solid #88e5d54d;transform:skewY(-2deg)}
+.ic3-arena-head,.ic3-arena-footer{position:relative;z-index:2;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:12px;color:#cce6f4;font-weight:700}
+.ic3-arena-footer{padding:10px 0 0;margin-top:4px}
+.ic3-enemy-health{position:relative;z-index:2;margin:14px auto 0;max-width:450px;display:flex;align-items:center;gap:12px;font-size:12px;font-weight:800}
+.ic3-health-track{flex:1;background:#111d32;border:2px solid #93bfd0;border-radius:9px;overflow:hidden;height:17px}
+.ic3-health-track span{display:block;height:100%;background:linear-gradient(90deg,#f56f83,#f2bb6f);transition:width .3s}
+.ic3-combatants{position:relative;z-index:2;display:grid;grid-template-columns:1fr 60px 1fr;align-items:end;text-align:center;gap:6px;min-height:245px;padding-top:15px}
+.ic3-combatants>div>strong{display:block;font-size:13px;min-height:34px}.ic3-combatants small{display:block;color:#e7c389}
+.ic3-hearts{display:flex;justify-content:center;gap:7px;margin-top:6px}.ic3-combat-vs{font-size:25px;color:#efcb7a;font-style:italic;font-weight:900;padding-bottom:105px;text-shadow:0 4px 14px #0008}
+.ic3-hero-art,.ic3-monster-art{height:178px;width:168px;margin:0 auto;position:relative;display:grid;place-items:center;filter:drop-shadow(0 10px 10px #041a2b70)}
+.ic3-hero-body{position:relative;z-index:2;width:112px;height:137px;border:5px solid #bed2ec;clip-path:polygon(50% 0%,95% 25%,90% 90%,50% 100%,10% 90%,5% 25%);background:linear-gradient(130deg,#51cbbb,#1261b1);display:grid;place-items:center;animation:ic3-idle 2s ease-in-out infinite}
+.ic3-hero-icon{font-size:54px;text-shadow:0 4px 10px #184360}
+.ic3-hero-spark{position:absolute;font-size:54px;color:#ecda80;top:-13px;left:0}
+.ic3-hero-shadow{position:absolute;bottom:0;width:125px;height:15px;background:#0c2035a8;border-radius:100%}
+.ic3-monster-halo{position:absolute;width:156px;height:143px;background:radial-gradient(ellipse,#f282db66,transparent 70%)}
+.ic3-monster-body{position:relative;z-index:2;width:132px;height:132px;border-radius:45% 40% 30% 30%;background:linear-gradient(120deg,#ef7ba6,#9043d6);border:6px solid #efb9ec;box-shadow:inset 0 -18px 0 #611c8c65;animation:ic3-idle 2.5s ease-in-out infinite}
+.ic3-monster-body.shape-horned{border-radius:45% 50% 15% 25%}.ic3-monster-body.shape-winged{transform:rotate(-8deg);border-radius:20% 70% 40% 50%}.ic3-monster-body.shape-armored{border-radius:13%}
+.ic3-monster-eye{position:absolute;top:46px;width:22px;height:26px;background:white;border-radius:9px 9px 5px 5px}
+.ic3-monster-eye:after{content:"";display:block;background:#17284d;width:9px;height:14px;border-radius:60%;margin:9px auto}
+.ic3-monster-eye.left{left:25px}.ic3-monster-eye.right{right:25px}
+.ic3-monster-mouth{position:absolute;bottom:24px;left:49px;width:30px;height:10px;background:#5a1d6d;border-radius:5px 5px 20px 20px}
+.ic3-monster-horns{position:absolute;z-index:3;top:-6px;left:32px;font-size:40px;letter-spacing:30px;color:#f7c1e9}
+.ic3-monster-feet{position:absolute;z-index:3;bottom:0;color:#ee8bb4;font-size:30px;letter-spacing:14px}
+.ic3-hero-art.attack{animation:ic3-hero-hit .45s ease-out}.ic3-monster-art.attack{animation:ic3-monster-hit .45s ease-out}
+.ic3-hero-art.damaged,.ic3-monster-art.damaged{animation:ic3-damage .4s ease-in-out}
+.ic3-battle-question{padding:18px;margin-top:12px;background:white;border:1px solid #e2eaf2;border-radius:19px}
+.ic3-battle-result{display:flex;align-items:center;justify-content:space-between;gap:13px;flex-wrap:wrap;padding:3px 5px}
+.ic3-battle-result strong{color:#1f6485}
+.ic3-mini-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:13px}
+.ic3-mini-card{position:relative;background:white;border-radius:17px;padding:20px;border:1px solid #dfe8f0}
+.ic3-mini-index{display:inline-grid;place-items:center;width:35px;height:35px;border-radius:11px;background:#ecedfc;color:#5067af;font-weight:900}
+.ic3-mini-card h3{margin:13px 0 3px}.ic3-mini-card p{color:#667b94;margin:0 0 8px}.ic3-mini-card small{display:block;color:#617c91;margin:12px 0}
+.ic3-mini-planned{display:inline-block;border-radius:30px;background:#f2f4f9;color:#7a8799;font-size:12px;padding:6px 10px}
+.ic3-back{margin:12px 0}.ic3-panel{margin:18px 0}.ic3-panel h2{margin-top:0}
+.ic3-foot{display:flex;align-items:center;justify-content:center;gap:8px;padding:22px 15px;color:#748399;font-size:12px}
+@keyframes ic3-idle{0%,100%{translate:0 0}50%{translate:0 -5px}}
+@keyframes ic3-hero-hit{0%{translate:0}50%{translate:105px -8px}100%{translate:0}}
+@keyframes ic3-monster-hit{0%{translate:0}50%{translate:-65px -10px}100%{translate:0}}
+@keyframes ic3-damage{0%,100%{opacity:1}30%,70%{opacity:.15;translate:7px 0}}
+@media(max-width:850px){.ic3-preview-label{display:none}.ic3-head{flex-wrap:wrap}.ic3-lesson-grid{grid-template-columns:repeat(auto-fill,minmax(145px,1fr))}.ic3-lesson-card{min-height:160px}}
+@media(max-width:650px){.ic3-learning-app main{padding:12px}.ic3-intro{padding:22px}.ic3-head{padding:10px}.ic3-options{grid-template-columns:1fr}
+.ic3-viewer-bar,.ic3-viewer-foot{align-items:stretch;flex-direction:column}.ic3-slide-frame{min-height:200px}
+.ic3-combatants{grid-template-columns:1fr 30px 1fr;min-height:235px}.ic3-hero-art,.ic3-monster-art{scale:.75;width:115px;margin-left:auto;margin-right:auto}
+.ic3-combat-vs{font-size:17px}.ic3-game-tabs{gap:3px}.ic3-game-tabs button{font-size:12px;padding:9px}
+.ic3-lesson-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.ic3-lesson-card{padding:11px}}
+@media(prefers-reduced-motion:reduce){.ic3-learning-app *, .ic3-learning-app *:before,.ic3-learning-app *:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
