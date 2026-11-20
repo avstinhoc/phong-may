@@ -5,6 +5,7 @@ import {PROTOTYPE_QUESTIONS,lessonQuestions} from './questionBank.js';
 import {BALANCE,HERO_STYLES,MONSTERS,MINI_GAMES,monsterFor,WORLDS,EQUIPMENT_SLOTS} from './adventureCatalog.js';
 import {beginBattle,currentQuestion,answerBattle,nextBattle,missedQuestions,learningStarRating} from './battleEngine.js';
 import {DeviceIllustration} from './DeviceIllustration.jsx';
+import {HardwareBuilder} from './HardwareBuilder.jsx';
 import './learning.css';
 
 const statuses={
@@ -191,9 +192,16 @@ function Adventure({selectedLesson,setSelectedLesson,hero,setHero,battle,setBatt
  </div>;
 }
 function MiniGameLibrary(){
- return <div><div className="ic3-panel-title"><h2>Trò chơi vui – 8 mini-game</h2><p>Danh mục thiết kế, chưa có mini-game chạy thật trong bản prototype.</p></div>
+ const [playing,setPlaying]=useState(false);
+ if(playing)return <HardwareBuilder onBack={()=>setPlaying(false)}/>;
+ return <div><div className="ic3-panel-title"><h2>Trò chơi vui – 8 mini-game</h2>
+    <p>Hardware Builder đã chơi thử được từ nội dung Bài 1. Bảy trò còn lại đang ở giai đoạn thiết kế.</p></div>
   <div className="ic3-mini-grid">{MINI_GAMES.map((g,i)=><article key={g.id} className="ic3-mini-card">
-   <span className="ic3-mini-index">{String.fromCharCode(65+i)}</span><h3>{g.vi}</h3><p>{g.name}</p><small>{g.objective}</small><span className="ic3-mini-planned">Chưa triển khai</span>
+   <span className="ic3-mini-index">{String.fromCharCode(65+i)}</span><h3>{g.vi}</h3><p>{g.name}</p>
+   <small>{g.objective}</small>
+   {g.id==='hardware-builder'
+     ?<button className="ic3-main-btn" type="button" onClick={()=>setPlaying(true)}><Play size={16}/> Chơi thử Bài 1</button>
+     :<span className="ic3-mini-planned">Chưa triển khai</span>}
   </article>)}</div>
  </div>;
 }
