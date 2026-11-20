@@ -46,10 +46,13 @@ test('file links are school-scoped and only same-name school profiles may share 
  assert.ok(edge.includes('if(already){'));
  assert.ok(edge.includes('duplicates.length>1'));
  assert.ok(edge.includes('if(spreadsheetId===QLPM_TEMPLATE_ID)'));
- assert.ok(edge.includes('!file.parents?.includes(root.folder_id)||file.capabilities?.canEdit!==true'));
+ assert.ok(edge.includes('file.capabilities?.canEdit!==true'));
+ assert.ok(edge.includes('if(creating&&!file.parents?.includes(root!.folder_id))'));
  assert.ok(edge.includes('await assertSameSchoolWorkbook(admin,schoolId,(usedBy||[])'));
  assert.ok(edge.includes('.neq("school_id",schoolId).limit(200)'));
- assert.ok(edge.includes("status:\"verified\",auto_sync:true"));
+ assert.ok(edge.includes('status:"verified",auto_sync:creating'));
+ assert.ok(edge.includes('if(creating){'));
+ assert.ok(edge.includes('if(!creating&&Array.isArray(file.permissions)'));
  assert.ok(ui.includes("callSchoolDrive('create_school_workbook'"));
  assert.ok(ui.includes("callSchoolDrive('link_school_workbook'"));
  assert.ok(!ui.includes("from('school_sheet_links').insert"));
@@ -92,5 +95,5 @@ test('Sheets UI has one primary creation action and omits obsolete setup accordi
  assert.ok(!ui.includes('Nếu chưa cấu hình Apps Script: Tạo và gắn link thủ công'));
  assert.ok(!ui.includes('<b>QLPM</b> chứa file mẫu'));
  assert.ok(edge.includes('if(rootErr)throw fail("Máy chủ không đọc được cấu hình thư mục QLPM.'));
- assert.ok(edge.includes('if(!root)throw fail("Chưa đăng ký thư mục QLPM dùng chung.'));
+ assert.ok(edge.includes('if(!stored)throw fail("Chưa đăng ký thư mục QLPM dùng chung.'));
 });
