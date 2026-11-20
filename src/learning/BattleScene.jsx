@@ -17,7 +17,7 @@ export function playGameSound(type,muted){
   const ctx=new Context();
   const notes=type==='correct'?[[580,0,.095],[780,.095,.095],[1010,.19,.14]]:
     type==='wrong'?[[310,0,.09],[220,.10,.15]]:[[510,0,.10],[680,.1,.10]];
-  notes.forEach(([frequency,offset,duration])=>{
+  notes.forEach(([frequency,offset,duration],index)=>{
    const o=ctx.createOscillator(),gain=ctx.createGain();
    o.type=type==='wrong'?'triangle':'sine';
    o.frequency.setValueAtTime(frequency,ctx.currentTime+offset);
@@ -25,9 +25,9 @@ export function playGameSound(type,muted){
    gain.gain.exponentialRampToValueAtTime(.07,ctx.currentTime+offset+.012);
    gain.gain.exponentialRampToValueAtTime(.0001,ctx.currentTime+offset+duration);
    o.connect(gain).connect(ctx.destination);
+   if(index===notes.length-1)o.onended=()=>{ctx.close().catch(()=>{});};
    o.start(ctx.currentTime+offset);o.stop(ctx.currentTime+offset+duration+.015);
   });
-  ctx.close().catch(()=>{});
  }catch{/* Browser audio policy may block the effect; gameplay remains usable. */}
 }
 export function BattleScene({battle,monster,skinId,muted,setMuted,lowMotion,setLowMotion}){
