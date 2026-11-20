@@ -138,3 +138,42 @@ test('hardware builder accepts correct component functions from Lesson 1',()=>{
  }
  assert.equal(evaluateHardwareChoice('invalid','cpu'),false);
 });
+
+test('pixel-art redesign includes twelve original selectable skins and screenshot-inspired fishing gameplay',()=>{
+ const sprites=readFileSync(new URL('../src/learning/PixelArt.jsx',import.meta.url),'utf8');
+ const scene=readFileSync(new URL('../src/learning/BattleScene.jsx',import.meta.url),'utf8');
+ const picker=readFileSync(new URL('../src/learning/HeroPicker.jsx',import.meta.url),'utf8');
+ const fish=readFileSync(new URL('../src/learning/FishingGame.jsx',import.meta.url),'utf8');
+ const app=readFileSync(new URL('../src/learning/LearningPrototype.jsx',import.meta.url),'utf8');
+ const style=readFileSync(new URL('../src/learning/gameVisuals.css',import.meta.url),'utf8');
+ assert.equal((sprites.match(/\{id:'(?:warrior|archer|mage)-/g)||[]).length,12);
+ assert.ok(sprites.includes('pixelated'));
+ assert.ok(sprites.includes('PixelHero'));
+ assert.ok(sprites.includes('PixelMonster'));
+ assert.ok(sprites.includes('PixelFish'));
+ assert.ok(picker.includes('role="dialog"')&&picker.includes('aria-modal="true"'));
+ assert.ok(scene.includes('PixelHero skinId={skinId}')&&scene.includes('PixelMonster round={monster.round}'));
+ assert.ok(scene.includes('role="progressbar"'));
+ assert.ok(fish.includes("lessonQuestions('lv1-11')"));
+ assert.ok(fish.includes('feedback')&&fish.includes('setHearts'));
+ assert.ok(app.includes('HeroPicker')&&app.includes('FishingGame')&&app.includes('BattleScene'));
+ assert.ok(!app.includes('function HeroArt('),'Emoji-only hero placeholder must be removed');
+ assert.ok(!app.includes('function MonsterArt('),'Blob-only monster placeholder must be removed');
+ assert.ok(style.includes('prefers-reduced-motion:reduce'));
+ assert.ok(style.includes('.ic3-fishing-ocean'));
+ assert.ok(style.includes('.ic3-arcade-stage'));
+});
+
+test('Lesson 11 fishing items trace to genuine supplied presentation slides and always explain answers',()=>{
+ const questions=lessonQuestions('lv1-11');
+ assert.equal(questions.length,8);
+ assert.ok(questions.every(validateQuestion));
+ assert.ok(questions.every(q=>q.status==='teacher-review-required'));
+ assert.ok(questions.every(q=>q.sourceSlides.every(n=>n>=4&&n<=22)));
+ assert.ok(questions.every(q=>q.explanation.length>35));
+ const stop=questions.find(q=>q.id==='l11-q01');
+ assert.equal(stop.sourceSlides[0],18);
+ assert.equal(stop.options.find(o=>o.id===stop.correctId).label,'Dừng tải trang web');
+ assert.ok(questions.some(q=>q.tags.includes('bookmark')));
+ assert.ok(questions.some(q=>q.tags.includes('refresh')));
+});
