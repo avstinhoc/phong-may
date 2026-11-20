@@ -8,6 +8,8 @@ const migration=readFileSync(new URL('../supabase/migrations/20261119031000_scho
 const includeActive=readFileSync(new URL('../supabase/migrations/20261119032000_school_include_active_students.sql',import.meta.url),'utf8');
 const gradeTopTen=readFileSync(new URL('../supabase/migrations/20261120090000_school_grade_top_ten.sql',import.meta.url),'utf8');
 const dynamicGrades=readFileSync(new URL('../supabase/migrations/20261120144500_dynamic_primary_secondary_grade_boards.sql',import.meta.url),'utf8');
+const milestoneMigration=readFileSync(new URL('../supabase/migrations/20261120102000_rank_earliest_star_milestone.sql',import.meta.url),'utf8');
+const restoredRanking=readFileSync(new URL('../supabase/migrations/20261120162500_restore_earliest_star_tie_primary_secondary.sql',import.meta.url),'utf8');
 const app=readFileSync(new URL('../src/App.jsx',import.meta.url),'utf8');
 const school=readFileSync(new URL('../src/SchoolPortal.jsx',import.meta.url),'utf8');
 const vercel=JSON.parse(readFileSync(new URL('../vercel.json',import.meta.url),'utf8'));
@@ -57,7 +59,8 @@ test('SQL school portal collects multiple teachers but isolates same-name school
    'create table schools(id uuid primary key,name text)',
    "create table classes(id uuid primary key,school_id uuid,class_name text,registration_code text,legacy_registration_codes text[] default '{}'::text[],archived_at timestamptz,created_by uuid)",
    'create table students(id uuid primary key,school_id uuid,class_id uuid,class_name text,full_name text,status text)',
-   'create table student_records(school_id uuid,student_id uuid,record_type text,points numeric)',
+   'create table student_records(school_id uuid,student_id uuid,record_type text,points numeric,id uuid default gen_random_uuid(),created_at timestamptz default now())',
+   'create table ic3_student_stat_audit(id uuid,student_id uuid,changed_at timestamptz,before_totals jsonb,after_totals jsonb)',
    "create view ic3_star_wallets as select school_id,student_id,sum(greatest(points,0))::integer earned,sum(points)::integer available,sum(greatest(points,0))::integer effect_score,'active'::text flame_state from student_records where record_type='reward' group by school_id,student_id",
    'grant usage on schema public to anon'
   ].join(';\n')+';');
@@ -88,13 +91,16 @@ test('SQL school portal collects multiple teachers but isolates same-name school
   for(const [suffix,schoolId,clsId,clsName,name,stars] of pupils){
    await db.query('insert into students values($1,$2,$3,$4,$5,$6)',
     [id(suffix),schoolId,clsId?id(clsId):null,clsName,name,'active']);
-   await db.query('insert into student_records values($1,$2,$3,$4)',
+   await db.query('insert into student_records(school_id,student_id,record_type,points) values($1,$2,$3,$4)',
     [schoolId,id(suffix),'reward',stars]);
   }
   await db.exec(migration);
   await db.exec(includeActive);
   await db.exec(gradeTopTen);
   await db.exec(dynamicGrades);
+  // Existing milestone helper is carried over, only the portal's ranking SQL changes.
+  await db.exec(milestoneMigration.slice(0,milestoneMigration.indexOf('create or replace function public.ic3_school_public_portal')));
+  await db.exec(restoredRanking);
   const get=async code=>(await db.query('select public.ic3_school_public_portal($1) as payload',[code])).rows[0].payload;
   const first=await get('CLASS6A1');
   assert.equal(first.school_name,'THCS Trùng Tên');
@@ -127,7 +133,7 @@ test('SQL school portal collects multiple teachers but isolates same-name school
   for(let i=0;i<9;i++){
     const pupilId=id(String(310+i));
     await db.query('insert into students values($1,$2,$3,$4,$5,$6)',[pupilId,schoolA,id('101'),'6A1','Bạn lớp 6 '+i,'active']);
-    await db.query('insert into student_records values($1,$2,$3,$4)',[schoolA,pupilId,'reward',9-i]);
+    await db.query('insert into student_records(school_id,student_id,record_type,points) values($1,$2,$3,$4)',[schoolA,pupilId,'reward',9-i]);
   }
   const expanded=await get('CLASS6A1');
   assert.equal(expanded.top_school.length,5,'The school podium must remain Top 5');
@@ -140,7 +146,7 @@ test('SQL school portal collects multiple teachers but isolates same-name school
     [id('107'),schoolA,'2.1','PRIMARY21',id('006')]);
   await db.query('insert into students values($1,$2,$3,$4,$5,$6)',
     [id('410'),schoolA,id('107'),'2.1','Học sinh tiểu học','active']);
-  await db.query('insert into student_records values($1,$2,$3,$4)',
+  await db.query('insert into student_records(school_id,student_id,record_type,points) values($1,$2,$3,$4)',
     [schoolA,id('410'),'reward',50]);
   const mixed=await get('PRIMARY21');
   assert.ok(mixed.grades.includes('2'));
@@ -148,6 +154,24 @@ test('SQL school portal collects multiple teachers but isolates same-name school
   assert.equal(mixed.grade_boards['2'][0].name,'Học sinh tiểu học');
   assert.ok(mixed.grade_boards['6'].every(item=>item.class_name.startsWith('6')));
   assert.equal((await get('OTHER6A1')).grade_boards['2'],undefined);
+  // A later alphabetical name must win a tie if it reached the milestone earlier.
+  const pair=[
+    {id:id('411'),name:'A Đạt sau',at:'2026-11-19T08:39:24Z'},
+    {id:id('412'),name:'Z Đạt trước',at:'2026-11-19T08:36:57Z'}
+  ];
+  for(const entry of pair){
+    await db.query('insert into students values($1,$2,$3,$4,$5,$6)',
+      [entry.id,schoolA,id('107'),'2.1',entry.name,'active']);
+    await db.query('insert into student_records(school_id,student_id,record_type,points,created_at) values($1,$2,$3,$4,$5)',
+      [schoolA,entry.id,'reward',6,entry.at]);
+  }
+  const tied=await get('PRIMARY21');
+  assert.deepEqual(tied.grade_boards['2'].map(r=>r.name),
+    ['Học sinh tiểu học','Z Đạt trước','A Đạt sau']);
+  assert.equal(tied.grade_boards['2'][1].earned,6);
+  assert.deepEqual(tied.grade_boards['6'],(await get('CLASS6A1')).grade_boards['6'],
+    'Dynamic grades and teacher-school isolation must stay intact');
+
 
  }finally{await db.close();}
 });
