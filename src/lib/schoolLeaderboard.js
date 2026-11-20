@@ -2,7 +2,7 @@ export const SCHOOL_TOP_LIMIT=5;
 export const SCHOOL_PODIUM_ORDER=[4,2,1,3,5];
 // Class labels can be 6A1, 6/1, 6-1, 6.1, etc.
 export const gradeFromClassName=value=>{
-  const m=String(value||'').trim().match(/^([1-9])(?=\w|[./\-]|$)/u);
+  const m=String(value||'').trim().match(/^([1-9])(?=[^\p{N}]|$)/u);
   return m?m[1]:null;
 };
 export const gradeClassRows=(classes,grade,query='')=>
