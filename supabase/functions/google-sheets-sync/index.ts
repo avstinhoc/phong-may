@@ -228,7 +228,7 @@ async function studentsFromDB(db:any,schoolId:string,className:string){
 }
 async function sessionsFromDB(db:any,schoolId:string,className:string){
  const {data,error}=await db.from("class_sessions").select("id,school_id,class_name,session_date,start_time,period_count")
-   .eq("school_id",schoolId).eq("class_name",className).order("session_date").order("start_time").limit(300);
+   .eq("school_id",schoolId).eq("class_name",className).eq("is_cancelled",false).order("session_date").order("start_time").limit(300);
  if(error)throw fail("Không đọc được các buổi học.",500);
  return data||[];
 }
@@ -278,6 +278,7 @@ async function syncClass(db:any,link:Dict,map:Dict,token:string,actorId:string,m
  if(clean(heads[9]).toUpperCase()!=="B1"||clean(heads[78]).toUpperCase()!=="B70")
    throw fail("Mẫu thiếu dãy checkbox B1–B70 từ J5:CA5.");
  const students=await studentsFromDB(db,link.school_id,map.class_name);
+ const taughtSessionIds=new Set((await sessionsFromDB(db,link.school_id,map.class_name)).map(s=>s.id));
  const conflicts:string[]=[];
  let retiredOnWeb=0,retiredOnSheet=0;
  if(mode==="pull_names"||mode==="pull"){
@@ -469,6 +470,7 @@ async function syncClass(db:any,link:Dict,map:Dict,token:string,actorId:string,m
    }
    const ids=mode==="pull"?checkedSessionIds(p.raw,map.lesson_columns||{}):[];
    for(const sessionId of ids){
+    if(!taughtSessionIds.has(sessionId))continue;
     const {data:session}=await db.from("class_sessions").select("id").eq("id",sessionId)
       .eq("school_id",link.school_id).eq("class_name",map.class_name).maybeSingle();
     if(!session){conflicts.push("Buổi học không còn tồn tại: "+sessionId);continue;}
@@ -551,6 +553,7 @@ async function syncClass(db:any,link:Dict,map:Dict,token:string,actorId:string,m
     else if(String(other)!==String(val))conflicts.push(student.full_name+" · xung đột "+SCORE_KEYS[n]);
    }
    for(const [sessionId,ordinal] of Object.entries(map.lesson_columns||{})){
+    if(!taughtSessionIds.has(sessionId))continue;
     const n=Number(ordinal);
     if(!Number.isInteger(n)||n<1||n>70)continue;
     const k=student.id+":"+sessionId;
@@ -589,6 +592,7 @@ async function syncClass(db:any,link:Dict,map:Dict,token:string,actorId:string,m
    const st=known.find(x=>x.id===p.matchedId||normalize(x.full_name)===normalize(p.name));
    if(!st||p.ambiguous)continue;
    for(const [sessionId,ordinal] of Object.entries(map.lesson_columns||{})){
+    if(!taughtSessionIds.has(sessionId))continue;
     const n=Number(ordinal);
     if(!Number.isInteger(n)||n<1||n>70)continue;
     const sheetAbsent=statusAbsent(p.raw[8+n]);
@@ -1198,10 +1202,10 @@ Deno.serve(async(req:Request)=>{
    const [{data:student},{data:lesson}]=await Promise.all([
      db.from("students").select("id,full_name,class_name,school_id,status")
        .eq("id",studentId).eq("school_id",link.school_id).maybeSingle(),
-     db.from("class_sessions").select("id,class_name,school_id")
+     db.from("class_sessions").select("id,class_name,school_id,is_cancelled")
        .eq("id",sessionId).eq("school_id",link.school_id).maybeSingle()
    ]);
-   if(!student||student.status!=="active"||!lesson||student.class_name!==lesson.class_name)
+   if(!student||student.status!=="active"||!lesson||lesson.is_cancelled||student.class_name!==lesson.class_name)
      throw fail("Học sinh và buổi học không thuộc cùng lớp tại trường này.",403);
    if((await archivedClassNames(db,link.school_id)).has(student.class_name))throw fail("Lớp đã đóng.",409);
    const map=await getMap(db,link.id,student.class_name);
