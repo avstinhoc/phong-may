@@ -747,6 +747,17 @@ async function cloneClassTab(id:string,template:Dict,className:string,schoolName
  // Atomic duplicate + clearing: a failed cleanup must not leave a visible tab
  // containing another classroom's pupil data.
  // Concurrent attempts for the same workbook and class must request the same gid.
+ // Never copy a short/non-QLPM template over an existing class. Extend only
+ // newly cloned tabs to reach CB:CT, keeping original teacher sheets intact.
+ const meta=await metadata(id,token);
+ const original=(meta.sheets||[]).find((s:Dict)=>s.properties?.sheetId===template.id);
+ const grid=original?.properties?.gridProperties||{};
+ if(!original||Number(grid.columnCount||0)<79||Number(grid.rowCount||0)<70)
+  throw fail("Tab mẫu "+template.title+" không đủ B1–B70 (J:CA) và 70 dòng. Không tạo bản sao để tránh sai điểm danh.",409);
+ const header=(await readTab(id,template.title,token))[0]||[];
+ if(normalize(header[2]).replace(/\*/g,"").trim()!=="họ & tên"||
+    clean(header[9]).toUpperCase()!=="B1"||clean(header[78]).toUpperCase()!=="B70")
+  throw fail("Tab mẫu "+template.title+" thiếu cấu trúc C5, J5:CA5. Không tạo bản sao thiếu checkbox.",409);
  const digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(JSON.stringify([id,tabTitle])));
  const newId=1+(new DataView(digest).getUint32(0)%2147483646);
  const cleanup=freshTabRequests(newId,className,schoolName);
@@ -761,9 +772,12 @@ async function cloneClassTab(id:string,template:Dict,className:string,schoolName
    }
   }
  }
- const cloned=await sheetBatch(id,[{duplicateSheet:{
+ const cloneRequests:Dict[]=[{duplicateSheet:{
    sourceSheetId:template.id,newSheetId:newId,newSheetName:tabTitle
- }},...cleanup],token);
+ }}];
+ if(Number(grid.columnCount)<98)
+  cloneRequests.push({appendDimension:{sheetId:newId,dimension:"COLUMNS",length:98-Number(grid.columnCount)}});
+ const cloned=await sheetBatch(id,[...cloneRequests,...cleanup],token);
  const result=cloned.replies?.[0]?.duplicateSheet?.properties;
  if(result?.sheetId!==newId||result.title!==tabTitle)
   throw fail("Google Sheets trả về tab khác với lớp "+className+". Cần kiểm tra tên tab trước khi liên kết.",409);
