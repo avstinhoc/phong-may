@@ -2,13 +2,14 @@ import React,{useEffect,useState} from 'react';
 import {supabase} from './lib/supabase';
 import {FlameBadge} from './FlameBadge';
 import {flameEffect} from './lib/stars';
-import {topFive,schoolPodiumOrder,gradeClassRows} from './lib/schoolLeaderboard';
+import {topFive,schoolPodiumOrder,gradeClassRows,schoolGradeLevels} from './lib/schoolLeaderboard';
 import './schoolPortal.css';
 
 const medal={1:'🥇',2:'🥈',3:'🥉'};
 const codeLink=value=>'/student?code='+encodeURIComponent(value);
 const schoolLink=code=>'/school?code='+encodeURIComponent(code);
 const gradeLink=(grade,code)=>'/school/grade/'+grade+'?code='+encodeURIComponent(code);
+const gradeIcon=grade=>Number(grade)<=5?'🌟':grade==='8'?'🎓':grade==='7'?'📘':grade==='6'?'🚀':'📚';
 
 function StarFace({student,large=false}){
  const effect=flameEffect(student);
@@ -39,7 +40,7 @@ function GradeLeaderboard({grade,items,schoolCode=''}){
  const rows=(items||[]).slice(0,10);
  return <section className={'school-grade-board school-grade-board--'+grade} aria-label={'Top 10 học sinh khối '+grade}>
    <div className="school-grade-board-head">
-     <div><span className="school-grade-crown">{grade==='8'?'💜':grade==='6'?'🧡':'💙'}</span>
+     <div><span className="school-grade-crown">{Number(grade)<=5?'🌟':grade==='8'?'💜':grade==='6'?'🧡':'💙'}</span>
        <div><h3>TOP 10 KHỐI {grade}</h3><small>10 ngôi sao có tổng sao cao nhất</small></div></div>
      <span className="school-grade-number">0{grade}</span>
    </div>
@@ -62,7 +63,7 @@ function GradeLeaderboard({grade,items,schoolCode=''}){
 function GradeClassSection({grade,rows,query=''}) {
  return <section className="school-class-section" id="school-classes">
    <div className="school-class-heading">
-     <div className="school-class-heading-icon" aria-hidden="true">{grade==='8'?'🎓':grade==='7'?'📘':'🚀'}</div>
+     <div className="school-class-heading-icon" aria-hidden="true">{gradeIcon(grade)}</div>
      <div><p>KHỐI {grade}</p><h2>Khám phá các lớp khối {grade}</h2>
        <span>{rows.length} lớp · Chọn "Vào trang lớp" để xem thông tin lớp mình</span></div>
    </div>
@@ -83,7 +84,7 @@ export function SchoolPortal({initialCode='',embedded=false}){
  const [data,setData]=useState(null);
  const [busy,setBusy]=useState(false),[error,setError]=useState('');
  const [updatedAt,setUpdatedAt]=useState(null),[search,setSearch]=useState('');
- const selectedGrade=window.location.pathname.match(/^\/school\/grade\/([678])\/?$/)?.[1]||null;
+ const selectedGrade=window.location.pathname.match(/^\/school\/grade\/([1-9])\/?$/)?.[1]||null;
  async function reload(nextCode=code){
    if(!nextCode.trim()){setError('Nhập mã của một lớp trong trường để xem bảng xếp hạng.');return;}
    setBusy(true);setError('');
@@ -107,12 +108,13 @@ export function SchoolPortal({initialCode='',embedded=false}){
    document.getElementById(id)?.scrollIntoView({block:'start'});
  },[data,selectedGrade]);
  const classes=Array.isArray(data?.classes)?data.classes:[];
+ const grades=schoolGradeLevels(data||{});
  const matches=search.trim()?classes.filter(item=>String(item.class_name||'').toLocaleLowerCase('vi').includes(search.trim().toLocaleLowerCase('vi'))).slice(0,8):[];
  function findClass(e){
    e.preventDefault();
    if(!matches.length)return;
    const grade=String(matches[0].grade||'');
-   if(['6','7','8'].includes(grade))window.location.assign(gradeLink(grade,code)+'#school-classes');
+   if(grades.includes(grade))window.location.assign(gradeLink(grade,code)+'#school-classes');
    else window.location.assign(codeLink(matches[0].registration_code));
  }
  return <div className={'school-public-page '+(embedded?'school-public-page--embedded':'')}>
@@ -120,16 +122,14 @@ export function SchoolPortal({initialCode='',embedded=false}){
      <a href={schoolLink(code)} className="school-public-brand"><span>IC3</span><b>IC3 GS6 <small>ĐẤU TRƯỜNG NGÔI SAO</small></b></a>
      <nav aria-label="Đi nhanh đến mục" className="school-public-nav">
        <a className="school-nav-rank" href={schoolLink(code)+'#school-standings'}>🏆 Toàn trường</a>
-       <a className="school-nav-grade8" href={gradeLink('8',code)}>🎓 Khối 8</a>
-       <a className="school-nav-grade7" href={gradeLink('7',code)}>📘 Khối 7</a>
-       <a className="school-nav-grade6" href={gradeLink('6',code)}>🚀 Khối 6</a>
+       {grades.map(grade=><a key={grade} className={'school-nav-grade'+grade} href={gradeLink(grade,code)}>{gradeIcon(grade)} Khối {grade}</a>)}
      </nav>
      {data&&<form className="school-header-class-search" role="search" aria-label="Tìm lớp trong trường" onSubmit={findClass}>
        <input type="search" value={search} onChange={e=>setSearch(e.target.value)}
-         placeholder="🔎 Tìm lớp 6.1, 7.2…" aria-label="Tìm nhanh lớp" autoComplete="off"/>
+         placeholder="🔎 Tìm lớp 1.1, 6.1, 9.2…" aria-label="Tìm nhanh lớp" autoComplete="off"/>
        <button type="submit" disabled={!matches.length} aria-label="Đến lớp đầu tiên phù hợp">Tìm</button>
        {search.trim()&&<div className="school-header-search-results" role="status">
-         {matches.length?matches.map(item=><a key={item.registration_code} href={['6','7','8'].includes(String(item.grade))?gradeLink(item.grade,code)+'#school-classes':codeLink(item.registration_code)}>
+         {matches.length?matches.map(item=><a key={item.registration_code} href={grades.includes(String(item.grade||''))?gradeLink(item.grade,code)+'#school-classes':codeLink(item.registration_code)}>
            <span>📚 Lớp {item.class_name}</span><small>Khối {item.grade||'khác'} · {item.student_count} học sinh</small>
          </a>):<span className="school-header-no-results">Không tìm thấy lớp phù hợp.</span>}
        </div>}
@@ -171,17 +171,16 @@ export function SchoolPortal({initialCode='',embedded=false}){
            {data.top_school?.length?<SchoolPodium rows={topFive(data.top_school)}/>:
              <div className="school-main-empty">🌟 Chưa có học sinh nào được cộng sao. Hãy là người đầu tiên lên bảng vàng!</div>}
          </section>
-         <div className="school-three-grades" aria-label="Bảng xếp hạng Top 10 của ba khối">
-           <GradeLeaderboard grade="8" items={data.top_8} schoolCode={code}/>
-           <GradeLeaderboard grade="6" items={data.top_6} schoolCode={code}/>
-           <GradeLeaderboard grade="7" items={data.top_7} schoolCode={code}/>
+         <div className="school-three-grades" aria-label="Bảng xếp hạng Top 10 theo các khối của trường">
+           {grades.map(grade=><GradeLeaderboard key={grade} grade={grade}
+             items={data.grade_boards?.[grade]||data['top_'+grade]||[]} schoolCode={code}/>)}
          </div>
          <section className="school-grade-launchers" aria-label="Chọn khối để xem Top 10 và các lớp">
-           <div className="school-standings-heading"><div><span>3 ĐẤU TRƯỜNG THEO KHỐI</span><h2>✨ Chọn khối của bạn</h2>
+           <div className="school-standings-heading"><div><span>{grades.length} ĐẤU TRƯỜNG THEO KHỐI</span><h2>✨ Chọn khối của bạn</h2>
              <p>Mỗi khối có bảng Top 10 riêng và danh sách lớp bên dưới. Chọn khối để khám phá nhé!</p></div></div>
            <div className="school-grade-launcher-grid">
-             {['8','7','6'].map(grade=><a key={grade} className={'school-grade-launcher school-grade-launcher--'+grade} href={gradeLink(grade,code)}>
-               <span className="school-grade-launcher-icon">{grade==='8'?'🎓':grade==='7'?'📘':'🚀'}</span>
+             {grades.map(grade=><a key={grade} className={'school-grade-launcher school-grade-launcher--'+grade} href={gradeLink(grade,code)}>
+               <span className="school-grade-launcher-icon">{gradeIcon(grade)}</span>
                <span className="school-grade-launcher-text"><strong>KHỐI {grade}</strong><small>{gradeClassRows(classes,grade).length} lớp đang hoạt động</small>
                  <b>Khám phá Top 10 & các lớp <span aria-hidden="true">↗</span></b></span>
              </a>)}
@@ -192,11 +191,11 @@ export function SchoolPortal({initialCode='',embedded=false}){
          <section className={'school-grade-detail-hero school-grade-detail-hero--'+selectedGrade}>
            <a href={schoolLink(code)} className="school-grade-back">← Về BXH toàn trường</a>
            <span className="school-grade-detail-overline">🏆 ĐẤU TRƯỜNG NGÔI SAO · {data.school_name}</span>
-           <h1>{selectedGrade==='8'?'🎓':selectedGrade==='7'?'📘':'🚀'} Bảng vàng khối {selectedGrade}</h1>
+           <h1>{gradeIcon(selectedGrade)} Bảng vàng khối {selectedGrade}</h1>
            <p>Vinh danh 10 học sinh xuất sắc nhất khối {selectedGrade} và khám phá danh sách lớp đang hoạt động.</p>
            <div className="school-grade-detail-pills"><span>⭐ Top 10 sao</span><span>🏫 {gradeClassRows(classes,selectedGrade).length} lớp</span><span>🔒 Chỉ hiển thị thành tích công khai</span></div>
          </section>
-         <div className="school-grade-detail"><GradeLeaderboard grade={selectedGrade} items={data['top_'+selectedGrade]}/></div>
+         <div className="school-grade-detail"><GradeLeaderboard grade={selectedGrade} items={data.grade_boards?.[selectedGrade]||data['top_'+selectedGrade]||[]}/></div>
          <GradeClassSection grade={selectedGrade} rows={gradeClassRows(classes,selectedGrade,search)} query={search}/>
        </>}
        <footer className="school-public-footer">
