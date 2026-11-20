@@ -2,7 +2,7 @@ export const SCHOOL_TOP_LIMIT=5;
 export const SCHOOL_PODIUM_ORDER=[4,2,1,3,5];
 // Class labels can be 6A1, 6/1, 6-1, 6.1, etc.
 export const gradeFromClassName=value=>{
-  const m=String(value||'').trim().match(/^([678])(?=\w|[./\-]|$)/u);
+  const m=String(value||'').trim().match(/^([1-9])(?=\w|[./\-]|$)/u);
   return m?m[1]:null;
 };
 export const gradeClassRows=(classes,grade,query='')=>
@@ -13,4 +13,10 @@ export const topFive=items=>(items||[]).slice(0,SCHOOL_TOP_LIMIT);
 export const schoolPodiumOrder=items=>{
  const byRank=new Map(topFive(items).map(item=>[Number(item.rank),item]));
  return SCHOOL_PODIUM_ORDER.map(rank=>byRank.get(rank)).filter(Boolean);
+};
+
+// Show only grade levels found in this school's active classes (primary 1–5, secondary 6–9).
+export const schoolGradeLevels=(data={})=>{
+ const values=[...(data.grades||[]),...(data.classes||[]).map(row=>row.grade||gradeFromClassName(row.class_name))];
+ return [...new Set(values.map(String).filter(x=>/^[1-9]$/.test(x)))].sort((a,b)=>Number(a)-Number(b));
 };
