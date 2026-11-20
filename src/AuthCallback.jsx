@@ -42,6 +42,13 @@ export function AuthCallback(){
         if(!hasGoogleIdentity(identities?.identities))
           throw new Error('Google chưa được liên kết với tài khoản hiện tại. Hãy đăng nhập email/mật khẩu và liên kết lại trong Cá nhân.');
       }
+      // Google OAuth has already established the Supabase session. Go straight
+      // to the app; the existing profile/role gate handles newly pending users.
+      // Password recovery and email verification retain their own UI.
+      if(google&&!recovery){
+        window.location.replace('/');
+        return;
+      }
       if(live){
         setOk(true);
         setStatus(recovery?'Liên kết hợp lệ. Nhập mật khẩu mới để hoàn tất.':
