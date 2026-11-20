@@ -2,11 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {PGlite} from '@electric-sql/pglite';
-import {SCHOOL_TOP_LIMIT,schoolPodiumOrder,gradeFromClassName,gradeClassRows} from '../src/lib/schoolLeaderboard.js';
+import {SCHOOL_TOP_LIMIT,schoolPodiumOrder,gradeFromClassName,gradeClassRows,schoolGradeLevels} from '../src/lib/schoolLeaderboard.js';
 
 const migration=readFileSync(new URL('../supabase/migrations/20261119031000_school_public_leaderboards.sql',import.meta.url),'utf8');
 const includeActive=readFileSync(new URL('../supabase/migrations/20261119032000_school_include_active_students.sql',import.meta.url),'utf8');
 const gradeTopTen=readFileSync(new URL('../supabase/migrations/20261120090000_school_grade_top_ten.sql',import.meta.url),'utf8');
+const dynamicGrades=readFileSync(new URL('../supabase/migrations/20261120144500_dynamic_primary_secondary_grade_boards.sql',import.meta.url),'utf8');
 const app=readFileSync(new URL('../src/App.jsx',import.meta.url),'utf8');
 const school=readFileSync(new URL('../src/SchoolPortal.jsx',import.meta.url),'utf8');
 const vercel=JSON.parse(readFileSync(new URL('../vercel.json',import.meta.url),'utf8'));
@@ -34,12 +35,12 @@ test('Top 5 winner is centered and grade links handle 6A1, 6/1, 6-1 and 6.1',()=
  const gradePanels=school.indexOf('className="school-three-grades"',homeStart);
  const gradeLaunchers=school.indexOf('className="school-grade-launchers"',homeStart);
  assert.ok(homeStart>=0&&schoolTop>homeStart&&gradePanels>schoolTop&&gradeLaunchers>gradePanels);
- for(const grade of ['8','6','7']){
-  assert.ok(school.includes('GradeLeaderboard grade="'+grade+'" items={data.top_'+grade+'} schoolCode={code}'));
- }
+ assert.ok(school.includes('grades.map(grade=><GradeLeaderboard'));
+ assert.deepEqual(schoolGradeLevels({grades:['5','1','9','6'],classes:[]}),['1','5','6','9']);
+ assert.deepEqual(schoolGradeLevels({classes:[{class_name:'2.1'},{class_name:'3A2'},{class_name:'10A1'}]}),['2','3']);
  assert.ok(school.includes('Xem trang khối {grade} và danh sách lớp'));
  assert.ok(school.includes('gradeLink(grade,code)'));
- assert.ok(school.includes("['8','7','6'].map"));
+ assert.ok(school.includes('grades.map(grade=><a'));
  assert.ok(vercel.rewrites.some(x=>x.source==='/school'));
  assert.ok(vercel.rewrites.some(x=>x.source==='/school/grade/:grade'));
  assert.ok(app.includes('window.location.pathname === "/school" ||'));
@@ -93,6 +94,7 @@ test('SQL school portal collects multiple teachers but isolates same-name school
   await db.exec(migration);
   await db.exec(includeActive);
   await db.exec(gradeTopTen);
+  await db.exec(dynamicGrades);
   const get=async code=>(await db.query('select public.ic3_school_public_portal($1) as payload',[code])).rows[0].payload;
   const first=await get('CLASS6A1');
   assert.equal(first.school_name,'THCS Trùng Tên');
@@ -132,6 +134,20 @@ test('SQL school portal collects multiple teachers but isolates same-name school
   assert.equal(expanded.top_6.length,10,'Grade 6 must return its first 10 students');
   assert.equal(expanded.top_6[0].name,'An');
   assert.ok(expanded.top_6.every(row=>row.class_name.startsWith('6')));
+  assert.deepEqual(expanded.grade_boards['6'],expanded.top_6);
+  // The same school may teach primary and secondary grades; their boards do not cross.
+  await db.query('insert into classes(id,school_id,class_name,registration_code,created_by) values($1,$2,$3,$4,$5)',
+    [id('107'),schoolA,'2.1','PRIMARY21',id('006')]);
+  await db.query('insert into students values($1,$2,$3,$4,$5,$6)',
+    [id('410'),schoolA,id('107'),'2.1','Học sinh tiểu học','active']);
+  await db.query('insert into student_records values($1,$2,$3,$4)',
+    [schoolA,id('410'),'reward',50]);
+  const mixed=await get('PRIMARY21');
+  assert.ok(mixed.grades.includes('2'));
+  assert.ok(mixed.grades.includes('6'));
+  assert.equal(mixed.grade_boards['2'][0].name,'Học sinh tiểu học');
+  assert.ok(mixed.grade_boards['6'].every(item=>item.class_name.startsWith('6')));
+  assert.equal((await get('OTHER6A1')).grade_boards['2'],undefined);
 
  }finally{await db.close();}
 });
