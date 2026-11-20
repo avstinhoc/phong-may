@@ -60,7 +60,7 @@ export const EQUIPMENT_SLOTS=['weapon','armor','shield','boots','accessory'];
 export const EQUIPMENT_RARITIES=['common','rare','epic','legendary'];
 export const MINI_GAMES=[
  {id:'virus-defense',name:'Virus Defense',vi:'Phòng thủ Virus',objective:'Nhận diện nguy cơ và bảo mật',status:'planned'},
- {id:'hardware-builder',name:'Hardware Builder',vi:'Lắp ráp máy tính',objective:'Xác định thiết bị và chức năng',status:'planned'},
+ {id:'hardware-builder',name:'Hardware Builder',vi:'Lắp ráp máy tính',objective:'Xác định thiết bị và chức năng',status:'prototype'},
  {id:'network-rescue',name:'Network Rescue',vi:'Giải cứu mạng',objective:'Kết nối mạng và xử lý sự cố',status:'planned'},
  {id:'cyber-maze',name:'Cyber Maze',vi:'Mê cung số',objective:'Vận dụng kiến thức để chọn đường',status:'planned'},
  {id:'match-repair',name:'Match & Repair',vi:'Ghép đôi và sửa chữa',objective:'Ghép thuật ngữ và công dụng',status:'planned'},
