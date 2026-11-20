@@ -5,6 +5,7 @@ import {LEVEL_1_LESSONS,availableLessons,lessonById,LEVELS} from '../src/learnin
 import {PROTOTYPE_QUESTIONS,lessonQuestions,validateQuestion} from '../src/learning/questionBank.js';
 import {BALANCE,WORLDS,MONSTERS,MINI_GAMES,HERO_STYLES,monsterFor} from '../src/learning/adventureCatalog.js';
 import {beginBattle,currentQuestion,answerBattle,nextBattle,learningStarRating,missedQuestions} from '../src/learning/battleEngine.js';
+import {HARDWARE_SLOTS,HARDWARE_PARTS,evaluateHardwareChoice} from '../src/learning/hardwareGameRules.js';
 
 test('22 curriculum slots preserve shared lesson 2–3 presentation and missing/reduced content',()=>{
  assert.equal(LEVEL_1_LESSONS.length,22);
@@ -39,7 +40,8 @@ test('88 unique monster concepts and eight distinct mini-game definitions are se
  assert.ok(MONSTERS.every(x=>x.hp===BALANCE.rounds[x.round-1].hp));
  assert.ok(MONSTERS.every(x=>x.id.startsWith(x.lessonId+'-enemy-')));
  assert.equal(new Set(MINI_GAMES.map(x=>x.id)).size,8);
- assert.ok(MINI_GAMES.every(x=>x.status==='planned'));
+ assert.equal(MINI_GAMES.filter(x=>x.status==='planned').length,7);
+ assert.equal(MINI_GAMES.find(x=>x.id==='hardware-builder').status,'prototype');
  assert.equal(HERO_STYLES.length,3);
  assert.deepEqual(BALANCE.rounds.map(x=>x.hp),[8,10,12,16]);
  assert.equal(BALANCE.hearts,3);
@@ -124,4 +126,15 @@ test('independent learning entry does not route through live app or submit simul
  assert.ok(prototype.includes('Không lưu lên Supabase'));
  assert.ok(!prototype.includes('supabase.from('));
  assert.ok(!app.includes('LearningPrototype'));
+});
+
+test('hardware builder accepts correct component functions from Lesson 1',()=>{
+ assert.equal(HARDWARE_SLOTS.length,4);
+ assert.equal(HARDWARE_PARTS.length,4);
+ assert.equal(new Set(HARDWARE_SLOTS.map(x=>x.expected)).size,4);
+ for(const slot of HARDWARE_SLOTS){
+  assert.equal(evaluateHardwareChoice(slot.id,slot.expected),true);
+  for(const part of HARDWARE_PARTS.filter(x=>x.id!==slot.expected))assert.equal(evaluateHardwareChoice(slot.id,part.id),false);
+ }
+ assert.equal(evaluateHardwareChoice('invalid','cpu'),false);
 });
