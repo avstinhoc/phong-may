@@ -32,6 +32,7 @@ import {filterCreatedSessions,sessionDateWindow,shiftSessionDay,mondayOfSessionW
 import { RollCall } from "./RollCall";
 import {restrictManagementScope} from "./lib/ownedManagement";
 import {ownTeachingLessons} from "./lib/rollCallSelection";
+import {lessonsForHoliday,holidayShiftLabel} from "./lib/cancelledLessons";
 import * as XLSX from "xlsx";
 import {
   LayoutDashboard, Users, Monitor, ClipboardList, CalendarDays, Wallet,
@@ -189,7 +190,7 @@ function App() {
   if (window.location.pathname === "/student") {
     return <StudentPortal />;
   }
-  if (window.location.pathname === "/school" || /^\/school\/grade\/[678]\/?$/.test(window.location.pathname)) {
+  if (window.location.pathname === "/school" || /^\/school\/grade\/[1-9]\/?$/.test(window.location.pathname)) {
     return <SchoolPortal />;
   }
   if (window.location.pathname === "/register") {
@@ -1151,7 +1152,21 @@ function RollCallView({profile,refresh,reload,ping,focusDate,setFocusDate}){
   useEffect(()=>{
     if(selectedLessonId&&!myLessons.some(s=>s.id===selectedLessonId))setSelectedLessonId("");
   },[selectedLessonId,myLessons]);
+  async function toggleLessonHoliday(lesson){
+    const next=!lesson.is_cancelled;
+    const reason=next?window.prompt('Lý do nghỉ tiết/buổi (ví dụ: Nghỉ lễ 20/11):','Nghỉ lễ / không dạy'):'';
+    if(next&&reason===null)return;
+    if(!window.confirm((next?'Đánh dấu nghỉ':'Khôi phục lịch dạy')+' lớp '+lesson.class_name+' ngày '+lesson.session_date+'? Điểm danh cũ được giữ nguyên.'))return;
+    const {error:err}=await supabase.from('class_sessions')
+      .update({is_cancelled:next,cancel_reason:next?reason.trim():''})
+      .eq('id',lesson.id).eq('school_id',profile.school_id);
+    if(err){ping('Không cập nhật được trạng thái nghỉ: '+err.message);return;}
+    if(next&&selectedLessonId===lesson.id)setSelectedLessonId('');
+    ping(next?'Đã đánh dấu nghỉ, giữ nguyên điểm danh cũ.':'Đã khôi phục buổi học.');
+    reload();
+  }
   function selectLesson(lesson){
+    if(lesson.is_cancelled){ping('Buổi này đã đánh dấu nghỉ, không điểm danh. Hãy khôi phục lịch nếu có dạy.');return;}
     setSelectedLessonId(lesson.id);
     setFocusDate(lesson.session_date);
     window.requestAnimationFrame(()=>{
@@ -1161,7 +1176,8 @@ function RollCallView({profile,refresh,reload,ping,focusDate,setFocusDate}){
   return <>
     <TeachingCalendar rows={myLessons} focusDate={focusDate} onDateChange={setFocusDate}
       school={profile.school_name} teacher={profile.full_name}
-      selectedLessonId={selectedLessonId} onLessonSelect={selectLesson}/>
+      selectedLessonId={selectedLessonId} onLessonSelect={selectLesson}
+      onToggleCancellation={toggleLessonHoliday}/>
     <RollCall profile={profile} sessions={myLessons} selectedSessionId={selectedLessonId}
       refresh={refresh} onSaved={reload} ping={ping}/>
     {error&&<p role="alert" className="notice-box">{error}</p>}
@@ -1198,6 +1214,9 @@ function Attendance({ profile, refresh, reload, ping, focusDate, setFocusDate, o
   const [editingId, setEditingId] = useState(null);
   const [saving, setSaving] = useState(false);
   const [selectedSessionIds,setSelectedSessionIds]=useState([]);
+  const [holidayDay,setHolidayDay]=useState(focusDate||today());
+  const [holidayShift,setHolidayShift]=useState('all');
+  useEffect(()=>{if(focusDate)setHolidayDay(focusDate);},[focusDate]);
   const [sessionFilterMode,setSessionFilterMode]=useState("all");
   const [sessionFilterDate,setSessionFilterDate]=useState(today());
   const filteredSessionRows=useMemo(
@@ -1269,6 +1288,21 @@ function Attendance({ profile, refresh, reload, ping, focusDate, setFocusDate, o
     reload();
   }
 
+  async function markHoliday(rowsToChange,cancel=true){
+    const ids=rowsToChange.filter(r=>r.is_cancelled!==cancel).map(r=>r.id);
+    if(!ids.length){ping(cancel?'Không có buổi đang dạy nào cần đánh dấu nghỉ.':'Không có buổi nghỉ nào để khôi phục.');return;}
+    const reason=cancel?window.prompt('Lý do nghỉ (ghi trên lịch, không xóa điểm danh):','Nghỉ lễ / không dạy'):'';
+    if(cancel&&reason===null)return;
+    if(!window.confirm((cancel?'Đánh dấu nghỉ ':'Khôi phục ')+ids.length+' buổi? Điểm danh cũ được giữ nguyên.'))return;
+    setSaving(true);
+    const {data,error}=await supabase.from('class_sessions')
+      .update({is_cancelled:cancel,cancel_reason:cancel?reason.trim():''})
+      .eq('school_id',profile.school_id).in('id',ids).select('id');
+    setSaving(false);
+    if(error){ping('Không lưu được ngày nghỉ: '+error.message);return;}
+    ping('Đã cập nhật '+(data||[]).length+'/'+ids.length+' buổi. Điểm danh không bị xóa.');
+    reload();
+  }
   async function removeSession(r) {
     if (!window.confirm(`Xóa buổi học lớp ${r.class_name} ngày ${dateText(r.session_date)}? Điểm danh của buổi này cũng sẽ bị xóa.`)) return;
     const {error}=await supabase.from("class_sessions").delete().eq("id",r.id).eq("school_id",profile.school_id);
@@ -1300,7 +1334,27 @@ function Attendance({ profile, refresh, reload, ping, focusDate, setFocusDate, o
       </label>
       <p className="muted">{visibleRows.length} buổi học đang hiển thị của {viewingName}.</p>
     </section>:null}
-    <TeachingCalendar rows={visibleRows} focusDate={focusDate} onDateChange={setFocusDate} school={profile.school_name} teacher={viewingName} />
+    <TeachingCalendar rows={visibleRows} focusDate={focusDate} onDateChange={setFocusDate} school={profile.school_name} teacher={viewingName}
+      onToggleCancellation={lesson=>markHoliday([lesson],!lesson.is_cancelled)} />
+    <section className="panel schedule-holiday-panel" aria-label="Đánh dấu ngày nghỉ không xóa điểm danh">
+      <h3>🌤️ Nghỉ học / nghỉ dạy (giữ nguyên lịch sử)</h3>
+      <p className="muted">Chọn ngày và buổi. Đánh dấu nghỉ chỉ ảnh hưởng buổi đã chọn, không xóa học sinh hay điểm danh cũ; buổi nghỉ không tính vào chấm công.</p>
+      <div className="actions">
+        <label>Ngày <input aria-label="Ngày nghỉ" type="date" value={holidayDay} onChange={e=>setHolidayDay(e.target.value)} /></label>
+        <label>Phạm vi <select aria-label="Phạm vi nghỉ" value={holidayShift} onChange={e=>setHolidayShift(e.target.value)}>
+          <option value="all">Cả ngày</option><option value="morning">Buổi sáng</option><option value="afternoon">Buổi chiều</option>
+        </select></label>
+        <button type="button" className="btn outline" disabled={saving||!lessonsForHoliday(visibleRows,holidayDay,holidayShift).length}
+          onClick={()=>markHoliday(lessonsForHoliday(visibleRows,holidayDay,holidayShift))}>
+          Đánh dấu nghỉ {holidayShiftLabel(holidayShift)}
+        </button>
+        <button type="button" className="btn outline" disabled={saving||!visibleRows.some(r=>r.session_date===holidayDay&&r.is_cancelled)}
+          onClick={()=>markHoliday(visibleRows.filter(r=>r.session_date===holidayDay&&r.is_cancelled&&
+             (holidayShift==='all'||(String(r.start_time).slice(0,5)<'12:00'?'morning':'afternoon')===holidayShift)),false)}>
+          Khôi phục lịch đã nghỉ
+        </button>
+      </div>
+    </section>
     {scheduleError && <p role="alert" className="notice-box">Không tải được lịch: {scheduleError}</p>}
     <section className="panel schedule-workspace">
       <div className="schedule-workspace-heading">
@@ -1411,7 +1465,9 @@ function Attendance({ profile, refresh, reload, ping, focusDate, setFocusDate, o
           checked={allSessionsSelected} onChange={e=>setSelectedSessionIds(e.target.checked?filteredSessionRows.map(r=>r.id):[])} /></th><th>NGÀY</th><th>LỚP</th><th>GIÁO VIÊN</th><th>GIỜ</th><th>SỐ TIẾT</th><th></th></tr></thead>
         <tbody>{filteredSessionRows.map(r => (
           <tr key={r.id}><td><input type="checkbox" aria-label={'Chọn buổi '+r.class_name+' ngày '+r.session_date}
-            checked={selectedSessionIds.includes(r.id)} onChange={e=>setSelectedSessionIds(old=>e.target.checked?[...new Set([...old,r.id])]:old.filter(id=>id!==r.id))}/></td><td>{dateText(r.session_date)}</td><td>{r.class_name}</td><td>{r.teacher_name}</td><td>{r.start_time} – {r.end_time}</td><td>{r.period_count}</td><td><button className="btn outline" onClick={()=>{setEditorMode("manual");setEditingId(r.id);setForm({class_name:r.class_name,session_date:r.session_date,start_time:r.start_time.slice(0,5),end_time:r.end_time.slice(0,5),teacher_name:r.teacher_name||"",teacher_id:r.teacher_id||profile.id,period_count:r.period_count});}}>Sửa</button><button className="btn outline" onClick={()=>removeSession(r)}>Xóa</button></td></tr>
+            checked={selectedSessionIds.includes(r.id)} onChange={e=>setSelectedSessionIds(old=>e.target.checked?[...new Set([...old,r.id])]:old.filter(id=>id!==r.id))}/></td><td>{dateText(r.session_date)}</td><td>{r.class_name}</td><td>{r.teacher_name}</td><td>{r.start_time} – {r.end_time}</td><td>{r.is_cancelled?<span title={r.cancel_reason||'Nghỉ'}>Nghỉ · {r.period_count} tiết</span>:r.period_count}</td><td>
+           <button className="btn outline" onClick={()=>markHoliday([r],!r.is_cancelled)}>{r.is_cancelled?'Khôi phục':'Nghỉ buổi'}</button>
+           <button className="btn outline" onClick={()=>{setEditorMode("manual");setEditingId(r.id);setForm({class_name:r.class_name,session_date:r.session_date,start_time:r.start_time.slice(0,5),end_time:r.end_time.slice(0,5),teacher_name:r.teacher_name||"",teacher_id:r.teacher_id||profile.id,period_count:r.period_count});}}>Sửa</button><button className="btn outline" onClick={()=>removeSession(r)}>Xóa</button></td></tr>
         ))}</tbody>
       </table></div>
       {!filteredSessionRows.length && <Empty text={visibleRows.length?

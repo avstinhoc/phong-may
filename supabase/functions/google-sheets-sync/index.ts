@@ -228,7 +228,7 @@ async function studentsFromDB(db:any,schoolId:string,className:string){
 }
 async function sessionsFromDB(db:any,schoolId:string,className:string){
  const {data,error}=await db.from("class_sessions").select("id,school_id,class_name,session_date,start_time,period_count")
-   .eq("school_id",schoolId).eq("class_name",className).order("session_date").order("start_time").limit(300);
+   .eq("school_id",schoolId).eq("class_name",className).eq("is_cancelled",false).order("session_date").order("start_time").limit(300);
  if(error)throw fail("Không đọc được các buổi học.",500);
  return data||[];
 }
@@ -278,6 +278,7 @@ async function syncClass(db:any,link:Dict,map:Dict,token:string,actorId:string,m
  if(clean(heads[9]).toUpperCase()!=="B1"||clean(heads[78]).toUpperCase()!=="B70")
    throw fail("Mẫu thiếu dãy checkbox B1–B70 từ J5:CA5.");
  const students=await studentsFromDB(db,link.school_id,map.class_name);
+ const taughtSessionIds=new Set((await sessionsFromDB(db,link.school_id,map.class_name)).map(s=>s.id));
  const conflicts:string[]=[];
  let retiredOnWeb=0,retiredOnSheet=0;
  if(mode==="pull_names"||mode==="pull"){
@@ -469,6 +470,7 @@ async function syncClass(db:any,link:Dict,map:Dict,token:string,actorId:string,m
    }
    const ids=mode==="pull"?checkedSessionIds(p.raw,map.lesson_columns||{}):[];
    for(const sessionId of ids){
+    if(!taughtSessionIds.has(sessionId))continue;
     const {data:session}=await db.from("class_sessions").select("id").eq("id",sessionId)
       .eq("school_id",link.school_id).eq("class_name",map.class_name).maybeSingle();
     if(!session){conflicts.push("Buổi học không còn tồn tại: "+sessionId);continue;}
@@ -551,6 +553,7 @@ async function syncClass(db:any,link:Dict,map:Dict,token:string,actorId:string,m
     else if(String(other)!==String(val))conflicts.push(student.full_name+" · xung đột "+SCORE_KEYS[n]);
    }
    for(const [sessionId,ordinal] of Object.entries(map.lesson_columns||{})){
+    if(!taughtSessionIds.has(sessionId))continue;
     const n=Number(ordinal);
     if(!Number.isInteger(n)||n<1||n>70)continue;
     const k=student.id+":"+sessionId;
@@ -589,6 +592,7 @@ async function syncClass(db:any,link:Dict,map:Dict,token:string,actorId:string,m
    const st=known.find(x=>x.id===p.matchedId||normalize(x.full_name)===normalize(p.name));
    if(!st||p.ambiguous)continue;
    for(const [sessionId,ordinal] of Object.entries(map.lesson_columns||{})){
+    if(!taughtSessionIds.has(sessionId))continue;
     const n=Number(ordinal);
     if(!Number.isInteger(n)||n<1||n>70)continue;
     const sheetAbsent=statusAbsent(p.raw[8+n]);
@@ -747,6 +751,17 @@ async function cloneClassTab(id:string,template:Dict,className:string,schoolName
  // Atomic duplicate + clearing: a failed cleanup must not leave a visible tab
  // containing another classroom's pupil data.
  // Concurrent attempts for the same workbook and class must request the same gid.
+ // Never copy a short/non-QLPM template over an existing class. Extend only
+ // newly cloned tabs to reach CB:CT, keeping original teacher sheets intact.
+ const meta=await metadata(id,token);
+ const original=(meta.sheets||[]).find((s:Dict)=>s.properties?.sheetId===template.id);
+ const grid=original?.properties?.gridProperties||{};
+ if(!original||Number(grid.columnCount||0)<79||Number(grid.rowCount||0)<70)
+  throw fail("Tab mẫu "+template.title+" không đủ B1–B70 (J:CA) và 70 dòng. Không tạo bản sao để tránh sai điểm danh.",409);
+ const header=(await readTab(id,template.title,token))[0]||[];
+ if(normalize(header[2]).replace(/\*/g,"").trim()!=="họ & tên"||
+    clean(header[9]).toUpperCase()!=="B1"||clean(header[78]).toUpperCase()!=="B70")
+  throw fail("Tab mẫu "+template.title+" thiếu cấu trúc C5, J5:CA5. Không tạo bản sao thiếu checkbox.",409);
  const digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(JSON.stringify([id,tabTitle])));
  const newId=1+(new DataView(digest).getUint32(0)%2147483646);
  const cleanup=freshTabRequests(newId,className,schoolName);
@@ -761,9 +776,12 @@ async function cloneClassTab(id:string,template:Dict,className:string,schoolName
    }
   }
  }
- const cloned=await sheetBatch(id,[{duplicateSheet:{
+ const cloneRequests:Dict[]=[{duplicateSheet:{
    sourceSheetId:template.id,newSheetId:newId,newSheetName:tabTitle
- }},...cleanup],token);
+ }}];
+ if(Number(grid.columnCount)<98)
+  cloneRequests.push({appendDimension:{sheetId:newId,dimension:"COLUMNS",length:98-Number(grid.columnCount)}});
+ const cloned=await sheetBatch(id,[...cloneRequests,...cleanup],token);
  const result=cloned.replies?.[0]?.duplicateSheet?.properties;
  if(result?.sheetId!==newId||result.title!==tabTitle)
   throw fail("Google Sheets trả về tab khác với lớp "+className+". Cần kiểm tra tên tab trước khi liên kết.",409);
@@ -1059,16 +1077,24 @@ Deno.serve(async(req:Request)=>{
     const serviceKey=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     if(!serviceKey)throw fail("Thiếu khóa máy chủ để quản lý liên kết.",503);
     const admin=createClient(url,serviceKey,{auth:{persistSession:false,autoRefreshToken:false}});
-    const {data:root,error:rootErr}=await admin.from("qlpm_drive_root")
-       .select("folder_id,folder_name").eq("id",1).maybeSingle();
-    if(rootErr)throw fail("Máy chủ không đọc được cấu hình thư mục QLPM. Hãy kiểm tra quyền service_role trên bảng qlpm_drive_root.",503);
-    if(!root)throw fail("Chưa đăng ký thư mục QLPM dùng chung.",409);
-    if(root.folder_id!==QLPM_ROOT_ID)
-      throw fail("Thư mục QLPM không trùng với cấu hình đã xác minh. Hãy liên hệ Admin.",409);
+    // Linking an existing workbook never depends on its Drive parent.
+    // QLPM root and master template are requirements ONLY when creating a new file.
+    const creating=action==="create_school_workbook";
+    let root:Dict|null=null;
+    if(creating){
+      const {data:stored,error:rootErr}=await admin.from("qlpm_drive_root")
+        .select("folder_id,folder_name").eq("id",1).maybeSingle();
+      if(rootErr)throw fail("Máy chủ không đọc được cấu hình thư mục QLPM.",503);
+      if(!stored)throw fail("Chưa đăng ký thư mục QLPM dùng chung.",409);
+      if(stored.folder_id!==QLPM_ROOT_ID)throw fail("Thư mục QLPM khác cấu hình đã xác minh.",409);
+      root=stored;
+    }
     const token=await googleToken();
-    const rootInfo=await driveFileInfo(root.folder_id,token);
-    ensureDriveFolder(rootInfo);
-    ensurePrivateRoot(rootInfo);
+    if(creating){
+      const rootInfo=await driveFileInfo(root!.folder_id,token);
+      ensureDriveFolder(rootInfo);
+      ensurePrivateRoot(rootInfo);
+    }
     const {data:already,error:existingError}=await admin.from("school_sheet_links")
       .select("id,spreadsheet_id").eq("school_id",schoolId).maybeSingle();
     if(existingError)throw fail("Không kiểm tra được liên kết Sheets hiện tại.",503);
@@ -1078,10 +1104,12 @@ Deno.serve(async(req:Request)=>{
       return respond(200,{success:true,alreadyLinked:true,spreadsheetId:already.spreadsheet_id,link_id:already.id},origin);
     }
     const title=schoolWorkbookTitle(school.name);
-    const templateInfo=await driveFileInfo(QLPM_TEMPLATE_ID,token);
-    if(templateInfo.mimeType!==SHEET_MIME||templateInfo.trashed||
-      templateInfo.name!==QLPM_TEMPLATE_NAME||!templateInfo.parents?.includes(root.folder_id))
-      throw fail("File mẫu DS ĐIỂM DANH chưa nằm đúng thư mục QLPM hoặc đã đổi tên.",409);
+    if(creating){
+      const templateInfo=await driveFileInfo(QLPM_TEMPLATE_ID,token);
+      if(templateInfo.mimeType!==SHEET_MIME||templateInfo.trashed||
+        templateInfo.name!==QLPM_TEMPLATE_NAME||!templateInfo.parents?.includes(root!.folder_id))
+        throw fail("File mẫu DS ĐIỂM DANH chưa nằm đúng thư mục QLPM hoặc đã đổi tên.",409);
+    }
     let spreadsheetId="";
     let usedExisting=false;
     if(action==="link_school_workbook"){
@@ -1089,29 +1117,31 @@ Deno.serve(async(req:Request)=>{
       if(!idSafe(spreadsheetId)||spreadsheetId===QLPM_TEMPLATE_ID)
         throw fail("Link Google Sheets không hợp lệ hoặc đang trỏ vào file mẫu.",400);
     }else{
-      const duplicates=await findSchoolFiles(root.folder_id,title,token);
+      const duplicates=await findSchoolFiles(root!.folder_id,title,token);
       if(duplicates.length>1)throw fail("Có nhiều file Sheets cùng tên "+title+" trong QLPM. Hãy xử lý file trùng trước.",409);
       if(duplicates.length){
         spreadsheetId=duplicates[0].id;
         usedExisting=true;
       }else{
-        const copied=await callOwnerCopyScript(schoolId,title,root.folder_id);
+        const copied=await callOwnerCopyScript(schoolId,title,root!.folder_id);
         spreadsheetId=clean(copied.spreadsheet_id);
         usedExisting=!!copied.reused;
       }
     }
     if(spreadsheetId===QLPM_TEMPLATE_ID)throw fail("Không dùng file mẫu làm bảng điểm danh trường.",409);
     const file=await driveFileInfo(spreadsheetId,token);
-    if(file.mimeType!==SHEET_MIME||file.trashed||
-       !file.parents?.includes(root.folder_id)||file.capabilities?.canEdit!==true)
-      throw fail("File Sheets phải nằm trực tiếp trong thư mục QLPM và Service Account có quyền Editor.",409);
+    if(file.mimeType!==SHEET_MIME||file.trashed||file.capabilities?.canEdit!==true)
+      throw fail("QLPM chưa được phép chỉnh sửa file này. Chủ file hãy chia sẻ riêng Google Sheets cho Service Account ở quyền Người chỉnh sửa; không cần chuyển thư mục hay bật công khai.",403);
+    if(creating&&!file.parents?.includes(root!.folder_id))
+      throw fail("File mới phải nằm trong thư mục QLPM đã xác minh.",409);
+    if(!creating&&Array.isArray(file.permissions)&&file.permissions.some((p:Dict)=>p.type==="anyone"&&p.role==="writer"))
+      throw fail("File Sheets đang cho phép bất kỳ ai chỉnh sửa. Hãy chuyển Quyền truy cập chung sang Hạn chế trước khi kết nối dữ liệu học sinh.",409);
     if(action==="create_school_workbook"&&file.name!==title)
       throw fail("Tên file bản sao không trùng tên trường. Kiểm tra Apps Script hoặc file trùng.",409);
     const {data:usedBy,error:usedErr}=await admin.from("school_sheet_links")
       .select("school_id").eq("spreadsheet_id",spreadsheetId).neq("school_id",schoolId).limit(200);
     if(usedErr)throw fail("Không kiểm tra được trùng file giữa các trường.",503);
-    // Allow same-name school profiles to reuse the existing workbook in QLPM.
-    // Its Drive parent and Service Account Editor role were verified above.
+    // Reuse only for same-name school profiles; folder location does not grant cross-school access.
     await assertSameSchoolWorkbook(admin,schoolId,(usedBy||[]).map((row:Dict)=>row.school_id));
     const sheetMeta=await metadata(spreadsheetId,token);
     const detectedTemplate=(sheetMeta.sheets||[]).some((s:Dict)=>s.properties?.title==="Gốc")?
@@ -1120,7 +1150,7 @@ Deno.serve(async(req:Request)=>{
     const {data:inserted,error:insertErr}=await admin.from("school_sheet_links")
       .insert({school_id:schoolId,owner_id:ownerId,spreadsheet_id:spreadsheetId,
         spreadsheet_title:clean(sheetMeta.properties?.title).slice(0,180),
-        template_tab:detectedTemplate,status:"verified",auto_sync:true,
+        template_tab:detectedTemplate,status:"verified",auto_sync:creating,
         last_checked_at:new Date().toISOString()})
       .select("id,spreadsheet_id").single();
     if(insertErr){
@@ -1172,10 +1202,10 @@ Deno.serve(async(req:Request)=>{
    const [{data:student},{data:lesson}]=await Promise.all([
      db.from("students").select("id,full_name,class_name,school_id,status")
        .eq("id",studentId).eq("school_id",link.school_id).maybeSingle(),
-     db.from("class_sessions").select("id,class_name,school_id")
+     db.from("class_sessions").select("id,class_name,school_id,is_cancelled")
        .eq("id",sessionId).eq("school_id",link.school_id).maybeSingle()
    ]);
-   if(!student||student.status!=="active"||!lesson||student.class_name!==lesson.class_name)
+   if(!student||student.status!=="active"||!lesson||lesson.is_cancelled||student.class_name!==lesson.class_name)
      throw fail("Học sinh và buổi học không thuộc cùng lớp tại trường này.",403);
    if((await archivedClassNames(db,link.school_id)).has(student.class_name))throw fail("Lớp đã đóng.",409);
    const map=await getMap(db,link.id,student.class_name);
@@ -1203,6 +1233,28 @@ Deno.serve(async(req:Request)=>{
    }).eq("id",map.id);
    if(updateError)throw fail("Đã cập nhật Sheets nhưng chưa lưu trạng thái đồng bộ.",500);
    return respond(200,{success:true,absent},origin);
+  }
+  if(action==="validate_template"){
+    // Read-only compatibility preflight: no worksheet rows, names or scores are written.
+    const meta=await metadata(link.spreadsheet_id,token);
+    const tabs=(meta.sheets||[]).filter((s:Dict)=>/^[1-9](?:$|[.\/-]|[A-Za-z])/u.test(s.properties?.title||""));
+    if(!tabs.length)throw fail("Không tìm thấy tab lớp hợp lệ trong file gốc.",409);
+    const problems:string[]=[];
+    for(const sheet of tabs.slice(0,60)){
+      const title=sheet.properties.title,grid=sheet.properties.gridProperties||{};
+      if(Number(grid.columnCount||0)<79||Number(grid.rowCount||0)<70){
+        problems.push(title+": cần ít nhất 79 cột (CA) và 70 dòng.");continue;
+      }
+      const rows=await readTab(link.spreadsheet_id,title,token);
+      const header=rows[0]||[];
+      if(normalize(header[2]).replace(/\*/g,"").trim()!=="họ & tên"||
+         clean(header[9]).toUpperCase()!=="B1"||clean(header[78]).toUpperCase()!=="B70")
+         problems.push(title+": mẫu chưa có đủ HỌ & TÊN tại C5 và B1–B70 từ J5:CA5.");
+    }
+    if(problems.length)
+      throw fail("Google Sheets gốc chưa tương thích mẫu đồng bộ QLPM: "+problems.slice(0,6).join(" | ")+
+        " Không ghi đè dữ liệu; hãy dùng mẫu đủ 70 buổi hoặc chỉ dùng file này để đối chiếu.",409);
+    return respond(200,{success:true,checked:tabs.length},origin);
   }
   if(action==="inspect"){
    const meta=await metadata(link.spreadsheet_id,token);

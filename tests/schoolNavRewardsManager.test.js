@@ -33,9 +33,8 @@ test('school cards have only one student portal action, no code, register or cop
  assert.match(school,/\{initialCode='',embedded=false\}/);
  assert.match(school,/if\(!embedded\)window\.history\.replaceState/);
  assert.match(school,/<a className="school-nav-rank"/);
- assert.match(school,/<a className="school-nav-grade8"/);
- assert.match(school,/<a className="school-nav-grade7"/);
- assert.match(school,/<a className="school-nav-grade6"/);
+ assert.ok(school.includes("grades.map(grade=><a"));
+ assert.ok(school.includes("className={'school-nav-grade'+grade}"));
  assert.match(schoolStyle,/\.school-public-nav \.school-nav-grade8\{/);
  assert.match(schoolStyle,/\.school-public-nav \.school-nav-grade7\{/);
  assert.match(schoolStyle,/\.school-public-nav \.school-nav-grade6\{/);

@@ -8,7 +8,7 @@ export const hours=s=>{const tm=v=>{const p=String(v||'0:0').split(':');return N
 const dayNames=['Chủ nhật','Hai','Ba','Tư','Năm','Sáu','Bảy'];
 export const teacherRows=(sessions,from,to,rate,school)=>{
  const map=new Map();
- (sessions||[]).filter(s=>s.session_date>=from&&s.session_date<=to).forEach(s=>{const k=s.session_date;if(!map.has(k))map.set(k,[]);map.get(k).push(s);});
+ (sessions||[]).filter(s=>!s.is_cancelled&&s.session_date>=from&&s.session_date<=to).forEach(s=>{const k=s.session_date;if(!map.has(k))map.set(k,[]);map.get(k).push(s);});
  const out=[];if(!from||!to||from>to)return out;
  let d=new Date(from+'T12:00:00');
  for(let i=0;i<370&&d.toISOString().slice(0,10)<=to;i++,d.setDate(d.getDate()+1)){

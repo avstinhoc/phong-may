@@ -17,7 +17,7 @@ const countWords=text=>text.trim().split(/\s+/).filter(Boolean).length;
 
 function makeEvidence(student,data,variant=0,periodLabel='giai đoạn hiện tại'){
  const studentRecords=data.records.filter(x=>x.student_id===student.id);
- const pSessions=data.sessions.filter(x=>x.class_name===student.class_name);
+ const pSessions=data.sessions.filter(x=>!x.is_cancelled&&x.class_name===student.class_name);
  const ids=new Set(pSessions.map(x=>x.id));
  const marks=data.attendance.filter(x=>x.student_id===student.id&&ids.has(x.session_id));
  const absence=marks.filter(x=>['absent','excused'].includes(x.status)).length;

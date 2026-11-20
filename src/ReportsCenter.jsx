@@ -47,7 +47,7 @@ export function ReportsCenter({profile,refresh,ping,schools=[]}){
  const data=useMemo(()=>Object.fromEntries(Object.entries(allData).map(([name,rows])=>
    [name,rows.filter(row=>allowedSchools.has(row.school_id)&&(!reportSchool||row.school_id===reportSchool))]
  )),[allData,reportSchool,allowedSchools]);
- const lessons=data.class_sessions||[],students=data.students||[];
+ const lessons=(data.class_sessions||[]).filter(x=>!x.is_cancelled),students=data.students||[];
  // Admin teaches as a teacher; this personal report only lists the current account.
  const teachers=useMemo(()=>[{id:profile.id,name:profile.full_name||'Giáo viên'}],[profile.id,profile.full_name]);
  const selectedTeacher=teachers.find(t=>t.id===teacherId)||teachers[0]||{id:profile.id,name:profile.full_name};

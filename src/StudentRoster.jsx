@@ -55,12 +55,13 @@ export function StudentRoster({profile,refresh,syncRefresh,ping}){
  const classes=activeClassNames(data.catalog,[...data.students,...data.sessions].map(row=>row.class_name));
  const closedIds=new Set(data.catalog.filter(c=>c.archived_at).map(c=>c.id));
  const pupils=data.students.filter(s=>s.status==='active'&&!closedIds.has(s.class_id)&&classes.includes(s.class_name)&&(!className||s.class_name===className)&&searchName(s.full_name).includes(searchName(query))).sort(compareStudentName);
- const sessions=data.sessions.filter(s=>s.class_name===className).sort((a,b)=>a.session_date.localeCompare(b.session_date)||a.start_time.localeCompare(b.start_time));
+ const sessions=data.sessions.filter(s=>s.class_name===className&&!s.is_cancelled).sort((a,b)=>a.session_date.localeCompare(b.session_date)||a.start_time.localeCompare(b.start_time));
  const result=s=>data.results.find(r=>r.student_id===s.id)||{gender:'',classification:'',scores:{},comment:'',standard_met:false,exam_result:''};
  const pc=s=>data.assignments.filter(a=>a.student_id===s.id&&a.active).map(a=>data.computers.find(c=>c.id===a.computer_id)?.computer_code||'').sort(comparePC).join(', ');
  const mark=(s,lesson)=>data.marks.find(m=>m.student_id===s.id&&m.session_id===lesson?.id);
  const summary=s=>{const absent=sessions.filter(l=>['absent','excused'].includes(mark(s,l)?.status)).length;return {total:sessions.length,present:sessions.length-absent,absent,rate:sessions.length?Math.round(absent/sessions.length*100)+'%':'0%'};};
  async function toggleAbsence(student,lesson){
+  if(lesson?.is_cancelled){ping('Buổi đã nghỉ, không thể sửa điểm danh.');return;}
   const k=student.id+lesson.id; if(markBusy)return;setMarkBusy(k);
   const old=mark(student,lesson);
   const result=old?.status==='absent'

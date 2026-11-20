@@ -145,6 +145,7 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
  },[link?.id,link?.status,link?.auto_sync,profile.school_id,rosterVersion,syncRefresh]);
  async function changeAuto(enabled){
   if(!link)return;
+  if(enabled)await api({action:'validate_template'});
   const {error}=await supabase.from('school_sheet_links').update({auto_sync:enabled}).eq('id',link.id);
   if(error)throw error;
   autoSyncedForRef.current='';
@@ -207,7 +208,7 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
  async function persistSchoolCopy(nextUrl){
   const id=parseSheetUrl(nextUrl);
   if(id===EMPTY_SCHOOL_TEMPLATE_ID)throw Error('Đây là file mẫu trống. Hãy chọn file điểm danh riêng của trường.');
-  if(!rootFolder)throw Error('Admin chưa cấu hình thư mục QLPM dùng chung.');
+  // Keep existing Sheets in their own Drive location; QLPM folder is only for newly created files.
   if(link){
    if(link.spreadsheet_id!==id)throw Error('Trường đã có Sheets dùng chung. Không thể tự gắn file thứ hai.');
    setMessage('File này đã được liên kết cho trường.');return;
@@ -215,7 +216,7 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
   const result=await callSchoolDrive('link_school_workbook',{spreadsheet_id:id});
   await load();
   setMessage(result.alreadyLinked?'Trường đã có liên kết.':
-    'Đã xác minh file nằm trực tiếp trong QLPM và Service Account có quyền Editor. Liên kết đã được lưu.');
+    'Đã liên kết file gốc tại vị trí hiện tại, không sao chép. Bật tự đồng bộ sau khi xác minh mẫu tương thích.');
  }
  async function saveLink(){
   if(!canManageLink)throw Error('Chỉ chủ liên kết hoặc Admin được thay đổi file của trường.');
@@ -325,7 +326,7 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
     <div className="sheets-link-grid">
      <label>Đường dẫn Google Sheets của {profile.school_name}
       <input type="url" value={url} disabled={!!busy||!!link||!canManageLink} onChange={e=>setUrl(e.target.value)}
-       placeholder="Hệ thống tự điền sau khi tạo file trường" aria-label="Đường dẫn Sheets của trường"/>
+       placeholder="Dán link Sheets có sẵn, không cần chuyển vào thư mục QLPM" aria-label="Đường dẫn Sheets của trường"/>
      </label>
      <button className="btn outline" disabled={!!busy||!url.trim()||!!link||!canManageLink}
       onClick={()=>run('save',saveLink)}>Lưu link có sẵn</button>
@@ -333,6 +334,7 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
        {busy==='inspect'?'Đang kiểm tra…':'Kiểm tra quyền & đọc tabs'}
      </button>}
     </div>
+    {!link&&<p className="muted">Bạn có thể liên kết file Google Sheets đang dùng ở bất kỳ thư mục Drive nào, không cần tạo bản sao, không cần bật công khai. Để QLPM đọc và ghi, chỉ chia sẻ <b>riêng file</b> cho <code>{SHEETS_EDITOR_EMAIL}</code> với quyền Người chỉnh sửa. Không liên kết Sheets thì vẫn dùng QLPM bình thường.</p>}
     {!link&&<div className="sheets-copy-guide">
       <strong>Tạo file Google Sheets của trường</strong>
       <p><b>{suggestedTitle}</b> sẽ được tạo từ file mẫu <b>DS ĐIỂM DANH</b> trong thư mục QLPM. Nếu file đúng tên đã tồn tại, hệ thống sẽ dùng file đó thay vì sao chép lần nữa.</p>

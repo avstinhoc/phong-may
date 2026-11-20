@@ -4,7 +4,7 @@ const key=d=>[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.ge
 const dtext=s=>new Date(s+'T12:00:00').toLocaleDateString('vi-VN');
 const weekday=['Thứ Hai','Thứ Ba','Thứ Tư','Thứ Năm','Thứ Sáu','Thứ Bảy','Chủ nhật'];
 const endTime=row=>String(row.end_time||'').slice(0,5);
-export function TeachingCalendar({rows=[],focusDate,onDateChange,school,teacher,onLessonSelect=null,selectedLessonId=''}){
+export function TeachingCalendar({rows=[],focusDate,onDateChange,school,teacher,onLessonSelect=null,selectedLessonId='',onToggleCancellation=null}){
  const focus=new Date((focusDate||key(new Date()))+'T12:00:00');
  const monday=new Date(focus);monday.setDate(focus.getDate()-(focus.getDay()+6)%7);
  const days=Array.from({length:7},(_,i)=>{const d=new Date(monday);d.setDate(monday.getDate()+i);return d;});
@@ -44,16 +44,21 @@ export function TeachingCalendar({rows=[],focusDate,onDateChange,school,teacher,
                 <strong>{r.class_name}</strong>
                 <small>{timeValue(r)} – {endTime(r)}</small>
                 <small>{r.period_count||1} tiết{r.teacher_name&&r.teacher_name!==teacher?' · GV '+r.teacher_name:''}</small>
+                {r.is_cancelled&&<small className="calendar-cancelled-label">🌤️ Đã nghỉ{r.cancel_reason?' · '+r.cancel_reason:''}</small>}
               </>;
-              return onLessonSelect?
-                <button type="button" key={r.id||date+'-'+slot.time+'-'+i}
-                  className={'cal-grid-lesson cal-grid-lesson-button '+period.id+(selectedLessonId===r.id?' selected':'')}
-                  aria-pressed={selectedLessonId===r.id}
-                  aria-label={'Điểm danh lớp '+r.class_name+' ngày '+dtext(r.session_date)+' lúc '+timeValue(r)}
-                  onClick={()=>onLessonSelect(r)}>
-                  {detail}<small className="cal-lesson-action">{selectedLessonId===r.id?'Đang điểm danh':'Nhấn để điểm danh'}</small>
-                </button>:
-                <div key={r.id||date+'-'+slot.time+'-'+i} className={'cal-grid-lesson '+period.id}>{detail}</div>;
+              return <div key={r.id||date+'-'+slot.time+'-'+i} className={'calendar-lesson-stack'+(r.is_cancelled?' calendar-lesson-off':'')}>
+                {onLessonSelect?
+                  <button type="button" disabled={!!r.is_cancelled}
+                    className={'cal-grid-lesson cal-grid-lesson-button '+period.id+(selectedLessonId===r.id?' selected':'')}
+                    aria-pressed={selectedLessonId===r.id}
+                    aria-label={'Điểm danh lớp '+r.class_name+' ngày '+dtext(r.session_date)+' lúc '+timeValue(r)}
+                    onClick={()=>onLessonSelect(r)}>
+                    {detail}<small className="cal-lesson-action">{r.is_cancelled?'Không điểm danh':selectedLessonId===r.id?'Đang điểm danh':'Nhấn để điểm danh'}</small>
+                  </button>:
+                  <div className={'cal-grid-lesson '+period.id}>{detail}</div>}
+                {onToggleCancellation&&<button type="button" className="btn outline calendar-cancel-button"
+                  onClick={()=>onToggleCancellation(r)}>{r.is_cancelled?'Khôi phục buổi':'Nghỉ buổi'}</button>}
+              </div>;
             }):<span className="cal-slot-placeholder" aria-label="Không có lớp tại khung giờ này">—</span>}
           </td>;
         })}
