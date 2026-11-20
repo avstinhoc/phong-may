@@ -18,7 +18,7 @@ The teacher supplied 19 Drive presentation files representing 20 of the 22 lesso
 | 8 | **Giảm tải** | No source requested | Skipped/locked; not a progression blocker |
 | 9 | Tìm hiểu về kết nối mạng không dây | Linked | Questions need authoring/approval |
 | 10 | **Chưa có tài liệu** | **No link supplied** | Locked until approved source is provided |
-| 11 | Các trình duyệt Web phổ biến và quản lí Bookmark | Linked (Office PPTX in Drive) | Questions need authoring/approval |
+| 11 | Các trình duyệt Web phổ biến và quản lí Bookmark | Linked, 24-slide Office PPTX in Drive | 8 review-only questions; playable bonus fishing prototype |
 | 12 | Tìm kiếm thông tin và thu hẹp phạm vi tìm kiếm | Linked | Questions need authoring/approval |
 | 13 | Tìm hiểu về tài sản công cộng và giấy phép Creative Commons | Linked | Questions need authoring/approval |
 | 14 | Danh tính kĩ thuật số | Linked | Questions need authoring/approval |
@@ -31,7 +31,7 @@ The teacher supplied 19 Drive presentation files representing 20 of the 22 lesso
 | 21 | Cách phòng chống khi sử dụng công nghệ kĩ thuật số | Linked | Questions need authoring/approval |
 | 22 | Tìm hiểu công nghệ thu thập dữ liệu | Linked | Questions need authoring/approval |
 
-**Level 2 and Level 3 are locked.** Do not invent unprovided lesson topics or questions. All 20 current prototype questions are teacher-review drafts grounded in the stated source slides; they have **not** been presented as an official IC3 question bank.
+**Level 2 and Level 3 are locked.** Do not invent unprovided lesson topics or questions. All 28 current prototype questions are teacher-review drafts grounded in the stated source slides; they have **not** been presented as an official IC3 question bank.
 
 The supplied inspiration website `https://on-luyen-ic3.netlify.app/` could not be retrieved/verified during this audit. No questions or visual assets were copied from it. Its content should be separately reviewed when accessible, with permission for reuse where necessary.
 
@@ -69,7 +69,7 @@ Rules of the **implemented pure battle engine**:
 - Optional equipment effects have hard caps. No random pay-to-win advantages.
 - 3/2/1 learning stars are **session preview ratings**, never written to `student_records`/`ic3_star_wallets`.
 
-**Playable today in isolated preview:** Bài 1 – Round 1. Later rounds and other worlds require sufficient and teacher-approved question banks at the appropriate difficulty.
+**Playable today in isolated preview:** Bài 1 – Round 1 with newly drawn 12-skin pixel-art hero picker, distinct original monster sprites, animated multi-layer RPG scene, sound toggle, optional reduced motion and impact feedback. Later rounds and other worlds require sufficient and teacher-approved question banks at the appropriate difficulty.
 
 ## Eight educational mini-game plans
 
@@ -134,13 +134,27 @@ Menu: `QLPM Teacher → Bài giảng`, `Bài tập → Ngân hàng câu hỏi | 
 | Stage | Result |
 | --- | --- |
 | 1: Source audit | **Partially complete**; 19 files audited, 22 slots mapped, Bài 8/10 marked |
-| 2: Independent functional prototype | **Complete at preview level**: slide iframe, Lesson 1 MCQ & battle Round 1, original drawn device illustrations, 3 hero choices, feedback, victory/defeat/retry |
+| 2: Independent functional prototype | **Complete at preview level**: slide iframe, 28 review-only MCQs (Lessons 1–3 and 11), Battle Round 1 with 12 pixel-art hero skins, original enemy sprites, layered scenery, VFX, audio toggle, feedback/victory/retry, one playable fishing minigame and hardware assembly |
 | 3: 22 worlds / 88 enemies | **Blueprint complete**, bespoke production art and approved rounds **pending** |
 | 4: Equipment & persistence | Pure balance caps **defined**; student authentication, real inventory and secure Supabase persistence **pending** |
-| 5: Eight mini-games | **1 functional draft** (Hardware Builder), 7 designs pending; extend each with approved learning objectives |
+| 5: Eight mini-games + optional bonus | **2 functional drafts** (Hardware Builder + bonus Knowledge Fishing), 7 original mini-games still planned; expand with approved learning objectives |
 | 6: Teacher integration | Navigation/permissions/data model **planned**, not wired |
 | 7: Security, UX and Windows rollout | Multi-school access tests, anti-duplicate rewards, slow-PC benchmark, Tauri builds/autostart, full accessibility checks **pending** |
 
 Run `npm test` and `npm run build` in the development branch. During development open `/learning-prototype.html` with Vite. The production home route remains `/index.html`, unchanged. The static prototype is *not* a secure student app: it has neither authenticated students nor server-side answer checks and must never award actual QLPM stars.
 
 **Blocking approvals before a real school rollout:** supply Bài 10 material, confirm whether Bài 8 should simply remain reduced, approve the first question bank and lesson splitting, approve PIN/auth and student data privacy approach, authorize individual slide conversions if Google Drive PPSX preview fidelity is insufficient, and approve Production deployment explicitly.
+
+## Pixel-art quality improvement from user gameplay screenshots (21 Nov 2026)
+
+The previous prototype used an emoji inside a plain polygon for the hero and a generic CSS blob for the enemy, which did not meet the reference level of visual polish. The updated isolated preview now includes:
+- Twelve unique hero **skins** using original procedurally drawn crisp-edge SVG pixel art, four each for the existing three balanced hero styles. No reproduced copyrighted characters.
+- Dedicated character picker modal with large sprite previews and clear selection.
+- Original pixel beetle/monster sprite for the first battle round, layered fantasy-tech sky, animated clouds, spark particles, mechanical floor, shadows and glowing health bar.
+- Distinct correct/incorrect combat animations, visible damage and heart changes, animations that do not obscure answers, optional sound effects and reduced-motion controls.
+- A ninth **bonus** activity, `Câu cá kiến thức – Bài 11`, with four moving clickable fish representing each answer, animated water rays, bubbles and seabed; the lesson questions have explicit verified slide references (15, 17–22, 4). This is not a fishing/arcade game that plays without knowledge.
+- Two game types now playable in the browser-based preview. Future builds can replace procedural pixel graphics with professionally authored frame-by-frame original sprite sheets for significantly more visual detail and variation.
+
+**Limitations:** no full 88 character-art animation set, 22 complete playable adventure levels, Tauri `.exe`, teacher-reviewed/published question bank, persistent student profiles or production integration. Do not claim the redesign equals all the reference site's effects. Source website was not available for inspection; screenshots provided by the user were used for *style and interaction targets only*, without tracing/copying sprites.
+
+Preview route is `/learning-prototype.html` on the Vercel **non-production branch deployment**. No merge or release has been approved.
