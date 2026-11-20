@@ -27,6 +27,6 @@ export function schoolsForWorkplace(workplaceId,schools=[],links=[]){
 export function sessionsForWorkplace({workplaceId,links=[],sessions=[],teacherId,from,to,schoolById={}}){
  const ids=new Set(links.filter(l=>l.workplace_id===workplaceId).map(l=>l.school_id));
  return (sessions||[])
-  .filter(s=>ids.has(s.school_id)&&s.teacher_id===teacherId&&s.session_date>=from&&s.session_date<=to)
+  .filter(s=>!s.is_cancelled&&ids.has(s.school_id)&&s.teacher_id===teacherId&&s.session_date>=from&&s.session_date<=to)
   .map(s=>({...s,school_name:schoolById[s.school_id]||''}));
 }
