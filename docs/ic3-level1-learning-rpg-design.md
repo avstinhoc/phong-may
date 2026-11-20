@@ -137,7 +137,7 @@ Menu: `QLPM Teacher → Bài giảng`, `Bài tập → Ngân hàng câu hỏi | 
 | 2: Independent functional prototype | **Complete at preview level**: slide iframe, Lesson 1 MCQ & battle Round 1, original drawn device illustrations, 3 hero choices, feedback, victory/defeat/retry |
 | 3: 22 worlds / 88 enemies | **Blueprint complete**, bespoke production art and approved rounds **pending** |
 | 4: Equipment & persistence | Pure balance caps **defined**; student authentication, real inventory and secure Supabase persistence **pending** |
-| 5: Eight mini-games | **Design only**; implement each as a real interaction with approved objectives |
+| 5: Eight mini-games | **1 functional draft** (Hardware Builder), 7 designs pending; extend each with approved learning objectives |
 | 6: Teacher integration | Navigation/permissions/data model **planned**, not wired |
 | 7: Security, UX and Windows rollout | Multi-school access tests, anti-duplicate rewards, slow-PC benchmark, Tauri builds/autostart, full accessibility checks **pending** |
 
