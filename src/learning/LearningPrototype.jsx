@@ -10,6 +10,7 @@ import {PixelHero,skinById,HERO_SKINS,DEFAULT_HERO_SKIN} from './PixelArt.jsx';
 import {HeroPicker} from './HeroPicker.jsx';
 import {BattleScene,playGameSound} from './BattleScene.jsx';
 import {FishingGame} from './FishingGame.jsx';
+import FullscreenSlides from './FullscreenSlides.jsx';
 import './gameVisuals.css';
 import './learning.css';
 
@@ -223,6 +224,7 @@ export default function LearningPrototype({embedded=false,initialSection='lesson
  const [section,setSection]=useState(initialSection),[exerciseTab,setExerciseTab]=useState(initialExerciseTab);
  const [selectedLesson,setSelectedLesson]=useState('lv1-01'),[heroSkin,setHeroSkin]=useState(DEFAULT_HERO_SKIN),[battle,setBattle]=useState(null);
  const [quizKey,setQuizKey]=useState(0);
+ const [viewing,setViewing]=useState(null);
  const lesson=lessonById(selectedLesson);
  const questions=useMemo(()=>lessonQuestions(selectedLesson),[selectedLesson]);
  const chooseLesson=id=>{setSelectedLesson(id);setBattle(null);setQuizKey(k=>k+1);};
@@ -240,8 +242,10 @@ export default function LearningPrototype({embedded=false,initialSection='lesson
    {section==='lessons'?<section>
     <div className="ic3-panel-title"><h2><BookOpen size={25}/> Bài giảng – 22 bài Level 1</h2>
      <p>Chọn bài để mở slide trực tiếp. Bài 2–3 dùng chung tài liệu, Bài 8 giảm tải, Bài 10 thiếu tài liệu.</p></div>
-    <LessonTiles selected={selectedLesson} onChoose={chooseLesson}/>
-    {lesson?.status==='source-linked'&&<LessonViewer key={selectedLesson} lesson={lesson}/>}
+    <LessonTiles selected={selectedLesson} onChoose={id=>{chooseLesson(id);setViewing(lessonById(id));}}/>
+    <p className="ic3-note" style={{background:'#eaf7f2',color:'#28786b',borderColor:'#a1dbc9'}}>Nhấn vào bài để mở ngay chế độ trình chiếu toàn màn hình. Có thể sử dụng cửa sổ hoặc phóng to slide.</p>
+    {viewing&&<FullscreenSlides key={viewing.id} lesson={viewing} onClose={()=>setViewing(null)}/>}
+
    </section>:<section>
     <div className="ic3-panel-title"><h2><ClipboardList size={25}/> Bài tập – Học mà chơi</h2>
      <p>Câu hỏi truyền thống và trò chơi nhập vai có cùng 22 bài, chỉ mở nội dung đã sẵn sàng.</p></div>
