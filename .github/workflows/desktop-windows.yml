@@ -1,0 +1,77 @@
+name: QLPM Desktop Windows installers (development only)
+
+on:
+  push:
+    branches:
+      - feature/qlpm-desktop-teacher-student-20261121
+    paths:
+      - ".github/workflows/desktop-windows.yml"
+      - "desktop/**"
+      - "src/desktop/**"
+      - "src/learning/**"
+      - "student-desktop.html"
+      - "vite.config.js"
+      - ".env.desktop"
+      - "package.json"
+      - "package-lock.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qlpm-desktop-windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows-installers:
+    name: Build QLPM ${{ matrix.app }} Windows x64
+    runs-on: windows-latest
+    timeout-minutes: 55
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [teacher, student]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: desktop/${{ matrix.app }}/src-tauri
+          key: qlpm-${{ matrix.app }}-windows
+
+      - name: Install pinned frontend dependencies
+        run: npm ci
+
+      - name: Validate frontend and source tests
+        shell: pwsh
+        run: |
+          npm test
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          npm run build -- --mode desktop
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - name: Generate original Windows icon files
+        working-directory: desktop/${{ matrix.app }}
+        run: npx --yes @tauri-apps/cli@2.12.6 icon app-icon.svg -o src-tauri/icons
+
+      - name: Build unsigned Windows NSIS installer
+        working-directory: desktop/${{ matrix.app }}
+        run: npx --yes @tauri-apps/cli@2.12.6 build --ci
+
+      - name: Upload Windows installer artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: QLPM-${{ matrix.app }}-Windows-x64-unsigned
+          path: desktop/${{ matrix.app }}/src-tauri/target/release/bundle/nsis/*.exe
+          if-no-files-found: error
+          retention-days: 14
