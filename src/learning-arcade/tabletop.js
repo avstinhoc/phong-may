@@ -101,8 +101,12 @@ function creature(m,i,t,wind,hit,recoil){
  }
  return world(muzzle)
 }
-export function paintArena(ctx,w,h,{skin,index=0,round=1,action='idle',time=0,elapsed=2,portrait=false}){
- const i=round-1,monsterScale=1.53+i*.092,t=time,p=Math.min(1,elapsed/1.15),att=action==='strike',counter=action==='counter';
+export function paintArena(ctx,w,h,{skin,index=0,round=1,wave=3,action='idle',time=0,elapsed=2,portrait=false}){
+ // Distinct creature archetypes, silhouette and palette for scouting / elite / boss.
+ const region=round-1,variant=(region*3+wave*7)%22;
+ const i=wave===3?region:(variant===region?(variant+1)%22:variant);
+ const monsterScale=wave===3?1.62+Math.min(16,region)*.075:1.22+wave*.19+region*.018;
+ const t=time,p=Math.min(1,elapsed/1.15),att=action==='strike',counter=action==='counter';
  const wind=(att||counter)?Math.sin(Math.PI*Math.min(1,p/.33)):0;
  const swing=(att||counter)?smooth((p-.27)/.22)*(1-smooth((p-.64)/.34)):0;
  const ranged=att?skin.classId!=='warrior':![0,1,5,8,10].includes(i);
