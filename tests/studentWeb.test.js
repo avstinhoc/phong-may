@@ -24,6 +24,9 @@ test('Teacher approval is linked atomically and never displays a raw PIN',()=>{
  assert.match(app,/qlpm_teacher_student_web_accounts/);
  assert.match(app,/<th>TÊN ĐĂNG NHẬP<\/th><th>MÃ PIN<\/th>/);
  assert.match(app,/Đã tạo \(ẩn\)/);
+ assert.match(app,/qlpm_teacher_student_web_reset_pin/);
+ assert.match(app,/Đặt lại PIN/);
+ assert.match(app,/type="password"/);
  assert.doesNotMatch(app,/TeacherPcConsole|desktop_controls|Quản lý Student Desktop/);
 });
 test('Student Web SQL restricts credentials; reused school leaderboard is authoritative',()=>{
@@ -43,4 +46,14 @@ test('Student Web name lookup avoids PL/pgSQL full_name ambiguity',()=>{
  assert.match(fix,/trim\(v_full_name\)/);
  assert.match(fix,/trim\(student_registrations\.full_name\)/);
  assert.doesNotMatch(fix,/trim\(full_name\)/);
+});
+
+test('Approved old-style registrations synchronize uniquely and teacher may securely reset PIN',()=>{
+ const sql=read('supabase/migrations/20261121145000_student_web_approval_sync_and_pin_reset.sql');
+ assert.match(sql,/after update of status on public\.student_registrations/);
+ assert.match(sql,/candidates = 1/);
+ assert.match(sql,/other\.student_id=target_id/);
+ assert.match(sql,/qlpm_teacher_student_web_reset_pin/);
+ assert.match(sql,/not public\.can_access_school/);
+ assert.match(sql,/revoked_at=now\(\)/);
 });

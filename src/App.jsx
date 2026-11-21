@@ -792,7 +792,7 @@ function Students({ profile, refresh, reload, ping, navigate }) {
   async function resetStudentPin(e) {
     e.preventDefault();
     if (!pinEditing || pinBusy) return;
-    if (!/^\\d{6}$/.test(pinEditing.pin) || /^(.)\\1{5}$/.test(pinEditing.pin)) {
+    if (!/^\d{6}$/.test(pinEditing.pin) || /^(.)\1{5}$/.test(pinEditing.pin)) {
       ping("PIN mới phải có 6 chữ số và không được lặp lại một số duy nhất."); return;
     }
     if (pinEditing.pin!==pinEditing.confirm) {
@@ -1024,12 +1024,12 @@ function Students({ profile, refresh, reload, ping, navigate }) {
         <label>PIN mới (6 số)
           <input type="password" inputMode="numeric" autoComplete="new-password" required
             value={pinEditing.pin} maxLength={6} pattern="[0-9]{6}"
-            onChange={e=>setPinEditing(v=>({...v,pin:e.target.value.replace(/\\D/g,"").slice(0,6)}))}/>
+            onChange={e=>setPinEditing(v=>({...v,pin:e.target.value.replace(/\D/g,"").slice(0,6)}))}/>
         </label>
         <label>Nhập lại PIN mới
           <input type="password" inputMode="numeric" autoComplete="new-password" required
             value={pinEditing.confirm} maxLength={6} pattern="[0-9]{6}"
-            onChange={e=>setPinEditing(v=>({...v,confirm:e.target.value.replace(/\\D/g,"").slice(0,6)}))}/>
+            onChange={e=>setPinEditing(v=>({...v,confirm:e.target.value.replace(/\D/g,"").slice(0,6)}))}/>
         </label>
         <p className="muted">Đặt lại sẽ vô hiệu hóa mã PIN cũ và các phiên đăng nhập trước. Chỉ giao mã mới trực tiếp cho học sinh, không đưa lên bảng xếp hạng hoặc file Excel.</p>
         <button type="submit" className="btn primary full" disabled={pinBusy||pinEditing.pin.length!==6||pinEditing.confirm!==pinEditing.pin}>
