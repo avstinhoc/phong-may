@@ -172,7 +172,7 @@ export function ClassSettings({refresh,profile,ping,schools=[],onChanged}){
       <span>{row.auto_approve?'Bật':'Tắt'}</span>
     </label></td>
     <td>{row.archived_at?'Đã vô hiệu hóa':<><a className="mini-btn" href={'/student?code='+encodeURIComponent(row.registration_code)} target="_blank" rel="noreferrer">Mở trang lớp</a> <button className="mini-btn" onClick={()=>copy(window.location.origin+'/student?code='+encodeURIComponent(row.registration_code))}>Copy link</button></>}</td>
-    <td>{row.archived_at?'Đã đóng':<a className="mini-btn" href={'/register?code='+encodeURIComponent(row.registration_code)} target="_blank" rel="noreferrer">Mở đăng ký</a>}</td>
+    <td>{row.archived_at?'Đã đóng':<a className="mini-btn" href={'/student-web?mode=register&code='+encodeURIComponent(row.registration_code)} target="_blank" rel="noreferrer">Mở đăng ký</a>}</td>
     <td><div className="class-code-actions">
       <button type="button" className="mini-btn" disabled={busy||!!row.archived_at}
         onClick={()=>{setEditingCode(row);setUpdatedCode(row.registration_code);}}>Sửa mã</button>

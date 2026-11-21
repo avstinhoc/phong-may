@@ -8,8 +8,8 @@ const validUser=v=>/^[a-z][a-z0-9._]{3,23}$/.test(v);
 const validPin=v=>/^\d{6}$/.test(v)&&!/^(.)\1{5}$/.test(v);
 
 export default function StudentOnboarding({onLogin,defaultCode=''}) {
- const [mode,setMode]=useState('login');
- const [code,setCode]=useState(defaultCode);
+ const [mode,setMode]=useState(()=>new URLSearchParams(window.location.search).get('mode')==='register'?'register':'login');
+ const [code,setCode]=useState(()=>new URLSearchParams(window.location.search).get('code')||defaultCode);
  const [username,setUsername]=useState('');
  const [name,setName]=useState('');
  const [pin,setPin]=useState('');
