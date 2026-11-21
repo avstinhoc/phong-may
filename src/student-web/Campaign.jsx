@@ -1,7 +1,7 @@
 import React,{useEffect,useRef,useState} from 'react';
-import {ArrowLeft,ArrowRight,BookOpen,CheckCircle2,ChevronRight,Crown,Expand,
+import {ArrowLeft,ArrowRight,BookOpen,CheckCircle2,ChevronRight,Crown,
  Heart,LockKeyhole,Map as MapIcon,Maximize2,Minimize2,Shield,ShoppingBag,Sparkles,
- Star,Swords,Trophy,Volume2} from 'lucide-react';
+ Star,Swords,Trophy} from 'lucide-react';
 import {supabase} from '../lib/supabase';
 import {HERO_SKINS} from '../learning-arcade/PixelArt.jsx';
 import {Tabletop} from '../learning-arcade/Tabletop.jsx';
@@ -30,7 +30,7 @@ function WorldMap({current,worldId,cleared,wave,select}){
    </svg>
    {world.waves.map((entry,i)=>{
     const at=i+1;
-    const done=worldId<current||inWorld&&at<wave;
+    const done=cleared>=22||worldId<current||inWorld&&at<wave;
     const active=inWorld&&at===wave&&cleared<22;
     return <button type="button" key={entry.name}
      onClick={()=>select(at)} className={'cw-map-pin pin-'+at+(done?' finished':active?' active':'')}
@@ -233,7 +233,7 @@ export default function Campaign({session}){
      <small>{selectedActive?'BẢN ĐỒ ĐANG CHINH PHỤC':mapId<currentId?'BẢN ĐỒ ĐÃ HOÀN THÀNH':'BẢN ĐỒ CHƯA MỞ'}</small>
      <strong>{preview.title}</strong><span>{mapId} / 22</span></div>
      <div className="cw-wave-list">{preview.waves.map((m,i)=>{
-      const w=i+1,done=mapId<currentId||selectedActive&&w<wave;
+      const w=i+1,done=isComplete||mapId<currentId||selectedActive&&w<wave;
       const active=selectedActive&&w===wave&&!isComplete;
       return <button type="button" key={m.name} onClick={()=>setSelectedWave(w)}
        className={'cw-wave-row'+(active?' active':'')+(selectedWave===w?' chosen':'')}>
