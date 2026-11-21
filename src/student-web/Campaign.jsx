@@ -23,9 +23,9 @@ function WorldMap({current,worldId,cleared,wave,select}){
   <div className="cw-world-map" aria-label={'Bản đồ '+world.title}>
    <img src={world.background} alt={'Toàn cảnh '+world.title} loading="eager"/>
    <svg className="cw-map-trail" viewBox="0 0 1000 560" aria-hidden="true" preserveAspectRatio="none">
-    <path d="M 140 415 C 235 385 280 305 420 352 S 670 300 840 126"
+    <path d="M 100 442 C 165 428 178 347 230 370 S 327 417 370 403 S 469 271 510 285 S 611 340 650 314 S 744 191 790 196 S 859 111 900 90"
       fill="none" stroke="#152c31" strokeWidth="14" strokeLinecap="round" strokeDasharray="1 20" opacity=".58"/>
-    <path d="M 140 415 C 235 385 280 305 420 352 S 670 300 840 126"
+    <path d="M 100 442 C 165 428 178 347 230 370 S 327 417 370 403 S 469 271 510 285 S 611 340 650 314 S 744 191 790 196 S 859 111 900 90"
       fill="none" stroke="#fff4a1" strokeWidth="8" strokeLinecap="round" strokeDasharray="1 19" opacity=".96"/>
    </svg>
    {world.waves.map((entry,i)=>{
@@ -222,7 +222,7 @@ export default function Campaign({session}){
     <p>Đúng: tấn công quái · Sai / hết giờ: mất 1 tim · Qua ải: hồi 1 tim · 7 ải = 1 bản đồ</p></div>
   </div>:<div className="cw-world">
    <div className="cw-world-banner" style={{backgroundImage:"linear-gradient(105deg,#081b2bf0,#113b4fca 52%,#1237461c),url('"+preview.background+"')"}}>
-    <div><small>HÀNH TRÌNH 22 VÙNG ĐẤT · 66 ẢI</small><h1>{preview.title}</h1>
+    <div><small>HÀNH TRÌNH 22 VÙNG ĐẤT · 154 ẢI</small><h1>{preview.title}</h1>
      <p>Bài {preview.id}: {lessonTitle(preview.id)}</p>
      <div className="cw-world-tags"><span><MapIcon size={16}/> {Math.min(clearCount,22)} / 22 bản đồ</span>
       <span><Swords size={16}/> 7 ải mỗi bản đồ</span><span><Star size={16}/> {stars(wallet.earned)} sao tích lũy</span></div>
