@@ -37,3 +37,10 @@ test('Student Web SQL restricts credentials; reused school leaderboard is author
  assert.match(web,/\/school\?code=/);
  assert.doesNotMatch(web,/DesktopLeaderboard/);
 });
+test('Student Web name lookup avoids PL/pgSQL full_name ambiguity',()=>{
+ const fix=read('supabase/migrations/20261121133705_fix_qlpm_student_web_signup_full_name_ambiguous.sql');
+ assert.match(fix,/v_full_name text:=/);
+ assert.match(fix,/trim\(v_full_name\)/);
+ assert.match(fix,/trim\(student_registrations\.full_name\)/);
+ assert.doesNotMatch(fix,/trim\(full_name\)/);
+});
