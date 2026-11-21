@@ -10,6 +10,7 @@ import { StudentPortal } from "./StudentPortal";
 import { SchoolPortal } from "./SchoolPortal";
 import { TeacherSchoolLeaderboard } from "./TeacherSchoolLeaderboard";
 import { StudentRewardManagement } from "./StudentRewardManagement";
+import { TeacherPcConsole } from "./desktop/teacher/TeacherPcConsole";
 import { StudentPicker } from "./StudentPicker";
 import { RecordCorrectionEditor } from "./RecordCorrectionEditor";
 import { AuthCallback, emailCallbackUrl } from "./AuthCallback";
@@ -39,7 +40,7 @@ import {
   Award, Sparkles, Settings, LogOut, Plus, Search, Download, RefreshCw,
   CheckCircle2, Clock3, AlertTriangle, School, Menu, X, UserPlus,
   ShieldCheck, Trash2, FileSpreadsheet, ClipboardCheck, FileText,
-  ChevronLeft, ChevronRight, Printer, UserCheck, UserRound, Building2, Trophy, Star
+  ChevronLeft, ChevronRight, Printer, UserCheck, UserRound, Building2, Trophy, Star, KeyRound
 } from "lucide-react";
 
 const nav = [
@@ -47,6 +48,7 @@ const nav = [
   ["students", "Đăng ký & duyệt", Users],
   ["roster", "Danh sách học sinh", ClipboardList],
   ["computers", "Phòng máy", Monitor],
+  ["desktop_controls", "Máy học sinh & PIN", KeyRound],
   ["attendance", "Lịch dạy giáo viên", CalendarDays],
   ["rollcall", "Điểm danh học sinh", UserCheck],
   ["records", "Điểm, lỗi & thưởng", ClipboardList],
@@ -235,7 +237,7 @@ function App() {
         </div>
         <nav className="nav-scroll" aria-label="Menu chính">
           {[["GIẢNG DẠY", ["dashboard", "attendance", "rollcall", "roster", "records", "student_rewards", "evaluation"]],
-            ["PHÒNG MÁY", ["computers", "students", "settings", "leaderboard", "cleaning"]],
+            ["PHÒNG MÁY", ["computers", "desktop_controls", "students", "settings", "leaderboard", "cleaning"]],
             ["QUẢN LÝ", ["workplaces", "schools", "finance", "reports", "accounts"]]].map(([group, ids]) => <React.Fragment key={group}>
             <div className="nav-label">{group}</div>
             <ChevronRight size={17} className="profile-chevron"/>
@@ -289,6 +291,7 @@ function App() {
           {page === "roster" && <StudentRoster profile={profile} refresh={refresh} syncRefresh={manualRefresh} ping={ping} />}
           {page === "students" && isTeacher && <Students profile={profile} refresh={refresh} reload={reload} ping={ping} navigate={setPage} />}
           {page === "computers" && <Computers profile={profile} refresh={refresh} reload={reload} ping={ping} />}
+          {page === "desktop_controls" && isTeacher && <TeacherPcConsole profile={profile} refresh={refresh} onNavigate={setPage} />}
           {page === "rollcall" && isTeacher && <RollCallView profile={profile} refresh={refresh} reload={reload} ping={ping} focusDate={calendarDate} setFocusDate={setCalendarDate} />}
           {page === "attendance" && isTeacher && <Attendance profile={profile} refresh={refresh} reload={reload} ping={ping} focusDate={calendarDate} setFocusDate={setCalendarDate} onImported={async(date,name)=>{setCalendarDate(date);const {data,error}=await supabase.rpc("create_my_school",{school_name:name});if(!error)setSchoolId(data);reload();}} />}
           {page === "records" && isTeacher && <Records profile={profile} refresh={refresh} reload={reload} ping={ping} />}
