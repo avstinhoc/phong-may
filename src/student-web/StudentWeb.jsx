@@ -5,9 +5,9 @@ import {
  CalendarDays, ShieldCheck, Info, Laptop, School, HelpCircle, MoonStar, UserRound
 } from 'lucide-react';
 import StudentOnboarding from './StudentOnboarding.jsx';
-import Lessons from './Lessons.jsx';
-import Practice from './Practice.jsx';
-import Campaign from './Campaign.jsx';
+const Lessons=React.lazy(()=>import('./Lessons.jsx'));
+const Practice=React.lazy(()=>import('./Practice.jsx'));
+const Campaign=React.lazy(()=>import('./Campaign.jsx'));
 import './studentDesktop.css';
 import {supabase} from '../lib/supabase';
 import './studentExtras.css';
@@ -199,9 +199,11 @@ export default function StudentWeb(){
     {page==='account'&&(session?<StudentAccount session={session} onLogout={logout}/>:
       <StudentOnboarding onLogin={acceptLogin} defaultCode={lastCode}/>)}
     {session&&page==='home'&&<StudentHome onNavigate={navigate} online={online}/>}
-    {session&&page==='lessons'&&<Lessons/>}
-    {session&&page==='questions'&&<Practice/>}
-    {session&&page==='games'&&<Campaign key={session.token} session={session}/>}
+    <React.Suspense fallback={<p className="student-load-status" role="status">Đang mở nội dung học tập...</p>}>
+     {session&&page==='lessons'&&<Lessons/>}
+     {session&&page==='questions'&&<Practice/>}
+     {session&&page==='games'&&<Campaign key={session.token} session={session}/>}
+    </React.Suspense>
     {session&&page==='leaderboard'&&(lastCode?<iframe title="Bảng xếp hạng QLPM của trường" loading="lazy" src={'/school?code='+encodeURIComponent(lastCode)} style={{width:'100%',minHeight:'83vh',border:0,borderRadius:18,background:'#fff'}}/>:<p>Không xác định được mã lớp. Hãy đăng nhập lại.</p>)}
     {session&&page==='device'&&<DeviceSettings online={online} session={session}/>}
    </main>

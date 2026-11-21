@@ -6,6 +6,9 @@ test('Student Web gets a dedicated lazy route, never needs Windows/Tauri',()=>{
  const main=read('src/main.jsx'),vercel=read('vercel.json'),auth=read('src/student-web/StudentOnboarding.jsx');
  assert.match(main,/studentPath=window\.location\.pathname===\"\/student-web\"/);
  assert.match(main,/React\.lazy/);
+ assert.doesNotMatch(main,/import App from/);
+ const student=read('src/student-web/StudentWeb.jsx');
+ assert.match(student,/React\.lazy\(\(\)=>import\('\.\/Lessons\.jsx'\)\)/);
  assert.ok(JSON.parse(vercel).rewrites.some(x=>x.source==='/student-web'));
  assert.match(auth,/qlpm_student_web_login/);
  assert.match(auth,/qlpm_student_web_register/);
@@ -24,7 +27,7 @@ test('Teacher approval is linked atomically and never displays a raw PIN',()=>{
  assert.doesNotMatch(app,/TeacherPcConsole|desktop_controls|Quản lý Student Desktop/);
 });
 test('Student Web SQL restricts credentials; reused school leaderboard is authoritative',()=>{
- const sql=read('supabase/migrations/20261122000000_qlpm_student_web_credentials.sql');
+ const sql=read('supabase/migrations/20261121132400_qlpm_student_web_credentials.sql');
  const web=read('src/student-web/StudentWeb.jsx');
  assert.match(sql,/enable row level security/i);
  assert.match(sql,/revoke all on public\.qlpm_student_web_credentials from public, anon, authenticated/i);
