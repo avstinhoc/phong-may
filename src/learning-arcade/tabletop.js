@@ -47,9 +47,20 @@ function hero(m,skin,t,wind,hit,recoil,index){
  if(skin.classId==='archer'){const a=plus(hand,[.08,.37,0]),b=plus(hand,[.10,-.34,0]),mid=plus(hand,[.24,.04,0]);tube(a,mid,.04,.05,g);tube(mid,b,.05,.035,g);tube(a,b,.012,.012,gold);tip=mid}
  else if(skin.classId==='mage'){tube(hand,tip,.034,.032,'#995f45');ball(tip,[.12,.18,.12],g)}
  else{tube(hand,mix(hand,tip,.23),.045,.045,d);tube(plus(hand,[-.09,.1,0]),plus(hand,[.13,.05,0]),.041,.04,gold);tube(mix(hand,tip,.19),tip,.092,0,'#e5f6fb',4);if(index===15||index===18)ball(tip,[.20,.16,.14],gold)}
+ // Detailed class-specific armor: pauldrons, engraved belt, bracers and plated greaves.
+ for(const side of [-1,1]){
+   const shoulder=plus(ch,[-.015,.18,side*.27]);
+   ball(shoulder,[.20,.15,.16],g);
+   tube(plus(hips,[.025,0,side*.09]),plus(hips,[.21,-.20,side*.18]),.07,.03,gold);
+   tube(plus(hips,[.1,-.30,side*.12]),plus(hips,[.10,-.39,side*.13]),.15,.11,g);
+   const arm=plus(ch,[.21,-.09,side*.22]);tube(arm,plus(arm,[.15,-.21,side*.05]),.10,.05,g);
+ }
+ tube(plus(ch,[-.15,-.22,.18]),plus(ch,[.15,-.22,.18]),.065,.055,gold);
+ ball(plus(ch,[.02,.13,.28]),[.09,.12,.035],gold);
+ for(let j=0;j<3;j++)ball(plus(ch,[.10-j*.07,.13-j*.11,.292]),[.028,.032,.017],g);
  return world(tip);
 }
-function creature(m,i,t,wind,hit,recoil,palette=i){
+function creature(m,i,t,wind,hit,recoil,palette=i,wave=1){
  const {ball,tube,face,world}=m,c=colors[palette],g=accent[palette],dark='#30263e',eye='#ffca48';
  const bodyY=.82+.045*sin(t*2.3)-.13*wind+.08*hit, headY=bodyY+.37;let muzzle;
  function skull(p,r){ball(p,[r,r*.78,r*.90],c);ball(plus(p,[r*.64,-r*.14,r*.05]),[r*.7,r*.39,r*.64],g);
@@ -90,6 +101,18 @@ function creature(m,i,t,wind,hit,recoil,palette=i){
  let k=[-.95,.69,.13*sin(t*2)];tube([-.60,bodyY,0],k,.23,.14,c);tube(k,[-1.37,.86+.15*sin(t*2),.15],.14,.014,g);
  if(winged)for(const s of [-1,1]){const a=[-.02,bodyY+.28,s*.29],b=[-.18,bodyY+1.0+.16*sin(t*3),s*.85],d=[-.78,bodyY+1.40+.26*sin(t*3),s*1.25],e=[-1,bodyY+.49,s*.83];face([a,b,d,e],g);face([a,e,[-.69,bodyY+.22,s*.60]],c);tube(a,b,.09,.063,c);tube(b,d,.067,.012,c)}
  }
+ // High-wave enemies earn distinct crowns, asymmetrical fins and plated armor.
+ if(wave>=3){
+   for(const side of [-1,1]){
+     const start=[-.2,bodyY+.45,side*.35],tip=[-.5-wave*.04,bodyY+.85+wave*.055,side*(.55+.04*wave)];
+     tube(start,tip,.12,.008,g);
+     if(wave>=5)face([start,tip,[-1.15,bodyY+.24,side*.47]],c);
+   }
+   for(let n=0;n<(wave>=5?4:2);n++){
+     const v=[-.48+n*.25,bodyY+.39,.14*n-.2];
+     ball(v,[.10,.15,.09],n%2?g:eye);
+   }
+ }
  // A ridge of overlapping scales and paired fangs follows the attack anchor.
  for(let n=0;n<4;n++){
   const root=[-.63+n*.20,bodyY+.48+.10*sin(n*.8),-.05];
@@ -104,9 +127,9 @@ function creature(m,i,t,wind,hit,recoil,palette=i){
 export function paintArena(ctx,w,h,{skin,index=0,round=1,wave=3,action='idle',time=0,elapsed=2,portrait=false}){
  // Distinct creature archetypes, silhouette and palette for scouting / elite / boss.
  const region=round-1,variant=(region*3+wave*7)%22;
- const i=wave===3?region:(variant===region?(variant+1)%22:variant);
- const monsterScale=wave===3?1.62+Math.min(16,region)*.075:1.22+wave*.19+region*.018;
- const palette=wave===3?region:(region*5+wave*11)%22;
+ const i=wave===7?region:(region*7+wave*5)%22;
+ const monsterScale=wave===7?1.78+Math.min(16,region)*.065:1.04+wave*.095+region*.015;
+ const palette=wave===7?region:(region*5+wave*11)%22;
  const t=time,p=Math.min(1,elapsed/1.15),att=action==='strike',counter=action==='counter';
  const wind=(att||counter)?Math.sin(Math.PI*Math.min(1,p/.33)):0;
  const swing=(att||counter)?smooth((p-.27)/.22)*(1-smooth((p-.64)/.34)):0;
@@ -126,7 +149,7 @@ export function paintArena(ctx,w,h,{skin,index=0,round=1,wave=3,action='idle',ti
  function shadow(p,rx,rz){const a=project(p);ctx.fillStyle='rgba(27,53,32,.23)';ctx.beginPath();ctx.ellipse(a[0],a[1],rx*scale,rz*scale,0,0,TAU);ctx.fill()}
  shadow(heroPos,.41,.11);if(!portrait)shadow(foePos,monsterScale*.92,monsterScale*.19);
  const hand=hero(model(draw,heroPos),skin,t,att?wind:0,att?swing:0,counter?flinch:0,index);
- let mouth;if(!portrait)mouth=creature(model(draw,foePos,monsterScale,-1),i,t,counter?wind:0,counter?swing:0,att?flinch:0,palette);
+ let mouth;if(!portrait)mouth=creature(model(draw,foePos,monsterScale,-1),i,t,counter?wind:0,counter?swing:0,att?flinch:0,palette,wave);
  faces.sort((a,b)=>a[2]-b[2]);for(const [ps,c] of faces){ctx.fillStyle=ctx.strokeStyle=c;ctx.lineWidth=.55;ctx.beginPath();ps.forEach(([x,y],j)=>j?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.closePath();ctx.fill();ctx.stroke()}
  if(portrait||!(att||counter))return;
  const start=att?hand:mouth,target=att?[contact,monsterScale*1.03,0]:[heroPos[0]+.12,1.23,.22];

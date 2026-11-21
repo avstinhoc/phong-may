@@ -23,9 +23,9 @@ function WorldMap({current,worldId,cleared,wave,select}){
   <div className="cw-world-map" aria-label={'Bản đồ '+world.title}>
    <img src={world.background} alt={'Toàn cảnh '+world.title} loading="eager"/>
    <svg className="cw-map-trail" viewBox="0 0 1000 560" aria-hidden="true" preserveAspectRatio="none">
-    <path d="M 140 415 C 235 385 280 305 420 352 S 670 300 840 126"
+    <path d="M 100 442 C 165 428 178 347 230 370 S 327 417 370 403 S 469 271 510 285 S 611 340 650 314 S 744 191 790 196 S 859 111 900 90"
       fill="none" stroke="#152c31" strokeWidth="14" strokeLinecap="round" strokeDasharray="1 20" opacity=".58"/>
-    <path d="M 140 415 C 235 385 280 305 420 352 S 670 300 840 126"
+    <path d="M 100 442 C 165 428 178 347 230 370 S 327 417 370 403 S 469 271 510 285 S 611 340 650 314 S 744 191 790 196 S 859 111 900 90"
       fill="none" stroke="#fff4a1" strokeWidth="8" strokeLinecap="round" strokeDasharray="1 19" opacity=".96"/>
    </svg>
    {world.waves.map((entry,i)=>{
@@ -34,7 +34,7 @@ function WorldMap({current,worldId,cleared,wave,select}){
     const active=inWorld&&at===wave&&cleared<22;
     return <button type="button" key={entry.name}
      onClick={()=>select(at)} className={'cw-map-pin pin-'+at+(done?' finished':active?' active':'')}
-     style={{left:[14,42,84][i]+'%',top:[74,57,22][i]+'%'}}
+     style={{left:[10,23,37,51,65,79,90][i]+'%',top:[79,66,72,51,56,35,16][i]+'%'}}
      aria-label={'Ải '+at+' '+entry.name+(done?' đã hoàn thành':active?' đang mở':'')}
      title={entry.name}>
      {done?<CheckCircle2 size={19}/>:at===WAVES_PER_WORLD?<Crown size={18}/>:<Swords size={18}/>}
@@ -194,8 +194,12 @@ export default function Campaign({session}){
    <div className={'cw-battle-field'+(data.outcome==='correct'?' cw-hit':'')+(data.outcome==='wrong'?' cw-damage':'')}
      style={sceneStyle}>
     <div className="cw-scene-title">⚔️ {skinBase.name} <span>VS</span> {boss.name}</div>
+    <div className="cw-character-aura" aria-hidden="true"/>
     <Tabletop key={currentId+'-'+wave} skin={skin} index={costumeId} round={currentId} wave={wave}
      action={data.outcome==='correct'?'strike':data.outcome==='wrong'?'counter':data.outcome==='victory'?'victory':'idle'}/>
+    {data.outcome==='correct'&&<div className="cw-combat-fx cw-slash-fx" aria-hidden="true"><span>✦</span><b>-{damage} HP</b></div>}
+    {data.outcome==='wrong'&&<div className="cw-combat-fx cw-heart-fx" aria-hidden="true"><span>✺</span><b>-1 ❤</b></div>}
+    {data.outcome==='wave_clear'&&<div className="cw-combat-fx cw-clear-fx" aria-hidden="true"><span>✷</span><b>VƯỢT ẢI!</b></div>}
     <span className="cw-field-badge">Bài {currentId} · {lessonTitle(currentId)}</span>
    </div>
    <div className="cw-fight-question">
@@ -215,18 +219,18 @@ export default function Campaign({session}){
      </div>}
    </div>
    <div className="cw-battle-footer"><button type="button" onClick={()=>setView('world')}><ArrowLeft size={17}/> Bản đồ</button>
-    <p>Đúng: tấn công quái · Sai / hết giờ: mất 1 tim · Qua ải: hồi 1 tim · 3 ải = 1 bản đồ</p></div>
+    <p>Đúng: tấn công quái · Sai / hết giờ: mất 1 tim · Qua ải: hồi 1 tim · 7 ải = 1 bản đồ</p></div>
   </div>:<div className="cw-world">
    <div className="cw-world-banner" style={{backgroundImage:"linear-gradient(105deg,#081b2bf0,#113b4fca 52%,#1237461c),url('"+preview.background+"')"}}>
-    <div><small>HÀNH TRÌNH 22 VÙNG ĐẤT · 66 ẢI</small><h1>{preview.title}</h1>
+    <div><small>HÀNH TRÌNH 22 VÙNG ĐẤT · 154 ẢI</small><h1>{preview.title}</h1>
      <p>Bài {preview.id}: {lessonTitle(preview.id)}</p>
      <div className="cw-world-tags"><span><MapIcon size={16}/> {Math.min(clearCount,22)} / 22 bản đồ</span>
-      <span><Swords size={16}/> 3 ải mỗi bản đồ</span><span><Star size={16}/> {stars(wallet.earned)} sao tích lũy</span></div>
+      <span><Swords size={16}/> 7 ải mỗi bản đồ</span><span><Star size={16}/> {stars(wallet.earned)} sao tích lũy</span></div>
     </div>
     <div className="cw-banner-boss" aria-hidden="true"><span>🐉</span><small>THỬ THÁCH CUỐI</small></div>
    </div>
    <ArenaTop><div><small>BẢN ĐỒ PHIÊU LƯU</small><h2>Khám phá từng ải</h2>
-    <p>Đọc kiến thức, trả lời đúng và hạ ba quái vật khác nhau để mở vùng đất tiếp theo.</p></div></ArenaTop>
+    <p>Đọc kiến thức, trả lời đúng và hạ bảy quái vật khác nhau để mở vùng đất tiếp theo.</p></div></ArenaTop>
    <div className="cw-world-layout"><WorldMap current={currentId} worldId={mapId} cleared={clearCount}
       wave={wave} select={setSelectedWave}/>
     <div className="cw-wave-panel"><div className="cw-world-progress">

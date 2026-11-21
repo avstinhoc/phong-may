@@ -131,3 +131,46 @@
 @media(max-width:1080px){.cw-world-layout{grid-template-columns:1fr}.cw-world-map{min-height:350px}.cw-gear-layout{grid-template-columns:1fr}.cw-character-card{position:relative;top:auto}.cw-character-preview{height:330px}}
 @media(max-width:700px){.cw-topbar{align-items:flex-start;flex-wrap:wrap}.cw-top-actions{justify-content:flex-start}.cw-title-icon{width:43px;height:43px}.cw-world-banner{min-height:235px;padding:24px}.cw-world-banner h1{font-size:36px}.cw-banner-boss{display:none}.cw-world-tags span{font-size:10px}.cw-world-map{min-height:220px;aspect-ratio:1.6}.cw-game .cw-map-pin{width:42px;height:42px;border-width:3px;font-size:13px}.cw-world-library{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.cw-world-card-copy{padding:10px}.cw-world-card-copy strong{font-size:13px}.cw-game .cw-world-bottom{display:block}.cw-world-bottom>button{margin-top:12px}.cw-fight-top{flex-wrap:wrap}.cw-fight-question{padding:16px}.cw-answer-grid{grid-template-columns:1fr}.cw-battle-field{height:clamp(260px,39vh,420px)}.cw-scene-title{top:9px;white-space:normal;width:max-content;max-width:92%;font-size:11px}.cw-gear-grid{grid-template-columns:1fr}.cw-gear-inventory{padding:12px}.cw-character-preview{height:270px}.cw-world-map-caption{font-size:10px}}
 @media(prefers-reduced-motion:reduce){.cw-game *{animation:none!important;transition:none!important}.cw-game button:hover:enabled{transform:none}}
+
+
+/* V3: cinematic side-by-side battle, always-visible quiz panel on desktop. */
+@media(min-width:1081px) {
+ .student-desktop-content.learning-active:has(.cw-combat){padding:10px clamp(9px,1.1vw,22px) 12px;max-width:none}
+ .cw-game:has(.cw-combat){max-width:none;min-height:0}
+ .cw-game:has(.cw-combat)>.cw-topbar{padding:8px 17px;min-height:57px;margin-bottom:8px;border-radius:13px}
+ .cw-game:has(.cw-combat)>.cw-topbar .cw-title-icon{width:35px;height:35px;border-radius:10px}
+ .cw-game:has(.cw-combat)>.cw-topbar .cw-title strong{font-size:19px}
+ .cw-combat{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(320px,.9fr);grid-template-rows:auto auto minmax(350px,1fr) auto;gap:9px 12px;min-height:calc(100dvh - 115px);max-height:calc(100dvh - 105px)}
+ .cw-combat>.cw-fight-top{grid-column:1/-1;grid-row:1;margin-bottom:0;min-height:62px}
+ .cw-combat .cw-fight-top h1{font-size:clamp(22px,2.1vw,32px);margin:0}
+ .cw-combat .cw-fight-top p{margin:0}
+ .cw-combat>.cw-hp-panel{grid-column:1;grid-row:2;border-radius:12px 12px 0 0;padding:9px 14px}
+ .cw-combat>.cw-battle-field{grid-column:1;grid-row:3;min-height:350px;height:100%;border-radius:0 0 18px 18px}
+ .cw-combat>.cw-fight-question{grid-column:2;grid-row:2/4;margin:0;min-width:0;height:100%;max-height:100%;min-height:0;overflow-y:auto;overscroll-behavior:contain;border:2px solid #c7e4df;padding:clamp(14px,1.7vw,26px);scrollbar-width:thin}
+ .cw-combat .cw-answer-grid{grid-template-columns:1fr;gap:8px}
+ .cw-combat .cw-answer-grid button{min-height:58px;padding:9px 11px;font-size:clamp(12px,1.1vw,16px);line-height:1.35}
+ .cw-combat .cw-answer-grid button b{height:27px;width:27px;font-size:12px}
+ .cw-combat .cw-fight-question h2{font-size:clamp(18px,1.4vw,24px);margin:12px 0 15px}
+ .cw-combat>.cw-battle-footer{grid-column:1/-1;grid-row:4;margin:0;font-size:11px;min-height:27px}
+ .cw-combat .cw-battle-footer button{padding:4px 8px}
+}
+.cw-character-aura{position:absolute;z-index:1;left:18%;bottom:11%;height:46%;width:23%;pointer-events:none;background:radial-gradient(ellipse,#b8fff266,#31e5e422 52%,transparent 73%);filter:blur(14px);animation:cw-aura 2.8s ease-in-out infinite alternate}
+.cw-combat-fx{position:absolute;z-index:5;display:flex;flex-direction:column;align-items:center;gap:0;text-shadow:0 5px 8px #0a1e2cb5;pointer-events:none}
+.cw-combat-fx span{font-size:clamp(40px,8vw,120px);color:#ffe899;line-height:1}
+.cw-combat-fx b{font-size:clamp(22px,3.1vw,48px);color:#fff7b9;font-weight:1000;white-space:nowrap}
+.cw-slash-fx{left:70%;top:30%;animation:cw-floating-hit 1.2s ease-out forwards}
+.cw-heart-fx{left:28%;top:25%;animation:cw-floating-hit 1.2s ease-out forwards}
+.cw-heart-fx b{color:#ffd6dd}
+.cw-clear-fx{left:50%;top:35%;transform:translateX(-50%);animation:cw-glory 1.4s ease-out forwards}
+.cw-clear-fx b{color:#a5ffe8}
+.cw-game .cw-gear-item{position:relative;box-shadow:0 8px 16px #0e31440d}
+.cw-game .cw-gear-item.equipped::after{content:'✦';position:absolute;right:9px;top:3px;color:#d6a23d;font-size:22px}
+.cw-gear-emoji{border:2px solid #b9d8e2;box-shadow:inset 0 3px #ffffff8f,0 4px 9px #12374c15}
+.cw-game .cw-gear-item:nth-child(4) .cw-gear-emoji{background:#f1e6ff}
+.cw-game .cw-gear-item:nth-child(5) .cw-gear-emoji{background:#e4ebff}
+.cw-game .cw-gear-item:nth-child(6) .cw-gear-emoji{background:#fff2c8}
+@keyframes cw-floating-hit{0%{transform:translateY(25px) scale(.5);opacity:0}20%{opacity:1;transform:translateY(-5px) scale(1.18)}70%{opacity:1}100%{opacity:0;transform:translateY(-120px) scale(.95)}}
+@keyframes cw-glory{0%{opacity:0;scale:.5}30%{opacity:1;scale:1.23}100%{opacity:0;scale:1}}
+@keyframes cw-aura{to{opacity:.48;transform:translateY(-7px) scale(1.06)}}
+@media(max-width:1080px){.cw-combat{display:flex;flex-direction:column}.cw-battle-field{height:clamp(310px,44dvh,540px)}.cw-combat .cw-fight-question{margin-top:8px}}
+@media(prefers-reduced-motion:reduce){.cw-character-aura,.cw-combat-fx{animation:none}}

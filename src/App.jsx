@@ -9,6 +9,7 @@ import { StudentEvaluation } from "./StudentEvaluation";
 import { StudentPortal } from "./StudentPortal";
 import { SchoolPortal } from "./SchoolPortal";
 import { TeacherSchoolLeaderboard } from "./TeacherSchoolLeaderboard";
+import StudentWebManagement from "./StudentWebManagement";
 import { StudentRewardManagement } from "./StudentRewardManagement";
 import { StudentPicker } from "./StudentPicker";
 import { RecordCorrectionEditor } from "./RecordCorrectionEditor";
@@ -52,6 +53,7 @@ const nav = [
   ["records", "Điểm, lỗi & thưởng", ClipboardList],
   ["student_rewards", "Quản lý sao & vi phạm", Star],
   ["leaderboard", "Bảng xếp hạng", Trophy],
+  ["student_web", "Quản lý Student Web", Monitor],
   ["cleaning", "Vệ sinh máy", ClipboardCheck],
   ["finance", "Chấm công & tiền công", Clock3],
   ["evaluation", "Đánh giá học sinh", Sparkles],
@@ -241,6 +243,7 @@ function App() {
         <nav className="nav-scroll" aria-label="Menu chính">
           {[["GIẢNG DẠY", ["dashboard", "attendance", "rollcall", "roster", "records", "student_rewards", "evaluation"]],
             ["PHÒNG MÁY", ["computers", "students", "settings", "leaderboard", "cleaning"]],
+            ["ỨNG DỤNG HỌC SINH", ["student_web"]],
             ["QUẢN LÝ", ["workplaces", "schools", "finance", "reports", "accounts"]]].map(([group, ids]) => <React.Fragment key={group}>
             <div className="nav-label">{group}</div>
             <ChevronRight size={17} className="profile-chevron"/>
@@ -299,6 +302,7 @@ function App() {
           {page === "records" && isTeacher && <Records profile={profile} refresh={refresh} reload={reload} ping={ping} />}
           {page === "student_rewards" && isTeacher && <StudentRewardManagement profile={profile} refresh={refresh} onNavigate={setPage} />}
           {page === "leaderboard" && <TeacherSchoolLeaderboard profile={profile} refresh={refresh} onNavigate={setPage} />}
+          {page === "student_web" && isTeacher && <StudentWebManagement profile={profile} onNavigate={setPage} />}
           {page === "cleaning" && isTeacher && <Cleaning profile={profile} refresh={refresh} reload={reload} ping={ping} />}
           {page === "evaluation" && <StudentEvaluation profile={profile} refresh={refresh} reload={reload} ping={ping} />}
           </>}

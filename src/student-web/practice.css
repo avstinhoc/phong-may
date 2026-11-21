@@ -28,3 +28,26 @@
 .lecture-stage:fullscreen .lecture-stage-bottom button,.lecture-stage.lecture-stage-fallback .lecture-stage-bottom button{color:#153a4b}
 .lecture-stage:fullscreen .lecture-stage-screen>.guide-page,.lecture-stage.lecture-stage-fallback .lecture-stage-screen>.guide-page{font-size:clamp(18px,2vw,34px)}
 @media(max-width:700px){.lecture-stage-top{flex-wrap:wrap}.lecture-stage .lecture-fullscreen{padding:8px 10px;font-size:13px}.lecture-heading{gap:9px}.lecture-stage-screen{aspect-ratio:16/10}}
+
+/* Rich teacher-backed lesson practice and optional original PowerPoint image reference. */
+.practice-visual .practice-card{max-width:1200px;margin:14px auto;padding:clamp(17px,2.5vw,34px)}
+.practice-visual-card{border:1px solid #cadfe4;box-shadow:0 8px 25px #19394e17}
+.practice-question-top{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
+.practice-question-top small{font-size:12px;letter-spacing:.08em;color:#1c7f7b;font-weight:900}
+.practice-visual h2{font-size:clamp(21px,2.2vw,31px);line-height:1.35}
+.practice-visual-card .practice-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}
+.practice-visual-card .practice-options button{font-size:clamp(15px,1.4vw,19px);min-height:64px;padding:12px 17px}
+.practice-visual-card .practice-options button.incorrect{background:#ffeae5;border-color:#df9f98}
+.practice-reference-figure{max-width:700px;margin:13px auto;text-align:center;background:#f4f8fb;border:1px solid #d7e9eb;border-radius:15px;padding:10px}
+.practice-reference-figure img{display:block;width:100%;height:auto;max-height:290px;object-fit:contain;margin:auto;border-radius:11px}
+.practice-reference-figure figcaption{font-size:11px;color:#6e8997;margin-top:7px}
+.practice-question-topic{font-size:13px;color:#2b797b;font-weight:800}
+.practice-source-panel{border-top:1px solid #d7e7eb;margin-top:20px;padding-top:15px}
+.practice-source-panel>button{display:inline-flex;align-items:center;gap:7px;background:#e9f9f3;border:1px solid #b6dfd4;color:#0e7770;font-weight:850}
+.practice-source-image{padding:14px;background:#f3f8fd;border-radius:15px;margin-top:12px}
+.practice-source-image>img{width:100%;max-height:570px;object-fit:contain;background:white;border:1px solid #d7e9ef;border-radius:11px}
+.practice-source-image>div{display:flex;align-items:center;justify-content:center;gap:12px;margin:10px}
+.practice-source-image>div button{padding:6px 10px}.practice-source-image>p{font-size:12px;color:#6f8599;text-align:center}
+.practice-answer-result{margin:14px 0;padding:13px;background:#e7f8f2;border-radius:12px}
+.practice-notice{background:#fff7e3;color:#8d631f;padding:11px;border-radius:9px}
+@media(max-width:700px){.practice-visual-card .practice-options{grid-template-columns:1fr}.practice-visual .practice-card{padding:14px}}
