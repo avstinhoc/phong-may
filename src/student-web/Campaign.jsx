@@ -6,6 +6,8 @@ import {supabase} from '../lib/supabase';
 import {HERO_SKINS} from '../learning-arcade/PixelArt.jsx';
 import {Tabletop} from '../learning-arcade/Tabletop.jsx';
 import {BattleVFX} from './BattleVFX.jsx';
+import BattleQuiz from './BattleQuiz.jsx';
+import {monsterArt,heroArt} from './battleArt.js';
 import {battleTheme,battleBackground} from './battleThemes.js';
 import {lessonTitle} from './Practice.jsx';
 import {GEAR_CATALOG,WAVES_PER_WORLD,WORLD_MAPS,worldAt,waveAt} from './worldMap.js';
@@ -132,6 +134,8 @@ export default function Campaign({session}){
  const costumeId=num(data?.costume);
  const skinBase=HERO_SKINS[costumeId]||HERO_SKINS[0];
  const skin={...skinBase,gear:num(data?.gear),trim:tint[num(data?.gear)]||skinBase.trim};
+ const opponentArt=monsterArt(currentId,num(data?.wave)||1);
+ const championArt=heroArt(skin,num(data?.gear));
  const hpMax=num(data?.wave_max_hp)||160+95*wave+10*currentId;
  const monsterHp=Math.max(0,num(data?.hp));
  const clearCount=num(data?.cleared);
@@ -211,11 +215,15 @@ export default function Campaign({session}){
     <progress aria-label="Sinh lực quái vật" value={Math.min(hpMax,monsterHp)} max={hpMax}/>
    </div>
    <div className={'cw-battle-field'+(fx?.kind==='correct'||fx?.kind==='wave_clear'||fx?.kind==='victory'?' cw-stage-hit':'')+(fx?.kind==='wrong'||fx?.kind==='defeat'?' cw-stage-hurt':'')}
-     style={sceneStyle} data-weather={theme.weather}>
+     style={sceneStyle} data-weather={theme.weather} data-hero-class={championArt.classId} data-enemy-type={opponentArt.kind}>
     <div className="cw-depth cw-depth-distant" aria-hidden="true"/>
     <div className="cw-depth cw-depth-atmosphere" aria-hidden="true"/>
     <div className="cw-scene-lights" aria-hidden="true"/>
-    <div className="cw-scene-title">⚔️ {skinBase.name} <span>VS</span> {boss.name}</div>
+    <div className="cw-scene-title">
+      <span className="cw-battle-hero-name"><Shield size={16}/> {skinBase.name}<small>{skinBase.job} · {GEAR_CATALOG[num(data.gear)]?.name||'Tay trần'}</small></span>
+      <span className="cw-battle-vs">VS</span>
+      <span className="cw-battle-monster-name"><Swords size={16}/> {boss.name}<small>{boss.tier} · {opponentArt.kind}</small></span>
+    </div>
     <div className="cw-character-aura" aria-hidden="true"/>
     <Tabletop key={currentId+'-'+wave} skin={skin} index={costumeId} round={currentId} wave={wave}
      action={fx?.kind==='correct'||fx?.kind==='wave_clear'||fx?.kind==='victory'?'strike':fx?.kind==='wrong'||fx?.kind==='defeat'?'counter':'idle'}/>
@@ -224,12 +232,10 @@ export default function Campaign({session}){
     <span className="cw-field-badge">Bài {currentId} · {lessonTitle(currentId)}</span>
    </div>
    <div className="cw-fight-question">
-    {data.turn?<><div className="cw-question-header"><strong><BookOpen size={17}/> Câu hỏi IC3</strong>
-     <span className={time<=5?'cw-clock urgent':'cw-clock'}>⏱ {time} giây</span></div>
-     <h2>{data.prompt}</h2>
-     <div className="cw-answer-grid">{(data.choices||[]).map((v,i)=>
-      <button key={i+'-'+v} type="button" disabled={busy||!!error} onClick={()=>call('answer',{p_turn:data.turn,p_choice:v})}>
-       <b>{String.fromCharCode(65+i)}</b><span>{v}</span><ArrowRight size={18}/></button>)}</div></>:
+    {data.turn?<BattleQuiz key={data.turn} turn={data.turn} prompt={data.prompt} choices={data.choices}
+     time={time} disabled={busy||!!error} stage={currentId} wave={wave}
+     onAnswer={choice=>call('answer',{p_turn:data.turn,p_choice:choice})}
+     onRefresh={()=>call('status')}/>:
      <div className="cw-combat-result">
       <span className={'cw-result-symbol '+(data.outcome||'idle')}>{data.outcome==='wrong'?'💥':data.outcome==='defeat'?'💔':data.outcome==='wave_clear'?'🏅':'✨'}</span>
       <div><h2>{stateLabel[data.outcome]||'Sẵn sàng bước vào ải!'}</h2>
@@ -270,7 +276,7 @@ export default function Campaign({session}){
      <div className="cw-wave-selected"><strong>Đang xem: {selectedEncounter.name}</strong>
       <small>{selectedEncounter.hint}</small></div>
      {selectedActive&&!isComplete?<button type="button" className="cw-primary" disabled={busy||!!error} onClick={next}>
-      <Swords size={20}/> {busy?'Đang mở…':data.turn?'Tiếp tục ải '+wave:'Vào ải '+wave+' / 3'} <ArrowRight size={19}/></button>:
+      <Swords size={20}/> {busy?'Đang mở…':data.turn?'Tiếp tục ải '+wave:'Vào ải '+wave+' / '+WAVES_PER_WORLD} <ArrowRight size={19}/></button>:
       <p className="cw-map-locked">{isComplete?'🎉 Đã chinh phục toàn bộ 22 bản đồ!':
        mapId<currentId?'Bản đồ hoàn thành. Chọn bản đồ đang mở để tiếp tục.':'🔒 Hãy hoàn thành bản đồ '+currentId+' trước.'}</p>}
     </div>
