@@ -44,7 +44,7 @@ export function monsterArt(worldId=1,wave=1){
  const palette=ZONES[world-1];
  const hueShift=seed%27-13+(stage-4)*3;
  return {
-  name:entry.name,kind,archetype:(base+seed%3*0)%22,
+  name:entry.name,kind,archetype:base,
   seed,variant:seed%7,ornament:Math.floor(seed/7)%6,
   stage,elite:stage>=5,boss:stage===7,
   primary:safeColor(palette[0],hueShift),
