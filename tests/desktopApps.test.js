@@ -60,7 +60,7 @@ test('desktop-only frontend env never bundles a service_role/secret API key',()=
  assert.match(desktopEnv,/VITE_SUPABASE_URL=https:\/\/[a-z0-9-]+\.supabase\.co/);
  assert.match(desktopEnv,/VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_/);
  // Comments may explain why secret keys are forbidden. Only validate real VITE_ assignments.
- const variables=desktopEnv.split('\\n').filter(line=>/^VITE_[A-Z_]+=/.test(line));
+ const variables=desktopEnv.split(/\r?\n/).filter(line=>/^VITE_[A-Z_]+=/.test(line));
  assert.ok(!variables.some(line=>/SERVICE_ROLE|SECRET|sb_secret_/.test(line)));
  assert.ok(variables.some(line=>line.startsWith('VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_')));
  const cfgs=[json('desktop/teacher/src-tauri/capabilities/default.json'),json('desktop/student/src-tauri/capabilities/default.json')];
