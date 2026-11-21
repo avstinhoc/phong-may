@@ -1,0 +1,58 @@
+/* Săn Sao C: accessible classroom quiz with four real server-backed answers. */
+.cw-combat .cw-fight-question:has(.battle-question-shell){
+ background:linear-gradient(155deg,#faffff,#e9f8f6 85%);
+ border:2px solid #b8dcd8;
+ box-shadow:0 12px 35px #193d5e1e,inset 0 1px 0 #ffffff;
+ padding:clamp(12px,1.25vw,21px);
+}
+.battle-question-shell{min-height:100%;display:flex;flex-direction:column;gap:14px;color:#19384c}
+.battle-quiz-heading{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.battle-quiz-kicker{display:flex;gap:9px;align-items:center;min-width:0}
+.battle-quiz-icon{width:42px;height:42px;flex-shrink:0;display:grid;place-items:center;background:linear-gradient(145deg,#189b97,#176580);color:#fff;border-radius:13px;box-shadow:0 5px 11px #1778893d}
+.battle-quiz-kicker small{font-size:10px;letter-spacing:.11em;font-weight:950;color:#33847f;display:block}
+.battle-quiz-kicker strong{font-size:14px;color:#23465e;display:block}
+.battle-quiz-timer{display:flex;align-items:center;gap:4px;background:#d9f7ec;color:#0a7c69;border-radius:14px;padding:9px 12px;flex-shrink:0;border:1px solid #ade7d4;box-shadow:inset 0 1px #fff}
+.battle-quiz-timer b{font-variant-numeric:tabular-nums;font-size:23px;line-height:1;font-weight:950}
+.battle-quiz-timer span{font-size:11px;font-weight:800}
+.battle-quiz-timer.is-urgent{background:#ffebdf;color:#bd4d24;border-color:#ffc5a5;animation:bq-timer-alert .9s ease-in-out infinite}
+.battle-quiz-time-track{height:8px;border-radius:99px;background:#d6e7e8;overflow:hidden;box-shadow:inset 0 1px 3px #1e4b5540}
+.battle-quiz-time-track>div{height:100%;width:100%;border-radius:99px;background:linear-gradient(90deg,#19bea8,#30a9ce);transition:width .25s linear}
+.battle-quiz-prompt{background:#fff;border:1px solid #dceae9;border-radius:17px;padding:clamp(12px,1.1vw,19px);box-shadow:0 5px 17px #1d5c6010}
+.battle-quiz-eyebrow{display:flex;align-items:center;gap:7px;font-size:10px;font-weight:950;letter-spacing:.09em;color:#138e83}
+.cw-combat .cw-fight-question .battle-quiz-prompt h2{font-size:clamp(17px,1.35vw,24px);line-height:1.36;letter-spacing:-.026em;margin:11px 0 1px;font-weight:850;overflow-wrap:anywhere}
+.battle-quiz-answers{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.cw-game .battle-quiz-answer{display:flex;align-items:center;gap:9px;text-align:left;min-width:0;min-height:72px;padding:11px 12px;border-radius:13px;
+ background:linear-gradient(165deg,#fff,#f3fafb);
+ border:2px solid #c6dfe2;box-shadow:inset 0 1px #fff,0 4px 0 #d1e0e3;
+ color:#1c4659;transition:transform .13s,border-color .13s,background .13s,box-shadow .13s}
+.cw-game .battle-quiz-answer:hover:enabled{transform:translateY(-3px);background:#e8fffa;border-color:#1ca99b;box-shadow:0 7px 19px #0b82733b}
+.cw-game .battle-quiz-answer:active:enabled{transform:translateY(1px);box-shadow:0 2px 0 #b6d1d6}
+.cw-game .battle-quiz-answer.is-selected{border-color:#008a80;background:#def9ed;box-shadow:inset 0 0 0 1px #35c8ae}
+.cw-game .battle-quiz-answer:disabled:not(.is-selected){opacity:.64}
+.battle-quiz-letter{flex-shrink:0;width:34px;height:34px;display:grid;place-items:center;border-radius:10px;background:linear-gradient(145deg,#c8f1e7,#def5f3);color:#117a79;font-weight:1000;font-size:17px;border:1px solid #b6dbd7}
+.battle-quiz-answer-text{flex:1;font-size:clamp(12px,1.02vw,16px);font-weight:700;line-height:1.38;overflow-wrap:anywhere}
+.battle-quiz-arrow{color:#38928e;flex-shrink:0;opacity:.65}.battle-quiz-answer:hover .battle-quiz-arrow{opacity:1}
+.battle-quiz-help{margin-top:auto;display:flex;align-items:center;gap:8px;padding:12px;color:#4f7582;font-size:11px;line-height:1.35;border-top:1px solid #cce5e3}
+.battle-quiz-help svg{flex-shrink:0;color:#17897d}
+.battle-quiz-invalid{background:#fff0e6;border:1px solid #e9b5a7;border-radius:13px;padding:13px;color:#a8482e;font-size:13px}
+.battle-quiz-invalid button{display:inline-flex;align-items:center;gap:7px;border:0;background:#ab5744;color:white;border-radius:9px;padding:10px}
+.cw-combat .cw-combat-result{background:linear-gradient(125deg,#fafff1,#dffaf1);border-radius:16px;padding:20px;min-height:190px}
+.cw-combat .cw-combat-result h2{font-size:clamp(19px,1.7vw,26px);margin:0 0 7px}
+.cw-combat .cw-combat-result p{line-height:1.55}
+@keyframes bq-timer-alert{50%{transform:scale(1.045);box-shadow:0 0 0 5px #ffc5a53b}}
+@media(min-width:1081px) and (max-width:1490px){
+ .cw-combat .cw-fight-question .battle-quiz-prompt h2{font-size:18px}
+ .battle-quiz-answers{grid-template-columns:1fr}
+ .cw-game .battle-quiz-answer{min-height:53px;padding:8px}
+ .battle-quiz-answer-text{font-size:13px}
+ .battle-question-shell{gap:9px}
+ .battle-quiz-prompt{padding:11px}
+}
+@media(max-width:700px){
+ .battle-quiz-answers{grid-template-columns:1fr}
+ .cw-game .battle-quiz-answer{min-height:61px}
+ .battle-quiz-prompt{padding:12px}
+ .battle-quiz-timer{padding:7px 9px}
+ .battle-quiz-timer b{font-size:19px}
+}
+@media(prefers-reduced-motion:reduce){.battle-quiz-timer.is-urgent{animation:none}.battle-quiz-time-track>div{transition:none}.cw-game .battle-quiz-answer{transition:none}}
