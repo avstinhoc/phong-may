@@ -8,8 +8,8 @@ import StudentOnboarding from './StudentOnboarding.jsx';
 import Lessons from './Lessons.jsx';
 import Practice from './Practice.jsx';
 import Campaign from './Campaign.jsx';
-import DesktopLeaderboard from './DesktopLeaderboard.jsx';
-import {supabase} from '../../lib/supabase';
+import './studentDesktop.css';
+import {supabase} from '../lib/supabase';
 import './studentExtras.css';
 
 const navigation=[
@@ -77,7 +77,7 @@ function StudentHome({onNavigate,online}){
    </article>
    <article className="student-small-panel">
     <div className="student-small-icon"><ShieldCheck size={22}/></div>
-    <div><h3>Quyền riêng tư của học sinh</h3><p>Vào tài khoản bằng mã PIN do giáo viên cấp để lưu điểm và trang bị của riêng em.</p></div>
+    <div><h3>Quyền riêng tư của học sinh</h3><p>Vào tài khoản bằng mã PIN tự tạo khi đăng ký để lưu điểm và trang bị của riêng em.</p></div>
    </article>
   </section>
   {!online&&<p className="student-notice offline"><WifiOff size={18}/> Bài giảng Drive và game có dữ liệu trực tuyến cần kết nối Internet.</p>}
@@ -122,13 +122,13 @@ function DeviceSettings({online,session}){
       {message&&<p role="status">{message}</p>}
     </form>:<p>Đăng nhập PIN trước để gửi yêu cầu kết nối máy.</p>}
    </article>
-   <article className="student-setting-card"><CalendarDays size={28}/><h3>Tự mở cùng Windows</h3><strong>Bật mặc định lần đầu</strong><p>Bản Windows đăng ký khởi chạy khi người dùng đăng nhập. Có thể tắt trong Windows Settings → Apps → Startup.</p></article>
+   <article className="student-setting-card"><CalendarDays size={28}/><h3>Truy cập bằng trình duyệt</h3><strong>Bật mặc định lần đầu</strong><p>Student Web hoạt động trong trình duyệt, không cài đặt phần mềm Windows.</p></article>
    <article className="student-setting-card">{online?<Wifi size={28}/>:<WifiOff size={28}/>}<h3>Kết nối mạng</h3><strong>{online?'Đang trực tuyến':'Không có kết nối'}</strong><p>Phiên đăng nhập và yêu cầu duyệt cần Internet; mất kết nối không tự xóa điểm đã lưu trên máy chủ.</p></article>
-   <article className="student-setting-card"><ShieldCheck size={28}/><h3>Chế độ cửa sổ</h3><strong>Thu nhỏ và phóng to được</strong><p>Có thể dùng Word, Excel và các phần mềm IC3 khác cùng lúc.</p></article>
+   <article className="student-setting-card"><ShieldCheck size={28}/><h3>Giao diện web</h3><strong>Thu nhỏ và phóng to được</strong><p>Có thể mở trên máy tính hoặc điện thoại; dữ liệu cá nhân chỉ hiện sau khi đăng nhập.</p></article>
   </div>
  </div>;
 }
-export default function StudentDesktop(){
+export default function StudentWeb(){
  const [page,setPage]=useState('account');
  const [online,setOnline]=useState(typeof navigator!=='undefined'?navigator.onLine:true);
  const [session,setSession]=useState(null);
@@ -140,12 +140,12 @@ export default function StudentDesktop(){
  },[]);
  useEffect(()=>{
   let active=true;
-  const token=sessionStorage.getItem('qlpm.student.session');
+  const token=sessionStorage.getItem('qlpm.student.web.session');
   if(!token||!supabase)return;
-  supabase.rpc('qlpm_student_desktop_whoami',{p_session_token:token}).then(({data,error})=>{
+  supabase.rpc('qlpm_student_web_whoami',{p_session_token:token}).then(({data,error})=>{
    if(!active)return;
-   if(error||!data){sessionStorage.removeItem('qlpm.student.session');setSession(null);setPage('account');return;}
-   setSession({...data,token,student_name:data.name});setPage('home');
+   if(error||!data){sessionStorage.removeItem('qlpm.student.web.session');setSession(null);setPage('account');return;}
+   setSession({...data,token,student_name:data.name});setLastCode(data.class_code||'');setPage('home');
   }).catch(()=>{});
   return()=>{active=false;};
  },[]);
@@ -157,7 +157,7 @@ export default function StudentDesktop(){
   for(const name of events)window.addEventListener(name,touch,{passive:true});
   const timer=window.setInterval(async()=>{
    if(Date.now()-lastActivity>20*60*1000){
-    const token=sessionStorage.getItem('qlpm.student.session');sessionStorage.removeItem('qlpm.student.session');
+    const token=sessionStorage.getItem('qlpm.student.web.session');sessionStorage.removeItem('qlpm.student.web.session');
     setSession(null);setPage('account');
     if(token)void supabase?.rpc('qlpm_student_desktop_logout',{p_session_token:token}).catch(()=>{});
    }
@@ -165,16 +165,17 @@ export default function StudentDesktop(){
   return()=>{window.clearInterval(timer);for(const name of events)window.removeEventListener(name,touch);};
  },[session?.token]);
  const current=navigation.find(x=>x.id===page)||navigation[0];
- const navigate=next=>{setPage(next);window.scrollTo({top:0,behavior:'auto'});};
+ const navigate=next=>{setPage(session?next:'account');window.scrollTo({top:0,behavior:'auto'});};
  function acceptLogin(data){
   if(!data?.session_token)return;
-  sessionStorage.setItem('qlpm.student.session',data.session_token);
+  sessionStorage.setItem('qlpm.student.web.session',data.session_token);
+  setLastCode(data.class_code||'');
   setSession({...data,token:data.session_token,name:data.student_name,pc:null});
   navigate('home');
  }
  async function logout(){
   const token=session?.token;
-  sessionStorage.removeItem('qlpm.student.session');setSession(null);navigate('account');
+  sessionStorage.removeItem('qlpm.student.web.session');setSession(null);navigate('account');
   if(token&&supabase)await supabase.rpc('qlpm_student_desktop_logout',{p_session_token:token});
  }
  const embedded=page==='lessons'||page==='questions';
@@ -182,12 +183,12 @@ export default function StudentDesktop(){
   <aside className="student-desktop-sidebar">
    <div className="student-logo"><span><GraduationCap size={29}/></span><div><strong>QLPM Student</strong><small>Phòng máy thông minh</small></div></div>
    <div className="student-side-label">HỌC TẬP & KHÁM PHÁ</div>
-   <nav aria-label="Menu QLPM Student">{navigation.map(x=><button key={x.id} type="button" className={page===x.id?'current':''} onClick={()=>navigate(x.id)}>
+   <nav aria-label="Menu QLPM Student">{session?navigation.map(x=><button key={x.id} type="button" className={page===x.id?'current':''} onClick={()=>navigate(x.id)}>
       <x.icon size={20}/><span>{x.title}</span>{['lessons','questions','games'].includes(x.id)&&<span className="student-side-marker"/>}
-     </button>)}</nav>
+     </button>):<p style={{padding:12,fontSize:13,color:'#bdd5df'}}>Đăng nhập để mở bài giảng, câu hỏi và trò chơi.</p>}</nav>
    <div className="student-side-spacer"/>
    <div className="student-device-badge"><Monitor size={23}/><div><strong>{session?.pc||'Máy chưa liên kết'}</strong><small>{session?session.name:'Chưa đăng nhập'}</small></div></div>
-   <div className="student-sidebar-footer"><Info size={15}/> QLPM Student · Desktop Preview</div>
+   <div className="student-sidebar-footer"><Info size={15}/> QLPM Student · Web</div>
   </aside>
   <div className="student-desktop-body">
    <header className="student-desktop-header">
@@ -196,13 +197,13 @@ export default function StudentDesktop(){
    </header>
    <main className={'student-desktop-content '+(embedded||page==='games'?'learning-active':'')}>
     {page==='account'&&(session?<StudentAccount session={session} onLogout={logout}/>:
-      <StudentOnboarding onLogin={acceptLogin} onTrial={()=>navigate('home')} onLeaderboard={()=>navigate('leaderboard')} defaultCode={lastCode}/>)}
-    {page==='home'&&<StudentHome onNavigate={navigate} online={online}/>}
-    {page==='lessons'&&<Lessons/>}
-    {page==='questions'&&<Practice/>}
-    {page==='games'&&(session?<Campaign key={session.token} session={session}/>:<section className="practice-card"><h2>Quần đảo Săn Sao</h2><p>Đăng nhập tài khoản học sinh để lưu trang bị, điểm và sao của em.</p><button onClick={()=>navigate('account')}>Đăng nhập</button></section>)}
-    {page==='leaderboard'&&<DesktopLeaderboard initialCode={lastCode} onCodeChange={setLastCode}/>}
-    {page==='device'&&<DeviceSettings online={online} session={session}/>}
+      <StudentOnboarding onLogin={acceptLogin} defaultCode={lastCode}/>)}
+    {session&&page==='home'&&<StudentHome onNavigate={navigate} online={online}/>}
+    {session&&page==='lessons'&&<Lessons/>}
+    {session&&page==='questions'&&<Practice/>}
+    {session&&page==='games'&&<Campaign key={session.token} session={session}/>}
+    {session&&page==='leaderboard'&&(lastCode?<iframe title="Bảng xếp hạng QLPM của trường" loading="lazy" src={'/school?code='+encodeURIComponent(lastCode)} style={{width:'100%',minHeight:'83vh',border:0,borderRadius:18,background:'#fff'}}/>:<p>Không xác định được mã lớp. Hãy đăng nhập lại.</p>)}
+    {session&&page==='device'&&<DeviceSettings online={online} session={session}/>}
    </main>
    <footer className="student-desktop-footer"><span>✦ Học để hiểu · Chơi để nhớ · Tự tin sử dụng công nghệ</span><span>Level 2 & 3 tạm khóa</span></footer>
   </div>

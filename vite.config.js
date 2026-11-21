@@ -9,7 +9,6 @@ export default defineConfig({
  build:{rollupOptions:{input:{
   main:fileURLToPath(new URL('./index.html',import.meta.url)),
   learning:fileURLToPath(new URL('./learning-prototype.html',import.meta.url)),
-  studentDesktop:fileURLToPath(new URL('./student-desktop.html',import.meta.url)),
   arcade:fileURLToPath(new URL('./san-sao.html',import.meta.url))
  }}}
 });

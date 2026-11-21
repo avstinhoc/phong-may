@@ -1,9 +1,9 @@
 import React,{useEffect,useState} from 'react';
 import {ArrowLeft,BookOpen,Download} from 'lucide-react';
-import {LEVEL_1_LESSONS} from '../../learning/curriculum.js';
-import counts from '../../learning/slideCounts.json';
-import guides from '../../learning/guidedLessons.json';
-import bank from '../../learning/practiceBank.json';
+import {LEVEL_1_LESSONS} from '../learning/curriculum.js';
+import counts from '../learning/slideCounts.json';
+import guides from '../learning/guidedLessons.json';
+import bank from '../learning/practiceBank.json';
 import {lessonTitle} from './Practice.jsx';
 
 function GuidedSlide({n,page}){

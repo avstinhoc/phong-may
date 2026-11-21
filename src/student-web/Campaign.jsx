@@ -1,10 +1,10 @@
 import React,{useEffect,useRef,useState} from 'react';
-import {supabase} from '../../lib/supabase';
-import {HERO_SKINS} from '../../learning-arcade/PixelArt.jsx';
-import {Tabletop} from '../../learning-arcade/Tabletop.jsx';
+import {supabase} from '../lib/supabase';
+import {HERO_SKINS} from '../learning-arcade/PixelArt.jsx';
+import {Tabletop} from '../learning-arcade/Tabletop.jsx';
 import {lessonTitle} from './Practice.jsx';
-import {FishingGame} from '../../learning-arcade/FishingGame.jsx';
-import {HardwareBuilder} from '../../learning-arcade/HardwareBuilder.jsx';
+import {FishingGame} from '../learning-arcade/FishingGame.jsx';
+import {HardwareBuilder} from '../learning-arcade/HardwareBuilder.jsx';
 const monsters=['Nhện Tinh Thể','Hộ Vệ Ngọc','Tam Xà Hổ Phách','Long Vương Tinh Vân','Sư Ưng Băng','Ngưu Vương Dung Nham','Lan Ma Lục Bảo','Hải Vương Vực Sâu','Bọ Cạp Lôi Thạch','Phượng Hoàng Nhật Viêm','Ma Mút Băng Cổ','Hắc Long Nhật Thực','Sứa Đèn Lồng','Ốc Sên Thiên Thạch','Kình Ngư Sao Băng','Bướm Gương','Nhím Thạch Anh','Rết Đồng Hồ','Cua Thành Cổ','Dơi Nguyệt Thực','Hải Mã San Hô','Xà Vương Cực Quang'];
 const places=['Rừng thạch anh','Thành ngọc','Cồn hổ phách','Đỉnh tinh vân','Đèo băng','Lò dung nham','Vườn lục bảo','Rãnh đại dương','Cung sấm','Miệng núi lửa','Thảo nguyên tuyết','Cổng nhật thực','Đầm đèn lồng','Bãi thiên thạch','Biển sao','Hồ gương','Hang pha lê','Xưởng đồng hồ','Pháo đài cát','Tháp trăng','Rạn san hô','Vịnh cực quang'];
 const gear=['Tay trần','Găng đồng','Ấn ngọc','Vòng sấm','Bùa tinh vân','Ấn cực quang'];

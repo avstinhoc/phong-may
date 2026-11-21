@@ -10,7 +10,6 @@ import { StudentPortal } from "./StudentPortal";
 import { SchoolPortal } from "./SchoolPortal";
 import { TeacherSchoolLeaderboard } from "./TeacherSchoolLeaderboard";
 import { StudentRewardManagement } from "./StudentRewardManagement";
-import { TeacherPcConsole } from "./desktop/teacher/TeacherPcConsole";
 import { StudentPicker } from "./StudentPicker";
 import { RecordCorrectionEditor } from "./RecordCorrectionEditor";
 import { AuthCallback, emailCallbackUrl } from "./AuthCallback";
@@ -43,12 +42,13 @@ import {
   ChevronLeft, ChevronRight, Printer, UserCheck, UserRound, Building2, Trophy, Star, KeyRound
 } from "lucide-react";
 
+const StudentWeb=React.lazy(()=>import('./student-web/StudentWeb.jsx'));
+
 const nav = [
   ["dashboard", "Tổng quan", LayoutDashboard],
   ["students", "Đăng ký & duyệt", Users],
   ["roster", "Danh sách học sinh", ClipboardList],
   ["computers", "Phòng máy", Monitor],
-  ["desktop_controls", "Quản lý Student Desktop", KeyRound],
   ["attendance", "Lịch dạy giáo viên", CalendarDays],
   ["rollcall", "Điểm danh học sinh", UserCheck],
   ["records", "Điểm, lỗi & thưởng", ClipboardList],
@@ -194,6 +194,9 @@ function App() {
 
   if (!supabase) return <SetupScreen />;
   if (window.location.pathname === "/auth/callback") return <AuthCallback />;
+  if (window.location.pathname === "/student-web") {
+    return <React.Suspense fallback={<div className="center-screen">Đang mở Student Web...</div>}><StudentWeb /></React.Suspense>;
+  }
   if (window.location.pathname === "/student") {
     return <StudentPortal />;
   }
@@ -243,7 +246,6 @@ function App() {
         <nav className="nav-scroll" aria-label="Menu chính">
           {[["GIẢNG DẠY", ["dashboard", "attendance", "rollcall", "roster", "records", "student_rewards", "evaluation"]],
             ["PHÒNG MÁY", ["computers", "students", "settings", "leaderboard", "cleaning"]],
-            ["ỨNG DỤNG HỌC SINH", ["desktop_controls"]],
             ["QUẢN LÝ", ["workplaces", "schools", "finance", "reports", "accounts"]]].map(([group, ids]) => <React.Fragment key={group}>
             <div className="nav-label">{group}</div>
             <ChevronRight size={17} className="profile-chevron"/>
@@ -297,7 +299,6 @@ function App() {
           {page === "roster" && <StudentRoster profile={profile} refresh={refresh} syncRefresh={manualRefresh} ping={ping} />}
           {page === "students" && isTeacher && <Students profile={profile} refresh={refresh} reload={reload} ping={ping} navigate={setPage} />}
           {page === "computers" && <Computers profile={profile} refresh={refresh} reload={reload} ping={ping} />}
-          {page === "desktop_controls" && isTeacher && <TeacherPcConsole profile={profile} refresh={refresh} onNavigate={setPage} />}
           {page === "rollcall" && isTeacher && <RollCallView profile={profile} refresh={refresh} reload={reload} ping={ping} focusDate={calendarDate} setFocusDate={setCalendarDate} />}
           {page === "attendance" && isTeacher && <Attendance profile={profile} refresh={refresh} reload={reload} ping={ping} focusDate={calendarDate} setFocusDate={setCalendarDate} onImported={async(date,name)=>{setCalendarDate(date);const {data,error}=await supabase.rpc("create_my_school",{school_name:name});if(!error)setSchoolId(data);reload();}} />}
           {page === "records" && isTeacher && <Records profile={profile} refresh={refresh} reload={reload} ping={ping} />}
@@ -693,6 +694,17 @@ function Students({ profile, refresh, reload, ping, navigate }) {
   const { rows, busy } = useRows("students", profile, refresh);
   const registrations = useRows("student_registrations", profile, refresh);
   const schoolClasses = useRows("classes", profile, refresh);
+  const [webAccounts,setWebAccounts]=useState([]);
+  useEffect(()=>{
+    let active=true;
+    if(!profile?.school_id)return;
+    supabase.rpc("qlpm_teacher_student_web_accounts",{p_school_id:profile.school_id})
+      .then(({data,error})=>{if(active)setWebAccounts(!error&&Array.isArray(data)?data:[]);})
+      .catch(()=>{if(active)setWebAccounts([]);});
+    return()=>{active=false;};
+  },[profile?.school_id,refresh]);
+  const webForStudent=id=>webAccounts.find(a=>a.student_id===id);
+  const webForRegistration=id=>webAccounts.find(a=>a.registration_id===id);
   const [approvalBusy,setApprovalBusy]=useState(null);
   const [pendingClassFilter,setPendingClassFilter]=useState("");
   const [reviewBusy,setReviewBusy]=useState(null);
@@ -781,7 +793,7 @@ function Students({ profile, refresh, reload, ping, navigate }) {
   }
 
   async function approveRegistration(r) {
-    const {error}=await supabase.rpc("approve_registration",{registration_id:r.id});
+    const {error}=await supabase.rpc("qlpm_teacher_student_web_approve",{p_registration_id:r.id});
     if(error) ping(error.message); else {ping("Đã duyệt học sinh và gán máy đăng ký");reload();}
   }
 
@@ -847,6 +859,7 @@ function Students({ profile, refresh, reload, ping, navigate }) {
       title="Quản lý học sinh"
       desc="Hồ sơ học sinh theo trường, lớp và trạng thái duyệt"
       action={<>
+        <a className="btn outline" href="/student-web" target="_blank" rel="noopener noreferrer">Mở Student Web</a>
         <button className="btn outline" onClick={()=>navigate("settings")}>Mở trang đăng ký</button>
         <button className="btn primary" onClick={() => setShow(true)}><Plus size={17} />Thêm học sinh</button>
       </>}
@@ -891,7 +904,8 @@ function Students({ profile, refresh, reload, ping, navigate }) {
           <span className="task-icon blue"><UserPlus /></span>
           <div>
             <b>{r.full_name}</b>
-            <small>Mã lớp: {r.registration_code} · {r.gender||"Chưa có giới tính"} · Máy mong muốn: {r.computer_code||"Chưa chọn"}</small>
+            <small>Mã lớp: {r.registration_code} · Máy mong muốn: {r.computer_code||"Chưa chọn"}</small>
+            <small>Tên đăng nhập: <b>{webForRegistration(r.id)?.username||"—"}</b> · Mã PIN: {webForRegistration(r.id)?"Đã tạo (ẩn)":"—"}</small>
             {r.review_note&&<small className="negative">Cần kiểm tra: {r.review_note}</small>}
           </div>
           <button className="mini-btn success" onClick={() => approveRegistration(r)}>Duyệt</button>
@@ -948,7 +962,7 @@ function Students({ profile, refresh, reload, ping, navigate }) {
     <div className="panel table-panel">
       <div className="table-wrap">
         <table>
-          <thead><tr><th>STT</th><th>HỌC SINH (A–Z THEO TÊN)</th><th>GIỚI TÍNH</th><th>LỚP</th><th>TRƯỜNG</th><th>TRẠNG THÁI</th><th>THAO TÁC</th></tr></thead>
+          <thead><tr><th>STT</th><th>HỌC SINH (A–Z THEO TÊN)</th><th>GIỚI TÍNH</th><th>LỚP</th><th>TRƯỜNG</th><th>TÊN ĐĂNG NHẬP</th><th>MÃ PIN</th><th>THAO TÁC</th></tr></thead>
           <tbody>
             {filtered.map((s,index) => (
               <tr key={s.id}>
@@ -958,7 +972,8 @@ function Students({ profile, refresh, reload, ping, navigate }) {
                 <td>{s.gender||"—"}</td>
                 <td>{s.class_name || "—"}</td>
                 <td>{s.school_name || "—"}</td>
-                <td><span className={`status ${s.status === "pending" ? "pending" : "active"}`}>{s.status === "pending" ? "Chờ duyệt" : s.status === "rejected" ? "Từ chối" : "Đang học"}</span></td>
+                <td>{webForStudent(s.id)?.username||"—"}</td>
+                <td>{webForStudent(s.id)?"Đã tạo (ẩn)":"—"}</td>
                 <td className="actions">
                   {s.status === "pending" && <button className="mini-btn success" onClick={() => approve(s)}>Duyệt</button>}
                   <button className="mini-btn" onClick={()=>setNameEditing({id:s.id,full_name:s.full_name})}>Sửa tên</button>

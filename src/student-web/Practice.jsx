@@ -1,8 +1,8 @@
 import React,{useEffect,useState,useRef} from 'react';
 import {BookOpen,Timer,ArrowLeft,CheckCircle,Monitor,Wifi,Layers,Shield,MessagesSquare,FileText} from 'lucide-react';
-import {LEVEL_1_LESSONS} from '../../learning/curriculum.js';
-import bank from '../../learning/practiceBank.json';
-import {shuffle} from '../../learning-arcade/expeditionScore.js';
+import {LEVEL_1_LESSONS} from '../learning/curriculum.js';
+import bank from '../learning/practiceBank.json';
+import {shuffle} from '../learning-arcade/expeditionScore.js';
 import './practice.css';
 
 const icons=[Monitor,Layers,Wifi,FileText,MessagesSquare,Shield];

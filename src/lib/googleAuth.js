@@ -1,4 +1,3 @@
-import {isTeacherNative,startTeacherNativeGoogle} from './nativeGoogleOAuth.js';
 // OAuth remains owned by Supabase Auth. Never accept roles from Google metadata.
 export const GOOGLE_PROVIDER='google';
 const CALLBACK_PATH='/auth/callback';
@@ -36,10 +35,6 @@ export function hasGoogleIdentity(identities=[]){
 }
 
 export async function startGoogleAuth(auth,baseCallback,{linkExisting=false}={}){
-  // WebView OAuth must not silently redirect a Windows desktop app into the website.
-  // Until an approved external-browser + deep-link flow exists, retain email/password
-  // in Teacher Desktop and keep Google OAuth available on the existing website.
-  if(isTeacherNative())return startTeacherNativeGoogle(auth,{linkExisting});
   const redirectTo=googleCallbackUrl(baseCallback,linkExisting);
   const args={provider:GOOGLE_PROVIDER,options:{redirectTo}};
   const method=linkExisting?'linkIdentity':'signInWithOAuth';
