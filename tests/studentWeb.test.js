@@ -52,6 +52,8 @@ test('Approved old-style registrations synchronize uniquely and teacher may secu
  const sql=read('supabase/migrations/20261121145000_student_web_approval_sync_and_pin_reset.sql');
  assert.match(sql,/after update of status on public\.student_registrations/);
  assert.match(sql,/candidates = 1/);
+ assert.match(sql,/max\(s\.id::text\)::uuid/);
+ assert.doesNotMatch(sql,/min\(s\.id\)/);
  assert.match(sql,/other\.student_id=target_id/);
  assert.match(sql,/qlpm_teacher_student_web_reset_pin/);
  assert.match(sql,/not public\.can_access_school/);
