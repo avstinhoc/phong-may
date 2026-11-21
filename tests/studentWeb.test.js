@@ -88,7 +88,7 @@ test('Practice expands source-backed questions and supports teacher-published vi
  const practice=read('src/student-web/Practice.jsx');
  const sql=read('supabase/migrations/20261121231000_student_web_teacher_practice_questions.sql');
  assert.match(practice,/qlpm_student_web_practice_questions/);
- assert.match(practice,/devicePhotoFor/);
+ assert.match(practice,/deviceVisualFor/);
  assert.doesNotMatch(practice,/practice-source-image|practice-source-panel/);
  assert.match(sql,/enable row level security/);
  assert.match(sql,/published=true/);
