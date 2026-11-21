@@ -10,7 +10,6 @@ import './StudentWebManagement.css';
 const blank=()=>({id:null,lesson:1,title:'',q:'',choices:['','','',''],solution:'',why:'',image_path:'',alt:'',published:false});
 const deviceLabels={assigned:'Đã gán PC',approved:'Yêu cầu đã duyệt',requested:'PC mong muốn',unlinked:'Chưa có PC'};
 const titles=LEVEL_1_LESSONS.map(l=>l.title||'Bài '+l.number);
-const imageFor=(lesson,page)=>'/ic3-slides/Bai-'+String(lesson).padStart(2,'0')+'/'+String(page)+'.webp';
 const countBase=n=>[...baseQuestions,...PRACTICE_EXPANSIONS].filter(q=>q.lesson===n).length;
 
 export default function StudentWebManagement({profile,onNavigate}){
@@ -23,7 +22,6 @@ export default function StudentWebManagement({profile,onNavigate}){
  const [error,setError]=useState('');
  const [message,setMessage]=useState('');
  const [filterLesson,setFilterLesson]=useState('all');
- const [previewSlide,setPreviewSlide]=useState(1);
 
  async function refreshData(){
   if(!schoolId)return;
@@ -50,8 +48,11 @@ export default function StudentWebManagement({profile,onNavigate}){
  async function saveQuestion(e){
   e.preventDefault();if(!schoolId)return;
   const choices=draft.choices.map(x=>x.trim()).filter(Boolean);
-  if(choices.length<2||!choices.includes(draft.solution)){
-   setError('Cần ít nhất 2 lựa chọn và đáp án đúng phải nằm trong các lựa chọn.');return;
+  if(choices.length!==4||new Set(choices).size!==4||!choices.includes(draft.solution)){
+   setError('Mỗi câu cần đúng 4 đáp án A–D khác nhau và phải chỉ rõ đáp án đúng.');return;
+  }
+  if(draft.image_path.trim()&&!/^\/ic3-scenes\/[a-zA-Z0-9_./-]+\.(png|jpg|jpeg|webp)$/.test(draft.image_path.trim())){
+   setError('Mục Câu hỏi chỉ dùng ảnh thiết bị/phần mềm hoặc ảnh tình huống; không được dùng slide PowerPoint.');return;
   }
   setBusy(true);setError('');setMessage('');
   const row={school_id:schoolId,lesson:Number(draft.lesson),title:draft.title.trim(),
@@ -77,7 +78,7 @@ export default function StudentWebManagement({profile,onNavigate}){
   }catch(e){setError(e.message||String(e));}finally{setBusy(false)}
  }
  function edit(row){
-  setDraft({id:row.id,lesson:row.lesson,title:row.title,q:row.q,choices:[...row.choices],
+  setDraft({id:row.id,lesson:row.lesson,title:row.title,q:row.q,choices:[...row.choices.slice(0,4),...Array(Math.max(0,4-row.choices.length)).fill('')],
    solution:row.solution,why:row.why,image_path:row.image_path||'',alt:row.alt||'',published:row.published});
   setTab('questions');document.getElementById('swm-editor')?.scrollIntoView({behavior:'smooth',block:'start'});
  }
@@ -126,7 +127,7 @@ export default function StudentWebManagement({profile,onNavigate}){
   {tab==='questions'&&<>
    <div className="swm-section-head"><div><h2>Ngân hàng câu hỏi & hình ảnh</h2>
     <p>{baseQuestions.length+PRACTICE_EXPANSIONS.length} câu hỏi nền, {published} câu bổ sung đã xuất bản, {questions.length-published} bản nháp của trường.</p></div>
-    <button onClick={()=>{setDraft(blank());setPreviewSlide(1)}}><Plus size={16}/> Tạo câu hỏi mới</button></div>
+    <button onClick={()=>setDraft(blank())}><Plus size={16}/> Tạo câu hỏi mới</button></div>
    <div className="swm-counts">{LEVEL_1_LESSONS.map(l=><span key={l.number}>Bài {l.number}: <b>{numberOfVisible(l.number)}</b> câu</span>)}</div>
    <form id="swm-editor" className="swm-editor" onSubmit={saveQuestion}>
     <h3>{draft.id?'Sửa câu hỏi':'Thêm câu hỏi ôn tập'}</h3>
@@ -141,16 +142,12 @@ export default function StudentWebManagement({profile,onNavigate}){
       {draft.choices.filter(Boolean).map((c,i)=><option key={i} value={c}>{c}</option>)}
      </select></label>
      <label>Giải thích<textarea rows={2} value={draft.why} onChange={e=>setDraft(v=>({...v,why:e.target.value}))}/></label>
-     <label>Ảnh từ slide: số slide
-      <input type="number" min="1" max="80" value={previewSlide} onChange={e=>setPreviewSlide(Number(e.target.value)||1)}/>
-      <button type="button" onClick={()=>setDraft(v=>({...v,image_path:imageFor(v.lesson,previewSlide),alt:'Slide '+previewSlide+' - Bài '+v.lesson}))}>Chọn ảnh slide này</button>
-     </label>
      <label>Ảnh minh họa từ bài
       <button type="button" onClick={()=>setDraft(v=>({...v,image_path:'/ic3-scenes/case-'+v.lesson+'.png',alt:'Tình huống minh họa bài '+v.lesson}))}>Chọn tình huống bài {draft.lesson}</button>
       <button type="button" onClick={()=>setDraft(v=>({...v,image_path:'',alt:''}))}>Bỏ ảnh</button>
      </label>
      <label className="wide">Đường dẫn ảnh hiện tại<input value={draft.image_path} onChange={e=>setDraft(v=>({...v,image_path:e.target.value}))}
-       placeholder="/ic3-scenes/case-1.png hoặc /ic3-slides/Bai-01/4.webp"/></label>
+       placeholder="/ic3-scenes/case-1.png (ảnh tình huống, không phải slide)"/></label>
      <label className="wide">Mô tả ảnh cho học sinh<input value={draft.alt} onChange={e=>setDraft(v=>({...v,alt:e.target.value}))}/></label>
     </div>
     {draft.image_path&&<img className="swm-image-preview" src={draft.image_path} alt={draft.alt||'Ảnh học liệu'} onError={e=>{e.currentTarget.style.opacity=.3}}/>}
