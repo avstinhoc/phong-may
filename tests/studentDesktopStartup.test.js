@@ -17,7 +17,7 @@ test('Student Desktop imports every JSX icon used at first render',()=>{
  // Catch future missing icons in StudentDesktop, excluding known React components.
  const local=new Set([...view.matchAll(/(?:function|const)\s+([A-Z][A-Za-z0-9]+)\b/g)]
   .map(x=>x[1]));
- const componentImports=new Set(['LearningPrototype','StudentOnboarding','DesktopLeaderboard']);
+ const componentImports=new Set([...view.matchAll(/import\s+([A-Z]\w*)\s+from/g)].map(match=>match[1]));
  const intrinsic=new Set(['React']);
  for(const name of used){
   if(local.has(name)||componentImports.has(name)||intrinsic.has(name))continue;

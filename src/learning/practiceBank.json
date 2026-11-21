@@ -1,0 +1,1466 @@
+[
+ {
+  "id": "1-1",
+  "lesson": 1,
+  "title": "Bên trong chiếc máy tính",
+  "q": "Máy mở nhiều ứng dụng cùng lúc thì chậm. Tài nguyên nào thường bị đầy trước khi em đóng bớt cửa sổ?",
+  "choices": [
+   "RAM",
+   "Cổng HDMI",
+   "Bàn phím"
+  ],
+  "why": "RAM giữ dữ liệu mà ứng dụng đang dùng.",
+  "image": "/ic3-scenes/case-1.png",
+  "alt": "Trình quản lý tác vụ. Ứng dụng đang mở: 16. Bộ nhớ đang dùng: 94%"
+ },
+ {
+  "id": "1-2",
+  "lesson": 1,
+  "title": "Lưu bài trước khi tắt máy",
+  "q": "Bài vẽ đã lưu vẫn còn sau khi tắt nguồn. Linh kiện nào có thể đang giữ tệp?",
+  "choices": [
+   "SSD",
+   "RAM",
+   "Quạt tản nhiệt"
+  ],
+  "why": "SSD giữ dữ liệu khi máy mất điện."
+ },
+ {
+  "id": "1-3",
+  "lesson": 1,
+  "title": "Một phép tính trong bảng điểm",
+  "q": "Khi em tính trung bình một cột điểm, bộ phận nào thực hiện lệnh tính?",
+  "choices": [
+   "CPU",
+   "Màn hình",
+   "Loa"
+  ],
+  "why": "CPU thực hiện các lệnh xử lý."
+ },
+ {
+  "id": "2-1",
+  "lesson": 2,
+  "title": "Thu âm bài thuyết trình",
+  "q": "Muốn đưa giọng nói vào bản trình chiếu, em cần thiết bị nào?",
+  "choices": [
+   "Micrô",
+   "Loa",
+   "Máy chiếu"
+  ],
+  "why": "Âm thanh đi từ người nói vào máy qua micrô.",
+  "image": "/ic3-scenes/case-2.png",
+  "alt": "Bản ghi âm. Đầu vào: chưa chọn thiết bị. Thời lượng: 00:00"
+ },
+ {
+  "id": "2-2",
+  "lesson": 2,
+  "title": "Chiếu phim có tiếng",
+  "q": "Phòng học có TV hỗ trợ HDMI. Cáp nào truyền được cả hình và tiếng từ laptop?",
+  "choices": [
+   "HDMI",
+   "VGA",
+   "Cáp âm thanh 3,5 mm"
+  ],
+  "why": "HDMI mang cả tín hiệu hình ảnh và âm thanh."
+ },
+ {
+  "id": "2-3",
+  "lesson": 2,
+  "title": "Chạm để chọn",
+  "q": "Thiết bị nào vừa hiển thị bản đồ vừa nhận vị trí em chạm?",
+  "choices": [
+   "Màn hình cảm ứng",
+   "Máy chiếu",
+   "Bàn rê"
+  ],
+  "why": "Màn hình xuất hình ảnh và cảm biến nhận thao tác."
+ },
+ {
+  "id": "3-1",
+  "lesson": 3,
+  "title": "Chọn máy cho chuyến đi",
+  "q": "Em cần bàn phím vật lý tích hợp và pin để gõ bài trên tàu. Chọn thiết bị nào?",
+  "choices": [
+   "Laptop",
+   "Máy bàn dạng tháp",
+   "Màn hình rời"
+  ],
+  "why": "Laptop có pin và bàn phím trong cùng thiết bị.",
+  "image": "/ic3-scenes/case-3.png",
+  "alt": "Danh sách mua sắm. Có pin • gõ bằng phím vật lý. Mang theo khi đi học"
+ },
+ {
+  "id": "3-2",
+  "lesson": 3,
+  "title": "Bàn làm việc nhỏ",
+  "q": "Máy đặt cố định có linh kiện xử lý tích hợp sau màn hình. Đây là kiểu nào?",
+  "choices": [
+   "All-in-one",
+   "Máy chủ dạng tủ",
+   "Máy đọc sách"
+  ],
+  "why": "Kiểu all-in-one gộp màn hình và phần thân máy."
+ },
+ {
+  "id": "3-3",
+  "lesson": 3,
+  "title": "Vẽ bằng bút trên đường đi",
+  "q": "Em muốn vẽ trực tiếp lên một màn hình cảm ứng cầm tay cỡ quyển vở. Loại máy nào phù hợp nhất?",
+  "choices": [
+   "Máy tính bảng có hỗ trợ bút",
+   "Máy bàn dạng tháp",
+   "Máy bàn dùng màn hình thường"
+  ],
+  "why": "Máy tính bảng có thể nhận nét vẽ ngay trên màn hình khi hỗ trợ bút."
+ },
+ {
+  "id": "4-1",
+  "lesson": 4,
+  "title": "Viết báo cáo nhóm",
+  "q": "Để định dạng đoạn văn và tạo mục lục báo cáo, em mở ứng dụng nào?",
+  "choices": [
+   "Trình soạn thảo văn bản",
+   "Trình phát nhạc",
+   "Trình quản lý thiết bị"
+  ],
+  "why": "Trình soạn thảo hỗ trợ cấu trúc và định dạng văn bản.",
+  "image": "/ic3-scenes/case-4.png",
+  "alt": "Báo cáo khoa học. Chương 1   Nguồn nước. Mục lục cần cập nhật"
+ },
+ {
+  "id": "4-2",
+  "lesson": 4,
+  "title": "Cùng sửa một tài liệu",
+  "q": "Cả nhóm phải nhìn thấy thay đổi của nhau ngay khi gõ. Cách nào phù hợp?",
+  "choices": [
+   "Dùng tài liệu trực tuyến có quyền chỉnh sửa",
+   "Gửi ảnh chụp màn hình",
+   "Mỗi bạn in một bản"
+  ],
+  "why": "Tài liệu dùng chung cho phép cộng tác trên cùng nội dung."
+ },
+ {
+  "id": "4-3",
+  "lesson": 4,
+  "title": "Tính tổng tự động",
+  "q": "Danh sách vật tư thay đổi mỗi tuần. Nên dùng gì để tổng tiền tự tính lại?",
+  "choices": [
+   "Bảng tính có công thức",
+   "Ảnh chụp hóa đơn",
+   "Trình chiếu tĩnh"
+  ],
+  "why": "Công thức bảng tính cập nhật khi dữ liệu đầu vào đổi."
+ },
+ {
+  "id": "5-1",
+  "lesson": 5,
+  "title": "Ai quản lý máy in?",
+  "q": "Ứng dụng gửi việc in qua thành phần nào để dùng phần cứng?",
+  "choices": [
+   "Hệ điều hành và trình điều khiển",
+   "Hình nền",
+   "Dấu trang"
+  ],
+  "why": "Hệ điều hành phối hợp với trình điều khiển để giao tiếp với máy in.",
+  "image": "/ic3-scenes/case-5.png",
+  "alt": "Hàng đợi in. Báo cáo lớp 6A.pdf. Đang chờ thiết bị"
+ },
+ {
+  "id": "5-2",
+  "lesson": 5,
+  "title": "Chọn bản cài",
+  "q": "Ứng dụng chỉ hỗ trợ macOS. Trước khi cài lên laptop cần kiểm tra gì?",
+  "choices": [
+   "Hệ điều hành của laptop",
+   "Màu bàn phím",
+   "Số trang tài liệu"
+  ],
+  "why": "Ứng dụng cần tương thích với hệ điều hành."
+ },
+ {
+  "id": "5-3",
+  "lesson": 5,
+  "title": "Chuyển giữa các cửa sổ",
+  "q": "Trên Windows, tổ hợp nào giúp chuyển nhanh giữa các ứng dụng đang mở?",
+  "choices": [
+   "Alt + Tab",
+   "Ctrl + P",
+   "Ctrl + S"
+  ],
+  "why": "Alt + Tab chuyển cửa sổ đang hoạt động."
+ },
+ {
+  "id": "6-1",
+  "lesson": 6,
+  "title": "Rời chỗ vài phút",
+  "q": "Em vẫn muốn giữ ứng dụng mở trên máy Windows dùng chung. Nên làm gì trước khi rời bàn?",
+  "choices": [
+   "Khóa máy bằng Windows + L",
+   "Chỉ tắt màn hình",
+   "Đổi hình nền"
+  ],
+  "why": "Khóa phiên yêu cầu xác thực khi quay lại.",
+  "image": "/ic3-scenes/case-6.png",
+  "alt": "Phòng máy số 2. Tài khoản đang mở: Minh. Bạn cần rời bàn trong 5 phút"
+ },
+ {
+  "id": "6-2",
+  "lesson": 6,
+  "title": "Tài khoản phòng máy",
+  "q": "Để một học sinh làm bài thông thường, nên cấp loại tài khoản nào?",
+  "choices": [
+   "Người dùng tiêu chuẩn",
+   "Quản trị viên toàn hệ thống",
+   "Tài khoản dùng chung của giáo viên"
+  ],
+  "why": "Quyền tiêu chuẩn đủ để học và hạn chế thay đổi hệ thống."
+ },
+ {
+  "id": "6-3",
+  "lesson": 6,
+  "title": "Bàn giao máy",
+  "q": "Hết tiết, bạn khác cần dùng máy bằng tài khoản riêng. Em chọn gì?",
+  "choices": [
+   "Đăng xuất",
+   "Ẩn cửa sổ",
+   "Tắt loa"
+  ],
+  "why": "Đăng xuất kết thúc phiên hiện tại."
+ },
+ {
+  "id": "7-1",
+  "lesson": 7,
+  "title": "Tìm bài giữa nhiều phiên bản",
+  "q": "Tên tệp nào dễ nhận ra lớp, nội dung và phiên bản nhất?",
+  "choices": [
+   "6A_BaoCaoNuoc_v02.docx",
+   "moi.docx",
+   "cuoicungthat.docx"
+  ],
+  "why": "Tên có quy ước giúp nhận diện và sắp xếp.",
+  "image": "/ic3-scenes/case-7.png",
+  "alt": "Dự án nhóm. BaoCao_v01.docx. Ba bản khác nhau cùng tên “mới”"
+ },
+ {
+  "id": "7-2",
+  "lesson": 7,
+  "title": "Ổ cứng hỏng",
+  "q": "Bản sao nào còn dùng được nếu ổ trong laptop hỏng hoàn toàn?",
+  "choices": [
+   "Bản sao trên ổ ngoài đã tháo",
+   "Bản trong thư mục khác cùng ổ",
+   "Lối tắt trên Desktop"
+  ],
+  "why": "Bản sao độc lập vẫn còn khi thiết bị gốc hỏng."
+ },
+ {
+  "id": "7-3",
+  "lesson": 7,
+  "title": "Lỡ xóa một đoạn",
+  "q": "Tài liệu đám mây đã tự lưu sau khi em xóa nhầm. Nên kiểm tra gì?",
+  "choices": [
+   "Lịch sử phiên bản",
+   "Tên máy tính",
+   "Độ phân giải màn hình"
+  ],
+  "why": "Lịch sử phiên bản có thể khôi phục nội dung trước chỉnh sửa."
+ },
+ {
+  "id": "8-1",
+  "lesson": 8,
+  "title": "Ôn tập giảm tải · Phòng máy",
+  "q": "Em cần số hóa một trang giấy để lưu trên máy. Chọn thiết bị nào?",
+  "choices": [
+   "Máy quét",
+   "Loa",
+   "Máy chiếu"
+  ],
+  "why": "Máy quét biến nội dung giấy thành dữ liệu số.",
+  "image": "/ic3-scenes/case-8.png",
+  "alt": "Phiếu khảo sát. Tài liệu gốc: 1 tờ giấy. Yêu cầu: nộp bản điện tử"
+ },
+ {
+  "id": "8-2",
+  "lesson": 8,
+  "title": "Ôn tập giảm tải · Dữ liệu",
+  "q": "Nhận tệp dự án, em muốn thử sửa mà giữ bản ban đầu. Làm gì trước?",
+  "choices": [
+   "Tạo một bản sao có tên mới",
+   "Đổi hình nền",
+   "Xóa bản ban đầu"
+  ],
+  "why": "Bản sao cho phép thử thay đổi mà vẫn giữ bản gốc."
+ },
+ {
+  "id": "8-3",
+  "lesson": 8,
+  "title": "Ôn tập giảm tải · Ứng dụng",
+  "q": "Muốn trình chiếu lần lượt từng trang trước lớp, em dùng loại ứng dụng nào?",
+  "choices": [
+   "Trình tạo bài trình chiếu",
+   "Trình nén tệp",
+   "Trình phát âm thanh"
+  ],
+  "why": "Trình chiếu tổ chức nội dung thành các slide."
+ },
+ {
+  "id": "9-1",
+  "lesson": 9,
+  "title": "Tai nghe trong phòng máy",
+  "q": "Kết nối tai nghe gần laptop mà không cần Internet. Công nghệ nào phù hợp?",
+  "choices": [
+   "Bluetooth",
+   "GPS",
+   "HDMI"
+  ],
+  "why": "Bluetooth kết nối thiết bị ở khoảng cách ngắn.",
+  "image": "/ic3-scenes/case-9.png",
+  "alt": "Thiết bị ở gần. Tai nghe không dây. Khoảng cách: 1 mét"
+ },
+ {
+  "id": "9-2",
+  "lesson": 9,
+  "title": "Vạch sóng yếu",
+  "q": "Máy có Wi-Fi yếu sau hai bức tường. Thử thay đổi nào trước?",
+  "choices": [
+   "Di chuyển gần điểm truy cập",
+   "Tăng âm lượng",
+   "Giảm độ sáng"
+  ],
+  "why": "Khoảng cách và vật cản ảnh hưởng tín hiệu vô tuyến."
+ },
+ {
+  "id": "9-3",
+  "lesson": 9,
+  "title": "Chọn mạng ở thư viện",
+  "q": "Hai mạng có tên gần giống nhau. Trước khi đăng nhập, em nên làm gì?",
+  "choices": [
+   "Hỏi nhân viên tên mạng chính thức",
+   "Chọn mạng có chữ FREE",
+   "Gửi mật khẩu cho người lạ"
+  ],
+  "why": "Xác minh tên mạng giúp tránh kết nối nhầm."
+ },
+ {
+  "id": "10-1",
+  "lesson": 10,
+  "title": "Ôn tập giảm tải · Kết nối",
+  "q": "Laptop đang bật chế độ máy bay và Wi-Fi bị tắt. Để vào mạng lớp, em kiểm tra gì đầu tiên?",
+  "choices": [
+   "Bật lại Wi-Fi và chọn đúng mạng",
+   "Thay máy in",
+   "Xóa bài đã lưu"
+  ],
+  "why": "Cần kết nối vô tuyến tới mạng trước khi truy cập.",
+  "image": "/ic3-scenes/case-10.png",
+  "alt": "Kết nối trên laptop. Chế độ máy bay: bật. Wi-Fi: tắt"
+ },
+ {
+  "id": "10-2",
+  "lesson": 10,
+  "title": "Ôn tập giảm tải · Trình chiếu",
+  "q": "TV báo không có tín hiệu dù laptop đang chạy. Kiểm tra gì trước?",
+  "choices": [
+   "Cáp và nguồn vào HDMI trên TV",
+   "Mực máy in",
+   "Dung lượng thư rác"
+  ],
+  "why": "Nguồn vào cần trùng cổng đã cắm cáp."
+ },
+ {
+  "id": "10-3",
+  "lesson": 10,
+  "title": "Ôn tập giảm tải · Sao lưu",
+  "q": "Trước khi chỉnh sửa video nhóm có dung lượng lớn, nên làm gì?",
+  "choices": [
+   "Giữ bản nguồn ở nơi sao lưu riêng",
+   "Chỉ đổi tên lối tắt",
+   "Xóa toàn bộ cảnh quay"
+  ],
+  "why": "Bản nguồn giúp dựng lại nếu bản chỉnh sửa bị hỏng."
+ },
+ {
+  "id": "11-1",
+  "lesson": 11,
+  "title": "Giữ lại trang học",
+  "q": "Muốn mở lại đúng trang tài liệu tuần sau, em dùng chức năng nào?",
+  "choices": [
+   "Thêm dấu trang",
+   "Tải lại trang",
+   "Đóng tab"
+  ],
+  "why": "Dấu trang lưu địa chỉ trang để truy cập sau.",
+  "image": "/ic3-scenes/case-11.png",
+  "alt": "Tài liệu tuần sau. Bài đọc • Chu trình nước. Địa chỉ trang dài 86 ký tự"
+ },
+ {
+  "id": "11-2",
+  "lesson": 11,
+  "title": "Vừa rời trang tài liệu",
+  "q": "Em vừa bấm một liên kết. Nút nào đưa tab về trang trước?",
+  "choices": [
+   "Quay lại",
+   "Trang chủ",
+   "Tải xuống"
+  ],
+  "why": "Nút quay lại đi một bước trong lịch sử tab."
+ },
+ {
+  "id": "11-3",
+  "lesson": 11,
+  "title": "Sửa dấu trang cũ",
+  "q": "Trang lớp đổi địa chỉ. Em cần cập nhật gì trong dấu trang?",
+  "choices": [
+   "URL đã lưu",
+   "Kích thước cửa sổ",
+   "Cỡ chữ trình duyệt"
+  ],
+  "why": "URL xác định đích đến của dấu trang."
+ },
+ {
+  "id": "12-1",
+  "lesson": 12,
+  "title": "Tìm đúng cụm từ",
+  "q": "Muốn tìm chính xác cụm “vòng tuần hoàn nước”, em đặt cụm từ trong gì?",
+  "choices": [
+   "Dấu ngoặc kép",
+   "Dấu ngoặc vuông",
+   "Hai dấu cộng"
+  ],
+  "why": "Ngoặc kép yêu cầu khớp cụm từ trong nhiều công cụ tìm kiếm.",
+  "image": "/ic3-scenes/case-12.png",
+  "alt": "Tìm kiếm. vòng tuần hoàn nước. Mục tiêu: đúng cụm từ"
+ },
+ {
+  "id": "12-2",
+  "lesson": 12,
+  "title": "Kết quả quá rộng",
+  "q": "Tìm “rùa” cho ra cả truyện tranh. Em muốn tài liệu về môi trường sống. Chọn truy vấn nào?",
+  "choices": [
+   "môi trường sống rùa biển Việt Nam",
+   "rùa đẹp",
+   "động vật"
+  ],
+  "why": "Từ khóa cụ thể thu hẹp phạm vi theo đối tượng và chủ đề."
+ },
+ {
+  "id": "12-3",
+  "lesson": 12,
+  "title": "So sánh hai kết quả",
+  "q": "Để chọn nguồn cho bài khoa học, dấu hiệu nào đáng kiểm tra nhất?",
+  "choices": [
+   "Tác giả, bằng chứng và ngày cập nhật",
+   "Trang có nhiều hiệu ứng",
+   "Tiêu đề viết hoa"
+  ],
+  "why": "Những chi tiết này giúp đánh giá độ tin cậy và tính cập nhật."
+ },
+ {
+  "id": "13-1",
+  "lesson": 13,
+  "title": "Ảnh có ký hiệu BY",
+  "q": "Dùng ảnh CC BY trong bài thuyết trình. Em cần làm gì?",
+  "choices": [
+   "Ghi công tác giả và dẫn giấy phép",
+   "Ghi tên mình làm tác giả",
+   "Xóa mọi thông tin nguồn"
+  ],
+  "why": "Điều kiện BY yêu cầu ghi công phù hợp.",
+  "image": "/ic3-scenes/case-13.png",
+  "alt": "Giấy phép hình ảnh. Creative Commons • BY. Tác giả: Câu lạc bộ Ảnh"
+ },
+ {
+  "id": "13-2",
+  "lesson": 13,
+  "title": "Poster có bán vé",
+  "q": "Ảnh mang điều kiện NC. Trước khi dùng cho quảng cáo thương mại cần làm gì?",
+  "choices": [
+   "Xin quyền phù hợp hoặc chọn ảnh khác",
+   "Chỉ cần đổi màu ảnh",
+   "Chụp màn hình là đủ"
+  ],
+  "why": "NC giới hạn sử dụng cho mục đích phi thương mại."
+ },
+ {
+  "id": "13-3",
+  "lesson": 13,
+  "title": "Đăng bản đã chỉnh sửa",
+  "q": "Ảnh mang điều kiện ND. Muốn phát hành bản ghép từ ảnh đó cần làm gì?",
+  "choices": [
+   "Xin phép hoặc dùng nguồn cho phép chỉnh sửa",
+   "Chỉ đổi phần mở rộng",
+   "Tự gắn giấy phép mới"
+  ],
+  "why": "ND giới hạn chia sẻ bản chuyển thể."
+ },
+ {
+  "id": "14-1",
+  "lesson": 14,
+  "title": "Ảnh thẻ học sinh",
+  "q": "Trước khi đăng ảnh thẻ, chi tiết nào dễ làm lộ danh tính?",
+  "choices": [
+   "Họ tên kèm mã học sinh",
+   "Màu nền trống",
+   "Một đường kẻ trang trí"
+  ],
+  "why": "Các thông tin liên kết trực tiếp với một người.",
+  "image": "/ic3-scenes/case-14.png",
+  "alt": "Thẻ học sinh. Họ tên: [minh họa]. Mã học sinh: [minh họa]"
+ },
+ {
+  "id": "14-2",
+  "lesson": 14,
+  "title": "Tên hiển thị công khai",
+  "q": "Biệt danh nào tiết lộ ít thông tin cá nhân nhất?",
+  "choices": [
+   "MayXanh",
+   "HoTen_NgaySinh_DiaChi",
+   "SoDienThoaiCuaEm"
+  ],
+  "why": "Biệt danh không chứa dữ liệu định danh giảm mức tiết lộ."
+ },
+ {
+  "id": "14-3",
+  "lesson": 14,
+  "title": "Dấu vết lâu dài",
+  "q": "Em gỡ một bài đăng nhưng bạn vẫn còn bản chụp. Điều này cho thấy gì?",
+  "choices": [
+   "Nội dung số có thể đã được sao chép",
+   "Gỡ bài xóa hết mọi bản",
+   "Ảnh chỉ tồn tại một phút"
+  ],
+  "why": "Người khác có thể lưu bản sao trước khi bài được gỡ."
+ },
+ {
+  "id": "15-1",
+  "lesson": 15,
+  "title": "Bình luận gây tổn thương",
+  "q": "Bạn bị chế giễu trong nhóm lớp. Em nên làm gì?",
+  "choices": [
+   "Hỗ trợ bạn và báo người có trách nhiệm",
+   "Chia sẻ cho nhiều người xem",
+   "Thêm bình luận chế giễu"
+  ],
+  "why": "Hỗ trợ và báo cáo giúp hạn chế tổn hại.",
+  "image": "/ic3-scenes/case-15.png",
+  "alt": "Nhóm lớp 6A. Một bình luận chế giễu bạn. Bài đăng đang được chia sẻ"
+ },
+ {
+  "id": "15-2",
+  "lesson": 15,
+  "title": "Ảnh của bạn cùng lớp",
+  "q": "Muốn đăng ảnh cận mặt bạn lên nhóm công khai, em nên làm gì?",
+  "choices": [
+   "Hỏi ý kiến bạn trước",
+   "Đăng rồi mới hỏi",
+   "Gắn tên tất cả mọi người"
+  ],
+  "why": "Cần tôn trọng quyền riêng tư và lựa chọn của người trong ảnh."
+ },
+ {
+  "id": "15-3",
+  "lesson": 15,
+  "title": "Tranh luận bài tập",
+  "q": "Hai nhóm bất đồng về kết quả. Phản hồi nào phù hợp?",
+  "choices": [
+   "Đưa ví dụ và hỏi về cách tính",
+   "Chê năng lực của bạn",
+   "Viết hoa để gây áp lực"
+  ],
+  "why": "Trao đổi về bằng chứng giúp giải quyết bất đồng."
+ },
+ {
+  "id": "16-1",
+  "lesson": 16,
+  "title": "Nhật ký dự án",
+  "q": "Lớp muốn đăng từng bài dài theo tuần, có ngày và bình luận. Chọn hình thức nào?",
+  "choices": [
+   "Blog",
+   "Máy tính bỏ túi",
+   "Ứng dụng báo thức"
+  ],
+  "why": "Blog tổ chức bài viết theo thời gian.",
+  "image": "/ic3-scenes/case-16.png",
+  "alt": "Nhật ký vườn trường. Tuần 1   Gieo hạt. Tuần 2   Theo dõi cây con"
+ },
+ {
+  "id": "16-2",
+  "lesson": 16,
+  "title": "Tra cứu trao đổi cũ",
+  "q": "Muốn thảo luận theo chủ đề và tìm lại từng luồng hỏi đáp. Nên chọn gì?",
+  "choices": [
+   "Diễn đàn",
+   "Cuộc gọi thoại tức thời",
+   "Đồng hồ đếm giờ"
+  ],
+  "why": "Diễn đàn lưu trao đổi theo luồng chủ đề."
+ },
+ {
+  "id": "16-3",
+  "lesson": 16,
+  "title": "Xem bài của câu lạc bộ",
+  "q": "Muốn nhận bài mới từ trang câu lạc bộ trong bảng tin. Em dùng chức năng nào?",
+  "choices": [
+   "Theo dõi trang",
+   "Chặn trang",
+   "Tắt thông báo toàn bộ"
+  ],
+  "why": "Theo dõi tạo liên kết với cập nhật của trang."
+ },
+ {
+  "id": "17-1",
+  "lesson": 17,
+  "title": "Nội quy phòng máy",
+  "q": "Trước khi đăng nội dung lên diễn đàn của trường, nên đọc gì?",
+  "choices": [
+   "Chính sách sử dụng chấp nhận được",
+   "Giá máy chiếu",
+   "Lịch bảo trì bàn ghế"
+  ],
+  "why": "Chính sách nêu các hành vi được phép và trách nhiệm.",
+  "image": "/ic3-scenes/case-17.png",
+  "alt": "Diễn đàn nhà trường. Nội quy thành viên. Quyền và trách nhiệm khi đăng bài"
+ },
+ {
+  "id": "17-2",
+  "lesson": 17,
+  "title": "Ảnh vượt nội quy",
+  "q": "Gặp bài đăng vi phạm quy định nhóm. Em dùng cách nào?",
+  "choices": [
+   "Báo quản trị viên kèm vị trí bài",
+   "Đăng lại để phản đối",
+   "Chia sẻ sang nhóm khác"
+  ],
+  "why": "Báo cáo giúp người quản trị xử lý tại nguồn."
+ },
+ {
+  "id": "17-3",
+  "lesson": 17,
+  "title": "Quyền riêng tư của nhóm",
+  "q": "Tài liệu chỉ dành cho thành viên lớp. Trước khi chia sẻ ra ngoài cần làm gì?",
+  "choices": [
+   "Kiểm tra quyền chia sẻ và xin phép",
+   "Tạo liên kết công khai ngay",
+   "Bỏ tên lớp là đủ"
+  ],
+  "why": "Phạm vi chia sẻ cần phù hợp chính sách và quyền của chủ sở hữu."
+ },
+ {
+  "id": "18-1",
+  "lesson": 18,
+  "title": "Nhắn giáo viên",
+  "q": "Cần xin hướng dẫn bài tập. Tiêu đề email nào rõ nhất?",
+  "choices": [
+   "Lớp 6A xin hướng dẫn bài tập số 3",
+   "Gấp!!!",
+   "Chào"
+  ],
+  "why": "Tiêu đề nêu lớp và mục đích giúp người nhận xử lý.",
+  "image": "/ic3-scenes/case-18.png",
+  "alt": "Thư mới. Đến: Giáo viên Tin học. Chủ đề: [chưa nhập]"
+ },
+ {
+  "id": "18-2",
+  "lesson": 18,
+  "title": "Họp trực tuyến",
+  "q": "Khi chưa đến lượt phát biểu trong phòng ồn, em nên làm gì?",
+  "choices": [
+   "Tắt mic và bật lại khi nói",
+   "Mở loa to hơn",
+   "Liên tục ngắt lời"
+  ],
+  "why": "Tắt mic giảm tiếng nền cho cả lớp."
+ },
+ {
+  "id": "18-3",
+  "lesson": 18,
+  "title": "Gửi thư cả nhóm",
+  "q": "Em cần gửi cho nhiều phụ huynh mà giữ riêng địa chỉ email của họ. Chọn trường nào?",
+  "choices": [
+   "Bcc",
+   "Cc",
+   "Tiêu đề"
+  ],
+  "why": "Bcc ẩn danh sách người nhận trong trường này với những người nhận khác."
+ },
+ {
+  "id": "19-1",
+  "lesson": 19,
+  "title": "Máy công cộng",
+  "q": "Trình duyệt hỏi lưu mật khẩu trên máy thư viện. Em chọn gì?",
+  "choices": [
+   "Từ chối lưu và đăng xuất sau khi dùng",
+   "Lưu để lần sau tiện hơn",
+   "Ghi mật khẩu vào tên tệp"
+  ],
+  "why": "Máy dùng chung có thể bị người khác truy cập.",
+  "image": "/ic3-scenes/case-19.png",
+  "alt": "Máy tính thư viện. Lưu mật khẩu cho trang này?. Máy được dùng chung"
+ },
+ {
+  "id": "19-2",
+  "lesson": 19,
+  "title": "Mật khẩu bị lộ",
+  "q": "Một dịch vụ báo mật khẩu đã lộ. Tài khoản khác dùng lại mật khẩu đó cần làm gì?",
+  "choices": [
+   "Đổi sang mật khẩu riêng cho từng nơi",
+   "Chỉ đổi ảnh đại diện",
+   "Giữ nguyên vì khác trang"
+  ],
+  "why": "Dùng lại mật khẩu làm nhiều tài khoản cùng bị ảnh hưởng."
+ },
+ {
+  "id": "19-3",
+  "lesson": 19,
+  "title": "Mã xác thực bất ngờ",
+  "q": "Người tự xưng hỗ trợ xin mã xác thực vừa gửi đến điện thoại. Em làm gì?",
+  "choices": [
+   "Giữ riêng mã và xác minh qua kênh chính thức",
+   "Đọc mã ngay",
+   "Đăng mã vào nhóm"
+  ],
+  "why": "Mã xác thực có thể cấp quyền truy cập tài khoản."
+ },
+ {
+  "id": "20-1",
+  "lesson": 20,
+  "title": "Thư báo trúng quà",
+  "q": "Email lạ thúc em mở tệp để nhận quà. Nên làm gì?",
+  "choices": [
+   "Giữ tệp đóng và báo giáo viên",
+   "Mở ngay khi còn hạn",
+   "Chuyển cho cả lớp thử"
+  ],
+  "why": "Áp lực thời gian và tệp bất ngờ là dấu hiệu đáng ngờ.",
+  "image": "/ic3-scenes/case-20.png",
+  "alt": "Hộp thư đến. “Nhận quà trong 5 phút!”. Tệp đính kèm từ người lạ"
+ },
+ {
+  "id": "20-2",
+  "lesson": 20,
+  "title": "Cửa sổ báo máy bị nhiễm",
+  "q": "Trang web yêu cầu cài công cụ lạ để quét máy. Em nên làm gì?",
+  "choices": [
+   "Đóng trang và nhờ người phụ trách kiểm tra",
+   "Cài ngay",
+   "Gửi thông tin tài khoản"
+  ],
+  "why": "Nên dùng công cụ bảo vệ đáng tin cậy của thiết bị."
+ },
+ {
+  "id": "20-3",
+  "lesson": 20,
+  "title": "Phần mềm không rõ nguồn",
+  "q": "Bạn gửi bản cài ứng dụng từ một trang lạ. Nơi nào phù hợp để lấy bản cài?",
+  "choices": [
+   "Trang chính thức hoặc kho ứng dụng tin cậy",
+   "Liên kết rút gọn bất kỳ",
+   "Bình luận ẩn danh"
+  ],
+  "why": "Nguồn phân phối đáng tin cậy giảm nguy cơ nhận tệp giả."
+ },
+ {
+  "id": "21-1",
+  "lesson": 21,
+  "title": "Sẵn sàng khôi phục",
+  "q": "Làm sao biết bản sao lưu bài nhóm thật sự dùng được?",
+  "choices": [
+   "Thử khôi phục vào thư mục riêng rồi mở tệp",
+   "Chỉ xem tên thư mục",
+   "Chỉ đổi biểu tượng"
+  ],
+  "why": "Thử khôi phục kiểm tra khả năng sử dụng bản sao.",
+  "image": "/ic3-scenes/case-21.png",
+  "alt": "Bản sao lưu. Lần sao lưu gần nhất: hôm qua. Trạng thái khôi phục: chưa thử"
+ },
+ {
+  "id": "21-2",
+  "lesson": 21,
+  "title": "Thông báo cập nhật",
+  "q": "Máy trường báo có bản vá qua công cụ chính thức. Em nên làm gì?",
+  "choices": [
+   "Báo người quản lý để lên lịch cập nhật",
+   "Tải bản vá từ bình luận lạ",
+   "Tắt mọi cập nhật"
+  ],
+  "why": "Bản vá chính thức giúp khắc phục các vấn đề đã biết."
+ },
+ {
+  "id": "21-3",
+  "lesson": 21,
+  "title": "Ứng dụng đòi quyền",
+  "q": "Ứng dụng đèn pin yêu cầu đọc toàn bộ danh bạ. Em nên làm gì?",
+  "choices": [
+   "Từ chối quyền không cần thiết",
+   "Cho phép tất cả",
+   "Đăng danh bạ lên mạng"
+  ],
+  "why": "Chỉ cấp quyền phù hợp với chức năng ứng dụng."
+ },
+ {
+  "id": "22-1",
+  "lesson": 22,
+  "title": "Giỏ hàng vẫn còn",
+  "q": "Một website nhớ sản phẩm sau khi em chuyển trang. Cơ chế nào có thể giúp nhận diện phiên?",
+  "choices": [
+   "Cookie phiên",
+   "Cáp VGA",
+   "Độ sáng màn hình"
+  ],
+  "why": "Cookie có thể chứa mã nhận diện để website nối các yêu cầu của cùng một phiên.",
+  "image": "/ic3-scenes/case-22.png",
+  "alt": "Giỏ hàng. Đã thêm 1 quyển vở. Giỏ hàng vẫn còn ở trang tiếp theo"
+ },
+ {
+  "id": "22-2",
+  "lesson": 22,
+  "title": "Ảnh kèm địa điểm",
+  "q": "Hình chụp trên điện thoại có thể tiết lộ vị trí qua đâu?",
+  "choices": [
+   "Siêu dữ liệu vị trí trong tệp",
+   "Màu khung ảnh",
+   "Tên hãng máy chiếu"
+  ],
+  "why": "Một số ảnh lưu tọa độ khi chức năng gắn vị trí được bật."
+ },
+ {
+  "id": "22-3",
+  "lesson": 22,
+  "title": "Đồng ý thu thập dữ liệu",
+  "q": "Trang cho chọn cookie phân tích tùy chọn. Nếu muốn giảm theo dõi, em chọn gì?",
+  "choices": [
+   "Từ chối cookie tùy chọn và lưu lựa chọn",
+   "Đồng ý tất cả",
+   "Đăng công khai lịch sử duyệt"
+  ],
+  "why": "Tùy chọn quyền riêng tư giúp giới hạn một số hình thức thu thập."
+ },
+ {
+  "lesson": 1,
+  "id": "1-4",
+  "title": "Vận dụng",
+  "q": "Muốn chạy thêm ứng dụng mà vẫn giữ tài liệu khi tắt máy, cặp nào lần lượt phục vụ hai nhu cầu?",
+  "choices": [
+   "RAM và SSD",
+   "CPU và loa",
+   "SSD và RAM"
+  ],
+  "why": "Cách xử lý phù hợp trong tình huống này là RAM và SSD."
+ },
+ {
+  "lesson": 2,
+  "id": "2-4",
+  "title": "Vận dụng",
+  "q": "Cần đưa cả hình lẫn tiếng của em vào cuộc họp. Với webcam không có mic, còn thiếu gì?",
+  "choices": [
+   "Micrô",
+   "Máy chiếu",
+   "Máy in"
+  ],
+  "why": "Cách xử lý phù hợp trong tình huống này là Micrô."
+ },
+ {
+  "lesson": 3,
+  "id": "3-4",
+  "title": "Vận dụng",
+  "q": "Một bạn nói máy All-in-one nào cũng có pin mang đi học. Em kiểm tra gì trước khi tin?",
+  "choices": [
+   "Thông số nguồn điện và pin của mẫu máy",
+   "Số lượng cổng USB",
+   "Độ lớn phông chữ"
+  ],
+  "why": "Cách xử lý phù hợp trong tình huống này là Thông số nguồn điện và pin của mẫu máy."
+ },
+ {
+  "lesson": 4,
+  "id": "4-4",
+  "title": "Vận dụng",
+  "q": "Bạn gửi một ảnh bảng điểm. Muốn tự tính trung bình khi sửa số, em cần bản nào?",
+  "choices": [
+   "Tệp bảng tính chứa dữ liệu trong các ô",
+   "Ảnh JPEG rõ hơn",
+   "Ảnh chụp màn hình mới"
+  ],
+  "why": "Cách xử lý phù hợp trong tình huống này là Tệp bảng tính chứa dữ liệu trong các ô."
+ },
+ {
+  "lesson": 5,
+  "id": "5-4",
+  "title": "Vận dụng",
+  "q": "Để kiểm tra ứng dụng nào đang dùng nhiều bộ nhớ trên Windows, em mở gì?",
+  "choices": [
+   "Task Manager",
+   "Paint",
+   "Character Map"
+  ],
+  "why": "Cách xử lý phù hợp trong tình huống này là Task Manager."
+ },
+ {
+  "lesson": 6,
+  "id": "6-4",
+  "title": "Vận dụng",
+  "q": "Giáo viên đang thuyết trình trên màn hình chung. Vì sao cần đóng phiên email cá nhân trước?",
+  "choices": [
+   "Để bảo vệ thư riêng tư",
+   "Để tăng số trang slide",
+   "Để đổi loại cổng kết nối"
+  ],
+  "why": "Cách xử lý phù hợp trong tình huống này là Để bảo vệ thư riêng tư."
+ },
+ {
+  "lesson": 7,
+  "id": "7-4",
+  "title": "Vận dụng",
+  "q": "Em muốn di chuyển tệp từ thư mục nháp sang thư mục nộp bằng bàn phím Windows. Dùng gì?",
+  "choices": [
+   "Ctrl + X rồi Ctrl + V",
+   "Ctrl + C rồi Ctrl + P",
+   "Ctrl + A rồi Ctrl + Z"
+  ],
+  "why": "Cách xử lý phù hợp trong tình huống này là Ctrl + X rồi Ctrl + V."
+ },
+ {
+  "lesson": 8,
+  "id": "8-4",
+  "title": "Vận dụng",
+  "q": "Phòng máy mất điện sau khi gõ một đoạn chưa lưu. Bộ phận nào mất dữ liệu tạm khi ngắt điện?",
+  "choices": [
+   "RAM",
+   "Ổ cứng ngoài đã tháo",
+   "Đĩa quang"
+  ],
+  "why": "Cách xử lý phù hợp trong tình huống này là RAM."
+ },
+ {
+  "lesson": 9,
+  "id": "9-4",
+  "title": "Vận dụng",
+  "q": "Laptop kết nối Wi-Fi nhưng tất cả máy trong lớp đều không vào Internet. Nên kiểm tra tiếp gì?",
+  "choices": [
+   "Đường truyền từ mạng lớp ra Internet",
+   "Bàn phím từng máy",
+   "Độ phân giải màn hình"
+  ],
+  "why": "Cách xử lý phù hợp trong tình huống này là Đường truyền từ mạng lớp ra Internet."
+ },
+ {
+  "lesson": 10,
+  "id": "10-4",
+  "title": "Vận dụng",
+  "q": "Đã kết nối tai nghe Bluetooth nhưng tiếng vẫn ra loa laptop. Kiểm tra gì?",
+  "choices": [
+   "Thiết bị đầu ra âm thanh đang chọn",
+   "Địa chỉ trang chủ",
+   "Thư mục tải xuống"
+  ],
+  "why": "Cách xử lý phù hợp trong tình huống này là Thiết bị đầu ra âm thanh đang chọn."
+ },
+ {
+  "lesson": 11,
+  "id": "11-4",
+  "title": "Vận dụng",
+  "q": "Trang web vừa cập nhật mà em vẫn thấy lịch cũ. Nút nào yêu cầu trình duyệt tải lại trang hiện tại?",
+  "choices": [
+   "Refresh",
+   "Back",
+   "Home"
+  ],
+  "why": "Cách xử lý phù hợp trong tình huống này là Refresh."
+ },
+ {
+  "lesson": 12,
+  "id": "12-4",
+  "title": "Vận dụng",
+  "q": "Kết quả tìm kiếm dẫn đến bài viết từ mười năm trước. Với số liệu dân số, nên làm gì?",
+  "choices": [
+   "Tìm số liệu mới hơn từ nguồn đáng tin",
+   "Dùng số đầu tiên thấy",
+   "Chỉ nhìn độ dài bài"
+  ],
+  "why": "Cách xử lý phù hợp trong tình huống này là Tìm số liệu mới hơn từ nguồn đáng tin."
+ },
+ {
+  "lesson": 13,
+  "id": "13-4",
+  "title": "Vận dụng",
+  "q": "Tác phẩm đã thuộc phạm vi công cộng. Điều nào mô tả đúng nhất?",
+  "choices": [
+   "Có thể sử dụng mà không cần xin phép bản quyền cho tác phẩm đó",
+   "Mọi tệp trên Internet đều như vậy",
+   "Chỉ tác giả được xem"
+  ],
+  "why": "Cách xử lý phù hợp trong tình huống này là Có thể sử dụng mà không cần xin phép bản quyền cho tác phẩm đó."
+ },
+ {
+  "lesson": 14,
+  "id": "14-4",
+  "title": "Vận dụng",
+  "q": "Ứng dụng học hỏi ngày sinh và địa chỉ nhà để hiển thị tên nhóm. Em nên kiểm tra gì?",
+  "choices": [
+   "Thông tin nào thật sự cần và ai được xem",
+   "Ứng dụng có nhiều biểu tượng không",
+   "Trang có nhạc hay không"
+  ],
+  "why": "Cách xử lý phù hợp trong tình huống này là Thông tin nào thật sự cần và ai được xem."
+ },
+ {
+  "lesson": 15,
+  "id": "15-4",
+  "title": "Vận dụng",
+  "q": "Bạn chuyển một tin chưa kiểm chứng vào nhóm. Phản hồi nào hợp lý?",
+  "choices": [
+   "Hỏi nguồn và kiểm tra trước khi chia sẻ",
+   "Chuyển tiếp vì nhiều người đã đọc",
+   "Xóa tên người gửi rồi đăng lại"
+  ],
+  "why": "Cách xử lý phù hợp trong tình huống này là Hỏi nguồn và kiểm tra trước khi chia sẻ."
+ },
+ {
+  "lesson": 16,
+  "id": "16-4",
+  "title": "Vận dụng",
+  "q": "Muốn trao đổi riêng lịch hẹn với một bạn trên mạng xã hội. Chức năng nào phù hợp nhất?",
+  "choices": [
+   "Tin nhắn riêng",
+   "Bài đăng công khai",
+   "Bình luận trên trang trường"
+  ],
+  "why": "Cách xử lý phù hợp trong tình huống này là Tin nhắn riêng."
+ },
+ {
+  "lesson": 17,
+  "id": "17-4",
+  "title": "Vận dụng",
+  "q": "Tài khoản nhóm có ba quản trị viên. Khi một bạn rời nhóm, việc nào nên làm?",
+  "choices": [
+   "Rà soát và thu hồi quyền quản trị của bạn đó",
+   "Đưa mật khẩu cho cả lớp",
+   "Ẩn danh sách thành viên"
+  ],
+  "why": "Cách xử lý phù hợp trong tình huống này là Rà soát và thu hồi quyền quản trị của bạn đó."
+ },
+ {
+  "lesson": 18,
+  "id": "18-4",
+  "title": "Vận dụng",
+  "q": "Đang giải thích thao tác trong cuộc họp, em chỉ muốn người khác thấy một tài liệu. Chọn gì?",
+  "choices": [
+   "Chia sẻ cửa sổ tài liệu",
+   "Chia sẻ toàn bộ màn hình",
+   "Bật camera sau"
+  ],
+  "why": "Cách xử lý phù hợp trong tình huống này là Chia sẻ cửa sổ tài liệu."
+ },
+ {
+  "lesson": 19,
+  "id": "19-4",
+  "title": "Vận dụng",
+  "q": "Bạn quên mật khẩu tài khoản học tập. Nên khôi phục bằng cách nào?",
+  "choices": [
+   "Dùng chức năng quên mật khẩu chính thức",
+   "Gửi mã OTP cho bạn thân",
+   "Đăng thông tin cá nhân công khai"
+  ],
+  "why": "Cách xử lý phù hợp trong tình huống này là Dùng chức năng quên mật khẩu chính thức."
+ },
+ {
+  "lesson": 20,
+  "id": "20-4",
+  "title": "Vận dụng",
+  "q": "Tin nhắn giả danh giáo viên yêu cầu nộp tiền ngay. Cách xác minh phù hợp?",
+  "choices": [
+   "Liên hệ giáo viên qua kênh liên lạc đã biết",
+   "Trả lời bằng mã xác thực",
+   "Bấm vào mọi liên kết trong tin"
+  ],
+  "why": "Cách xử lý phù hợp trong tình huống này là Liên hệ giáo viên qua kênh liên lạc đã biết."
+ },
+ {
+  "lesson": 21,
+  "id": "21-4",
+  "title": "Vận dụng",
+  "q": "Thiết bị chứa bài làm sắp được mang đi sửa. Nên chuẩn bị gì?",
+  "choices": [
+   "Sao lưu dữ liệu cần thiết và bảo vệ tài khoản",
+   "Bỏ hết mật khẩu",
+   "Ghi mật khẩu trên nắp máy"
+  ],
+  "why": "Cách xử lý phù hợp trong tình huống này là Sao lưu dữ liệu cần thiết và bảo vệ tài khoản."
+ },
+ {
+  "lesson": 22,
+  "id": "22-4",
+  "title": "Vận dụng",
+  "q": "Ứng dụng bản đồ hỏi khi nào được dùng vị trí. Muốn chỉ dẫn đường trong lúc dùng, chọn gì?",
+  "choices": [
+   "Chỉ cho phép khi sử dụng ứng dụng",
+   "Luôn cho phép trong nền",
+   "Công khai lịch sử vị trí"
+  ],
+  "why": "Cách xử lý phù hợp trong tình huống này là Chỉ cho phép khi sử dụng ứng dụng."
+ },
+ {
+  "lesson": 1,
+  "id": "l01-q01",
+  "title": "Nhận biết thiết bị xử lý",
+  "q": "Bộ phận nào chủ yếu xử lý dữ liệu và thực thi lệnh trong máy tính?",
+  "choices": [
+   "CPU",
+   "Loa",
+   "Máy in",
+   "Webcam"
+  ],
+  "why": "CPU là bộ xử lý trung tâm, thực thi lệnh và xử lý dữ liệu."
+ },
+ {
+  "lesson": 1,
+  "id": "l01-q02",
+  "title": "Phân biệt RAM và lưu trữ lâu dài",
+  "q": "Điều gì xảy ra với dữ liệu tạm trong RAM khi tắt nguồn máy tính?",
+  "choices": [
+   "Bị mất",
+   "Được giữ vĩnh viễn",
+   "Tự chuyển vào USB",
+   "Tự chuyển thành ROM"
+  ],
+  "why": "RAM là bộ nhớ khả biến; dữ liệu đang lưu tạm trong RAM sẽ mất khi ngắt nguồn."
+ },
+ {
+  "lesson": 1,
+  "id": "l01-q03",
+  "title": "Phân biệt RAM và ROM",
+  "q": "Theo bài học, ROM là loại bộ nhớ nào?",
+  "choices": [
+   "Bộ nhớ chỉ đọc, không mất dữ liệu khi tắt máy",
+   "Bộ nhớ chỉ chứa âm thanh",
+   "Bộ nhớ tạm bị xóa khi tắt máy",
+   "Thiết bị nhập văn bản"
+  ],
+  "why": "ROM là bộ nhớ chỉ đọc và không khả biến, khác với RAM."
+ },
+ {
+  "lesson": 1,
+  "id": "l01-q04",
+  "title": "Nhận biết công nghệ SSD",
+  "q": "Ổ SSD sử dụng công nghệ nào để lưu dữ liệu?",
+  "choices": [
+   "Bộ nhớ Flash",
+   "Đĩa từ quay",
+   "Băng giấy",
+   "Đầu kim in"
+  ],
+  "why": "SSD lưu dữ liệu trên các chip nhớ Flash, không dùng đĩa từ quay như HDD."
+ },
+ {
+  "lesson": 1,
+  "id": "l01-q05",
+  "title": "Nhận biết công nghệ HDD",
+  "q": "HDD truyền thống lưu dữ liệu chủ yếu bằng cách nào?",
+  "choices": [
+   "Dùng đĩa từ quay và đầu đọc/ghi",
+   "Dùng micro",
+   "Dùng tia máy chiếu",
+   "Dùng màn hình cảm ứng"
+  ],
+  "why": "Ổ HDD cơ học dùng đĩa từ quay và đầu đọc/ghi."
+ },
+ {
+  "lesson": 1,
+  "id": "l01-q06",
+  "title": "Thiết bị lưu trữ ngoài",
+  "q": "Thiết bị lưu trữ nào nhỏ gọn và thường kết nối máy tính qua cổng USB?",
+  "choices": [
+   "Ổ USB Flash",
+   "GPU",
+   "ROM trên bo mạch chủ",
+   "CPU"
+  ],
+  "why": "USB Flash Drive là thiết bị lưu trữ ngoài dùng bộ nhớ Flash và cổng USB."
+ },
+ {
+  "lesson": 1,
+  "id": "l01-q07",
+  "title": "So sánh HDD SSD",
+  "q": "Thiết bị nào dưới đây thường hoạt động yên tĩnh hơn do không có đĩa quay cơ học?",
+  "choices": [
+   "Ổ SSD",
+   "Ổ HDD cơ học",
+   "Quạt tản nhiệt",
+   "Máy in laser"
+  ],
+  "why": "SSD dùng chip Flash, không có bộ phận đĩa quay cơ học như HDD."
+ },
+ {
+  "lesson": 1,
+  "id": "l01-q08",
+  "title": "Nhận biết phần cứng bên trong",
+  "q": "Các bộ phận bên trong thân máy thường kết nối với thành phần nào?",
+  "choices": [
+   "Bo mạch chủ (Mainboard)",
+   "Máy chiếu",
+   "Tai nghe",
+   "Máy in"
+  ],
+  "why": "Bài học nêu các thiết bị bên trong kết nối với bo mạch chủ."
+ },
+ {
+  "lesson": 1,
+  "id": "l01-q09",
+  "title": "Phân loại phần cứng",
+  "q": "CPU và GPU thuộc nhóm thiết bị nào?",
+  "choices": [
+   "Thiết bị xử lý",
+   "Thiết bị in",
+   "Thiết bị phát âm",
+   "Thiết bị ngoại vi chỉ nhập"
+  ],
+  "why": "CPU và GPU là ví dụ về các thiết bị xử lý."
+ },
+ {
+  "lesson": 1,
+  "id": "l01-q10",
+  "title": "Nhận biết thiết bị lưu trữ",
+  "q": "Thiết bị nào dưới đây dùng để lưu trữ tệp lâu dài thay vì chỉ giữ dữ liệu tạm của chương trình?",
+  "choices": [
+   "SSD",
+   "RAM",
+   "CPU",
+   "GPU"
+  ],
+  "why": "Ổ SSD lưu giữ dữ liệu lâu dài; RAM chủ yếu là bộ nhớ làm việc tạm thời."
+ },
+ {
+  "lesson": 1,
+  "id": "l01-q11",
+  "title": "Nhận biết thiết bị ngoại vi",
+  "q": "Thiết bị nào sau đây thường là thiết bị bên ngoài thân máy?",
+  "choices": [
+   "Bàn phím",
+   "Chip CPU trong máy",
+   "Khe RAM trên bo mạch",
+   "Chip ROM trên bo mạch"
+  ],
+  "why": "Bàn phím thường đặt bên ngoài và kết nối với máy tính."
+ },
+ {
+  "lesson": 1,
+  "id": "l01-q12",
+  "title": "Chọn giải pháp lưu trữ",
+  "q": "Muốn mang tệp sang máy tính khác mà không cần tháo linh kiện bên trong, nên chọn gì?",
+  "choices": [
+   "USB Flash Drive",
+   "CPU",
+   "RAM lắp trong máy",
+   "ROM trên bo mạch"
+  ],
+  "why": "USB Flash Drive nhỏ gọn và dùng để lưu trữ, di chuyển dữ liệu giữa máy tính."
+ },
+ {
+  "lesson": 2,
+  "id": "l02-q01",
+  "title": "Thiết bị nhập",
+  "q": "Thiết bị nào đưa văn bản vào máy tính bằng cách gõ?",
+  "choices": [
+   "Bàn phím",
+   "Màn hình",
+   "Loa",
+   "Máy chiếu"
+  ],
+  "why": "Bàn phím là thiết bị nhập dùng để nhập ký tự vào máy tính."
+ },
+ {
+  "lesson": 2,
+  "id": "l02-q02",
+  "title": "Thiết bị xuất",
+  "q": "Thiết bị nào thường dùng để in nội dung từ máy tính ra giấy?",
+  "choices": [
+   "Máy in",
+   "Webcam",
+   "Chuột",
+   "Máy quét"
+  ],
+  "why": "Máy in (printer) là thiết bị xuất, đưa nội dung từ máy tính lên giấy."
+ },
+ {
+  "lesson": 2,
+  "id": "l02-q03",
+  "title": "Thiết bị vừa nhập vừa xuất",
+  "q": "Màn hình cảm ứng được xếp vào nhóm nào?",
+  "choices": [
+   "Vừa nhập vừa xuất",
+   "Chỉ nhập",
+   "Chỉ xuất",
+   "Chỉ lưu trữ"
+  ],
+  "why": "Màn hình cảm ứng hiển thị hình ảnh và nhận thao tác chạm."
+ },
+ {
+  "lesson": 2,
+  "id": "l02-q04",
+  "title": "Cổng mạng",
+  "q": "Đầu nối Ethernet thường phục vụ việc gì?",
+  "choices": [
+   "Kết nối mạng",
+   "In ảnh không cần máy in",
+   "Tăng dung lượng RAM",
+   "Làm bộ nhớ ROM"
+  ],
+  "why": "Cổng Ethernet dùng để kết nối máy tính với mạng."
+ },
+ {
+  "lesson": 2,
+  "id": "l02-q05",
+  "title": "Nhận biết cổng hình ảnh",
+  "q": "Cổng HDMI thường dùng để kết nối thiết bị nào?",
+  "choices": [
+   "Máy chiếu hoặc màn hình",
+   "Bút mực",
+   "Ổ cắm điện dân dụng",
+   "Giấy in"
+  ],
+  "why": "HDMI là một giao tiếp hình ảnh, thường dùng nối màn hình hoặc máy chiếu."
+ },
+ {
+  "lesson": 3,
+  "id": "l03-q01",
+  "title": "Phân loại máy tính",
+  "q": "Thiết bị nào có bàn phím vật lý tích hợp và dùng pin để mang theo?",
+  "choices": [
+   "Laptop",
+   "Máy tính để bàn không có pin",
+   "Máy chiếu",
+   "Máy in"
+  ],
+  "why": "Laptop có thiết kế di động, bàn phím tích hợp và pin sạc."
+ },
+ {
+  "lesson": 3,
+  "id": "l03-q02",
+  "title": "Nhận biết máy tính bảng",
+  "q": "Thiết bị nào thường sử dụng màn hình cảm ứng và bàn phím ảo?",
+  "choices": [
+   "Máy tính bảng (tablet)",
+   "Máy in laser",
+   "Màn hình máy tính rời",
+   "Máy quét"
+  ],
+  "why": "Tablet tích hợp màn hình cảm ứng, pin và bàn phím ảo."
+ },
+ {
+  "lesson": 3,
+  "id": "l03-q03",
+  "title": "Nhận biết Chromebook",
+  "q": "Chromebook trong bài học sử dụng hệ điều hành gì?",
+  "choices": [
+   "ChromeOS",
+   "MS-DOS",
+   "watchOS",
+   "FreeDOS"
+  ],
+  "why": "Chromebook là dòng máy tính xách tay sử dụng ChromeOS."
+ },
+ {
+  "lesson": 11,
+  "id": "l11-q01",
+  "title": "Nhận biết nút Stop",
+  "q": "Nút Stop của trình duyệt dùng để làm gì?",
+  "choices": [
+   "Dừng tải trang web",
+   "Thêm dấu trang",
+   "Làm mới trang",
+   "Về trang chủ"
+  ],
+  "why": "Stop dừng quá trình tải trang web đang diễn ra; không phải nút đóng trình duyệt."
+ },
+ {
+  "lesson": 11,
+  "id": "l11-q02",
+  "title": "Nhận biết nút Refresh",
+  "q": "Nút Refresh có tác dụng gì?",
+  "choices": [
+   "Làm mới trang web",
+   "Xóa tất cả dấu trang",
+   "Tắt máy tính",
+   "Mở trình phát nhạc"
+  ],
+  "why": "Refresh tải lại hoặc làm mới trạng thái trang web đang xem."
+ },
+ {
+  "lesson": 11,
+  "id": "l11-q03",
+  "title": "Nhận biết nút Back",
+  "q": "Nút Back (mũi tên quay lại) dùng để làm gì?",
+  "choices": [
+   "Quay lại trang đã xem trước đó",
+   "Đóng hết tab",
+   "Đặt lại mật khẩu",
+   "Chụp màn hình"
+  ],
+  "why": "Nút Back giúp quay lại trang web đã xem trước đó."
+ },
+ {
+  "lesson": 11,
+  "id": "l11-q04",
+  "title": "Nhận biết nút Home",
+  "q": "Nút Home trên trình duyệt có chức năng gì?",
+  "choices": [
+   "Chuyển đến trang mặc định (trang chủ)",
+   "Làm mới trang",
+   "Xóa lịch sử",
+   "Tắt Wi-Fi"
+  ],
+  "why": "Home đưa người dùng tới trang chủ hoặc trang mặc định của trình duyệt."
+ },
+ {
+  "lesson": 11,
+  "id": "l11-q05",
+  "title": "Sử dụng Bookmark",
+  "q": "Bookmark (Dấu trang) giúp người dùng làm gì?",
+  "choices": [
+   "Lưu một trang web để quay lại lần sau",
+   "Tăng tốc RAM",
+   "Tạo tài khoản Windows",
+   "Thay đổi kích thước màn hình"
+  ],
+  "why": "Bookmark giúp đánh dấu và lưu địa chỉ trang web muốn truy cập lại."
+ },
+ {
+  "lesson": 11,
+  "id": "l11-q06",
+  "title": "Tạo Bookmark",
+  "q": "Sau khi nhấn biểu tượng ngôi sao và đặt tên dấu trang, học sinh cần chọn gì để lưu?",
+  "choices": [
+   "Done",
+   "Refresh",
+   "Back",
+   "Stop"
+  ],
+  "why": "Theo hướng dẫn trong slide 21: nhấn ngôi sao, đặt tên dấu trang rồi chọn Done."
+ },
+ {
+  "lesson": 11,
+  "id": "l11-q07",
+  "title": "Khái niệm trình duyệt",
+  "q": "Trình duyệt web là gì?",
+  "choices": [
+   "Phần mềm ứng dụng để xem, truy cập và điều hướng trang web",
+   "Một hệ điều hành",
+   "Thiết bị để in tài liệu",
+   "Ổ lưu trữ ngoài"
+  ],
+  "why": "Trình duyệt là phần mềm ứng dụng, giúp xem và điều hướng nội dung trên Web."
+ },
+ {
+  "lesson": 11,
+  "id": "l11-q08",
+  "title": "Xóa Bookmark",
+  "q": "Theo bài giảng, có thể xóa dấu trang bằng thao tác nào?",
+  "choices": [
+   "Nháy phải vào dấu trang và chọn Delete",
+   "Nhấn nút Home",
+   "Tắt loa",
+   "Mở máy tính"
+  ],
+  "why": "Slide 22 hướng dẫn nháy chuột phải vào dấu trang rồi chọn Delete."
+ }
+]

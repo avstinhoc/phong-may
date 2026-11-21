@@ -6,9 +6,12 @@ on:
       - feature/qlpm-desktop-teacher-student-20261121
       - feature/qlpm-desktop-integration-20261121
       - fix/qlpm-student-white-screen-20261121
+      - feature/ic3-22-lessons
     paths:
       - ".github/workflows/desktop-windows.yml"
       - "desktop/**"
+      - "scripts/course/**"
+      - "public/ic3-scenes/**"
       - "src/desktop/**"
       - "src/learning/**"
       - "src/learning-arcade/**"

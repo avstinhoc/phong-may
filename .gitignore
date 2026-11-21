@@ -9,3 +9,5 @@ dist/
 desktop/**/src-tauri/target/
 desktop/**/src-tauri/gen/
 desktop/**/src-tauri/icons/
+
+/public/ic3-slides/

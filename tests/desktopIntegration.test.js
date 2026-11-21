@@ -60,12 +60,12 @@ test('fullscreen slide viewer immediately opens from lesson tile while keeping D
  assert.ok(viewer.includes('ArrowRight'));
  assert.ok(styles.includes('scroll-snap-type:x mandatory'));
 });
-test('Arcade assets preserved as a separate module with no automatic real-school reward writes',()=>{
+test('Standalone arcade assets remain available and desktop mounts the signed-in campaign',()=>{
  const game=text('src/learning-arcade/Arcade.jsx');
  const js=text('src/desktop/student/StudentDesktop.jsx');
  assert.ok(game.includes('applyWin'));
  assert.ok(game.includes('LegendsBattle'));
- assert.ok(js.includes('/san-sao.html'));
+ assert.ok(js.includes('<Campaign key={session.token}'));
  assert.ok(!game.includes('student_records'));
  assert.ok(!game.includes('ic3_star_wallets'));
 });

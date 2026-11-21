@@ -4,8 +4,10 @@ import {
  LockKeyhole, Settings2, Wifi, WifiOff, ArrowLeft, ChevronRight,
  CalendarDays, ShieldCheck, Info, Laptop, School, HelpCircle, MoonStar, UserRound
 } from 'lucide-react';
-import LearningPrototype from '../../learning/LearningPrototype.jsx';
 import StudentOnboarding from './StudentOnboarding.jsx';
+import Lessons from './Lessons.jsx';
+import Practice from './Practice.jsx';
+import Campaign from './Campaign.jsx';
 import DesktopLeaderboard from './DesktopLeaderboard.jsx';
 import {supabase} from '../../lib/supabase';
 import './studentExtras.css';
@@ -34,7 +36,7 @@ function StudentHome({onNavigate,online}){
     <p>Cùng học bài giảng, luyện câu hỏi và chinh phục thử thách. Kiến thức đúng mới giúp em chiến thắng!</p>
     <div className="student-hero-actions">
      <button type="button" className="student-cta primary" onClick={()=>onNavigate('lessons')}><BookOpen size={19}/> Mở bài giảng</button>
-     <button type="button" className="student-cta secondary" onClick={()=>onNavigate('games')}><Gamepad2 size={19}/> Chơi thử</button>
+     <button type="button" className="student-cta secondary" onClick={()=>onNavigate('games')}><Gamepad2 size={19}/> Vào trò chơi</button>
     </div>
    </div>
    <div className="student-hero-graphic" aria-hidden="true">
@@ -63,7 +65,7 @@ function StudentHome({onNavigate,online}){
    <button type="button" className="student-feature-card adventure" onClick={()=>onNavigate('games')}>
     <span className="student-feature-icon"><Gamepad2 size={32}/></span>
     <strong>Trò chơi</strong>
-    <p>Quần đảo Săn Sao IC3 từ GPT Work: 12 ải, Boss, trang bị và mini-game.</p>
+    <p>Vượt 22 bản đồ, mở trang phục và tích sao đổi quà.</p>
     <span className="student-card-action">Vào thế giới trò chơi <ChevronRight size={17}/></span>
    </button>
   </section>
@@ -75,7 +77,7 @@ function StudentHome({onNavigate,online}){
    </article>
    <article className="student-small-panel">
     <div className="student-small-icon"><ShieldCheck size={22}/></div>
-    <div><h3>Quyền riêng tư của học sinh</h3><p>Giai đoạn thử nghiệm chỉ dùng bài học và câu hỏi mẫu; không yêu cầu mật khẩu/PIN, không lưu điểm cá nhân lên QLPM.</p></div>
+    <div><h3>Quyền riêng tư của học sinh</h3><p>Vào tài khoản bằng mã PIN do giáo viên cấp để lưu điểm và trang bị của riêng em.</p></div>
    </article>
   </section>
   {!online&&<p className="student-notice offline"><WifiOff size={18}/> Bài giảng Drive và game có dữ liệu trực tuyến cần kết nối Internet.</p>}
@@ -196,14 +198,9 @@ export default function StudentDesktop(){
     {page==='account'&&(session?<StudentAccount session={session} onLogout={logout}/>:
       <StudentOnboarding onLogin={acceptLogin} onTrial={()=>navigate('home')} onLeaderboard={()=>navigate('leaderboard')} defaultCode={lastCode}/>)}
     {page==='home'&&<StudentHome onNavigate={navigate} online={online}/>}
-    {embedded&&<><div className="student-learning-heading"><button type="button" onClick={()=>navigate('home')}><ArrowLeft size={17}/> Trang chủ</button><span>{page==='lessons'?'Bài giảng':'Câu hỏi'} · 22 bài IC3 Level 1</span></div>
-      <LearningPrototype key={page} embedded initialSection={page==='lessons'?'lessons':'exercises'} initialExerciseTab="questions"/></>}
-    {page==='games'&&<div className="student-work-game">
-      <div className="student-work-intro"><div><h2>⚔️ IC3 Arcade · Quần đảo Săn Sao</h2><p>Phiên bản game nâng cấp từ GPT Work, giữ nhân vật, Boss và hiệu ứng.</p></div>
-      <span>Điểm/sao arcade hiện lưu cục bộ; chưa cộng sang BXH thật khi chưa có cơ chế xác nhận của giáo viên.</span></div>
-      <iframe src="/san-sao.html" title="Trò chơi Săn Sao IC3" allow="fullscreen" loading="eager"/>
-      <div className="student-game-followup">Các game 22 bài IC3 và 88 Boss đang được hoàn thiện theo ngân hàng câu hỏi được giáo viên duyệt.</div>
-    </div>}
+    {page==='lessons'&&<Lessons/>}
+    {page==='questions'&&<Practice/>}
+    {page==='games'&&(session?<Campaign key={session.token} session={session}/>:<section className="practice-card"><h2>Quần đảo Săn Sao</h2><p>Đăng nhập tài khoản học sinh để lưu trang bị, điểm và sao của em.</p><button onClick={()=>navigate('account')}>Đăng nhập</button></section>)}
     {page==='leaderboard'&&<DesktopLeaderboard initialCode={lastCode} onCodeChange={setLastCode}/>}
     {page==='device'&&<DeviceSettings online={online} session={session}/>}
    </main>

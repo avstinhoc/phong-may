@@ -44,10 +44,10 @@ test('Student desktop actually embeds lessons, quizzes and game screens, never f
  const vite=read('vite.config.js');
  assert.ok(html.includes('src/desktop/student/main.jsx'));
  assert.ok(vite.includes('studentDesktop:'));
- assert.ok(app.includes('initialExerciseTab'));
+ assert.ok(app.includes('<Lessons/>'));
  assert.ok(app.includes('StudentOnboarding'));
  assert.ok(app.includes('DesktopLeaderboard'));
- assert.ok(app.includes('san-sao.html'));
+ assert.ok(app.includes('<Campaign key={session.token}'));
  assert.ok(app.includes("useState('account')"));
  assert.ok(app.includes('qlpm_student_desktop_login')===false); // Login is isolated in StudentOnboarding
  for(const text of ['Bài giảng','Câu hỏi','Trò chơi','Trang chủ','Tài khoản học sinh','BXH toàn trường'])

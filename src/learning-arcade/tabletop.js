@@ -6,8 +6,8 @@ const unit=v=>v.map(n=>n/(Math.hypot(...v)||1));
 const cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
 const smooth=t=>{t=Math.max(0,Math.min(1,t));return t*t*(3-2*t)};
 const sin=Math.sin,cos=Math.cos;
-const colors=['#9341cc','#339989','#f49c32','#5262bd','#69bcdb','#c34e32','#7eaf44','#415da4','#463b70','#f58033','#81b6c3','#333854'];
-const accent=['#ffc843','#f4d579','#382238','#a693ff','#fff0c3','#ffb236','#e75f86','#65dec9','#57d9ff','#ffe36b','#e5ffff','#ffbd47'];
+const colors=['#9341cc','#339989','#f49c32','#5262bd','#69bcdb','#c34e32','#7eaf44','#415da4','#463b70','#f58033','#81b6c3','#333854','#cb6287','#796795','#5482bb','#8773be','#e7849e','#ac7a47','#b94a40','#493e79','#469794','#495d8a'];
+const accent=['#ffc843','#f4d579','#382238','#a693ff','#fff0c3','#ffb236','#e75f86','#65dec9','#57d9ff','#ffe36b','#e5ffff','#ffbd47','#ffe298','#ffcd94','#c7fbff','#ffd7fa','#aaf4ff','#ffe5a0','#f1c79b','#daacff','#fd9d88','#c1ffcf'];
 const shadeCache=new Map();
 function shade(color,s){const n=Math.round(Math.max(.46,Math.min(1.24,s))*36),key=color+n;if(!shadeCache.has(key))shadeCache.set(key,'rgb('+[1,3,5].map(i=>Math.min(255,Math.round(parseInt(color.slice(i,i+2),16)*n/36))).join(',')+')');return shadeCache.get(key)}
 function model(draw,origin,scale=1,mirror=1){
@@ -51,7 +51,22 @@ function creature(m,i,t,wind,hit,recoil){
  function skull(p,r){ball(p,[r,r*.78,r*.90],c);ball(plus(p,[r*.64,-r*.14,r*.05]),[r*.7,r*.39,r*.64],g);
  for(const s of [-1,1]){ball(plus(p,[r*.60,r*.13,s*r*.59]),[r*.20,r*.23,r*.15],eye);ball(plus(p,[r*.70,r*.13,s*r*.65]),[r*.09,r*.16,r*.08],dark);tube(plus(p,[-r*.18,r*.50,s*r*.42]),plus(p,[-r*.50,r*1.14,s*r*.61]),r*.19,0,g)}
  muzzle=plus(p,[r*1.25,-r*.12,0]);}
- if(i===0||i===8){
+ if(i>=12){
+  const form=i-12, floating=[0,2,3,7,8].includes(form), y=bodyY+(floating?.25*sin(t*2)+.25:0);
+  const length=[.53,.65,.98,.43,.64,1.04,.65,.50,.39,1.08][form];
+  ball([0,y,0],[length,.45+.09*(form%3),.44],c);
+  skull([length*.8+.12*hit,y+.20,0],.28+.04*(form%3));
+  if([3,7].includes(form))for(const side of [-1,1]){
+   const tip=[-.25,y+.78+.20*sin(t*4),side*1.18];face([[.30,y+.2,0],tip,[-.8,y-.1,side*.67]],g);
+   tube([.3,y+.2,0],tip,.07,.016,c);
+   if(form===3)ball([-.22,y+.36,side*.65],[.19,.19,.08],eye);
+  }
+  if([0,8,9].includes(form))for(let k=0;k<3+form%4;k++){const z=(k-2)*.16, a=[-.24,y-.24,z],b=[-.54+.17*sin(t*2+k),y-.65,z];tube(a,b,.11,.08,c);tube(b,[-.86+.20*sin(t*2+k),y-.85+.10*k,z],.08,.01,g)}
+  if(form===1)for(let k=0;k<5;k++){const a=k*.98;ball([-.2+.21*cos(a),y+.32+.21*sin(a),.08*k],[.30,.28,.13],k%2?g:c)}
+  if([4,5,6].includes(form))for(const side of [-1,1])for(let k=0;k<(form===5?8:4);k++){const x=-length+k*(form===5?.26:.30),a=[x,y,side*.34],b=[x+.04,.38,side*.6];tube(a,b,.10,.08,c);tube(b,[x+.15,.03,side*.74],.08,.013,g);if(form===4)tube(a,[x-.25,y+.63,side*.73],.15,.009,g)}
+  if(form===6)for(const side of [-1,1]){const claw=[.82+.24*hit,y+.14,side*.65];tube([.34,y,side*.3],claw,.13,.15,c);for(const v of [-1,1])tube(claw,plus(claw,[.32,v*.17,0]),.15,.015,g)}
+  if(form===2||form===9)for(const side of [-1,1])face([[-.80,y,0],[-1.29,y+.24,side*.55],[-1.06,y-.19,0]],g);
+ }else if(i===0||i===8){
  ball([-.32,bodyY,0],[.77,.69,.72],c);ball([.43,bodyY-.04,0],[.55,.46,.55],c);
  for(const s of [-1,1])for(let n=0;n<4;n++){const x=-.64+n*.32,root=[x,bodyY-.07,s*.44],knee=[x+(n-1.5)*.18,bodyY+.12+.11*sin(t*3+n),s*.99],ankle=[knee[0]+(n-1.5)*.17,.25+.09*hit,s*1.26];tube(root,knee,.13,.14,c);tube(knee,ankle,.14,.092,dark);tube(ankle,[ankle[0]+.09,.025,s*1.33],.094,.024,c)}
  for(const s of [-1,1]){ball([.84,bodyY+.09,s*.22],[.13,.17,.13],eye);tube([.78,bodyY-.20,s*.24],[.94+.16*hit,bodyY-.47,s*.25],.09,.01,g)}
