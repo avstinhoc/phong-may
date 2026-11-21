@@ -45,14 +45,23 @@ test('Student desktop actually embeds lessons, quizzes and game screens, never f
  assert.ok(html.includes('src/desktop/student/main.jsx'));
  assert.ok(vite.includes('studentDesktop:'));
  assert.ok(app.includes('initialExerciseTab'));
- for(const text of ['Bài giảng','Câu hỏi','Trò chơi','Trang chủ','Tài khoản học sinh','PIN 6 số'])
+ assert.ok(app.includes('StudentOnboarding'));
+ assert.ok(app.includes('DesktopLeaderboard'));
+ assert.ok(app.includes('san-sao.html'));
+ assert.ok(app.includes("useState('account')"));
+ assert.ok(app.includes('qlpm_student_desktop_login')===false); // Login is isolated in StudentOnboarding
+ for(const text of ['Bài giảng','Câu hỏi','Trò chơi','Trang chủ','Tài khoản học sinh','BXH toàn trường'])
   assert.ok(app.includes(text),text);
  assert.ok(proto.includes("embedded=false"));
  assert.ok(proto.includes("initialExerciseTab='questions'"));
  assert.ok(proto.includes('!embedded&&<Header'));
  assert.ok(!app.includes('supabase.from('));
- assert.ok(!app.includes('supabase.rpc('));
- assert.ok(app.includes('chưa được kích hoạt'),'Not-yet-secure PIN must not appear functional');
+ assert.ok(app.includes('supabase.rpc(')); // Student session validation and PC approval requests
+ assert.ok(read('src/desktop/student/StudentOnboarding.jsx').includes('ic3_submit_registration'));
+ assert.ok(read('src/desktop/student/StudentOnboarding.jsx').includes('qlpm_student_desktop_login'));
+ assert.ok(read('src/desktop/student/DesktopLeaderboard.jsx').includes('ic3_school_public_portal'));
+ assert.ok(read('src/learning/FullscreenSlides.jsx').includes('createPortal'));
+ assert.ok(read('src/learning/FullscreenSlides.jsx').includes('scroll-snap')===false);
 });
 
 test('desktop-only frontend env never bundles a service_role/secret API key',()=>{
@@ -64,20 +73,23 @@ test('desktop-only frontend env never bundles a service_role/secret API key',()=
  assert.ok(!variables.some(line=>/SERVICE_ROLE|SECRET|sb_secret_/.test(line)));
  assert.ok(variables.some(line=>line.startsWith('VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_')));
  const cfgs=[json('desktop/teacher/src-tauri/capabilities/default.json'),json('desktop/student/src-tauri/capabilities/default.json')];
- for(const cfg of cfgs){
-  assert.deepEqual(cfg.windows,['main']);
-  assert.deepEqual(cfg.permissions,['core:default']);
- }
+ assert.deepEqual(cfgs[0].permissions,['core:default','deep-link:default']);
+ assert.deepEqual(cfgs[1].permissions,['core:default']);
+ for(const cfg of cfgs)assert.deepEqual(cfg.windows,['main']);
 });
 
-test('Windows teacher reuses real QLPM UI, but Google native WebView redirect is blocked until approved deep-link flow',()=>{
+test('Windows teacher uses PKCE native browser with validated deep-link callback (requires server redirect allowlist)',()=>{
  const teacherHtml=read('index.html');
  const teacherMain=read('src/main.jsx');
  const oauth=read('src/lib/googleAuth.js');
  assert.ok(teacherHtml.includes('/src/main.jsx'));
  assert.ok(teacherMain.includes('App'));
- assert.ok(oauth.includes('window.__TAURI_INTERNALS__'));
- assert.ok(oauth.includes('Phiên web không tự chuyển vào ứng dụng'));
+ assert.ok(oauth.includes('startTeacherNativeGoogle'));
+ assert.ok(read('src/lib/nativeGoogleOAuth.js').includes("qlpmteacher://auth/callback"));
+ assert.ok(read('desktop/teacher/src-tauri/src/lib.rs').includes('open_teacher_google_oauth'));
+ assert.ok(read('desktop/teacher/src-tauri/tauri.conf.json').includes('qlpmteacher'));
+ assert.ok(read('src/desktop/teacher/TeacherPcConsole.jsx').includes('qlpm_teacher_desktop_requests'));
+ assert.ok(read('src/desktop/teacher/TeacherPcConsole.jsx').includes(".from('student_records').insert(record)"));
  const ci=read('.github/workflows/desktop-windows.yml');
  assert.ok(ci.includes('workflow_dispatch'));
  assert.ok(ci.includes('upload-artifact'));

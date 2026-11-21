@@ -4,17 +4,26 @@ on:
   push:
     branches:
       - feature/qlpm-desktop-teacher-student-20261121
+      - feature/qlpm-desktop-integration-20261121
     paths:
       - ".github/workflows/desktop-windows.yml"
       - "desktop/**"
       - "src/desktop/**"
       - "src/learning/**"
+      - "src/learning-arcade/**"
+      - "src/App.jsx"
+      - "src/lib/googleAuth.js"
+      - "src/lib/nativeGoogleOAuth.js"
+      - "src/lib/supabase.js"
       - "student-desktop.html"
+      - "san-sao.html"
       - "vite.config.js"
       - ".env.desktop"
       - "package.json"
       - "package-lock.json"
       - "tests/desktopApps.test.js"
+      - "tests/desktopIntegration.test.js"
+      - "src/SheetsConnectionPanel.jsx"
   workflow_dispatch:
 
 permissions:

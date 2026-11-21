@@ -55,3 +55,24 @@ Unsigned installers can show Windows SmartScreen warnings. Do not encourage teac
 - Teacher assigns slides, practice questions and approved games to classes; Student securely retrieves assignments and submits learning attempts idempotently.
 - Protect question answers/teacher data on server and keep the **existing QLPM star leaderboard separate** from game mastery stars unless teacher explicitly approves a reward policy.
 - Verify original PPT/PPSX slide fidelity, full Windows installer performance on school PCs and obtain approval before merging into main/Production.
+
+## Integration branch 2026-11-21: Teacher ↔ Student preview
+
+Branch `feature/qlpm-desktop-integration-20261121`, stacked on the first Windows MVP. **No Production Supabase migrations or Edge Function updates have been applied**.
+
+- Student starts on native login screen: existing school registration code → active class roster → select name → six-digit PIN, with optional no-login trial (no private data) and existing `ic3_submit_registration` submit-to-teacher flow.
+- Proposed migration `20261121170000_qlpm_desktop_students_pin_pc_approval.sql` (NOT APPLIED): cryptographically hashed PIN, five wrong attempts then 15-minute lock, short revocable student session, public class-code-gated roster, teacher reset approval and PC pairing requests. Teacher-only verification uses `public.can_access_school`. Review/pen-test/rate-limit by client/IP on gateway before applying to real children.
+- Student UI retains school Top 5 and grade 1–9 Top 10 via existing public `ic3_school_public_portal`; do not reorder same-earned ties client-side.
+- Student lessons open a fullscreen overlay immediately; PPSX Google Drive iframe controls pages and keyboard/swipe events INSIDE Google, while optional fully-authorized per-slide images will use real horizontal swipe carousel.
+- **GPT Work 12-stage original Săn Sao arcade** and all its existing source/assets were copied from PR #75 into `src/learning-arcade/` without overwriting the existing IC3 prototype. Student game iframe `/san-sao.html` runs isolated. Its offline stars/rewards are NOT real student stars; no synchronized awards.
+- Teacher menu `Máy học sinh & PIN` lists existing PCs and assigned pupils, teacher-approves pairing and PIN change requests, issues one-time PINs, and allows explicit teacher-confirmed existing `student_records` point/star inserts, only if authorized.
+- Google Sheets Edge CORS patch permits exact `http://tauri.localhost` while enforcing JWT and per-school access. **Not deployed**. Existing Sheets source file untouched.
+- Teacher Google OAuth is designed using Tauri external browser + Windows `qlpmteacher://auth/callback` deep link and Supabase PKCE on the **same** desktop client. **Before it can work end-to-end**, an Admin must add that exact URL to Supabase Authentication → URL Configuration → Redirect URLs; installation and testing are required. Do not allow arbitrary redirects or grant role via Google metadata. Web OAuth remains unchanged.
+- Pending: QA on real Windows laptops and school-classroom network; edge deployment approval; student PIN migration/security test/teacher issuance; synchronized lessons, secure server-graded games and 22 complete worlds; actual Teacher remote screen control via approved separate local agent (not implemented).
+
+### Controlled rollout safety gates
+1. Review SQL (security-definer RPC with correct revoke/grants, per-school check, no duplicate students), perform test school with non-sensitive dummy accounts, verify no cross-school access.
+2. Confirm teacher PC assignment and points triggers, record idempotent actions.
+3. Deploy reviewed Sheets CORS patch to Edge Function after approval; ensure JWT school scope still enforced; test both Windows/website.
+4. Set Supabase approved desktop OAuth redirect, package installer, try Google OAuth external browser flow on Windows.
+5. Build unsigned NSIS installers, review binary provenance before lab rollout. No signed release or installer auto-update.
