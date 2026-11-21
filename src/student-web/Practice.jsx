@@ -1,11 +1,11 @@
 import React,{useEffect,useMemo,useRef,useState} from 'react';
-import {BookOpen,Timer,ArrowLeft,CheckCircle,Monitor,Wifi,Layers,Shield,MessagesSquare,FileText,ExternalLink} from 'lucide-react';
+import {BookOpen,Timer,ArrowLeft,CheckCircle,Monitor,Wifi,Layers,Shield,MessagesSquare,FileText,Cpu,MemoryStick,HardDrive,Mic,Cable,Keyboard,Mouse,Printer,ScanLine,Laptop,Tablet,Headphones} from 'lucide-react';
 import {LEVEL_1_LESSONS} from '../learning/curriculum.js';
 import bank from '../learning/practiceBank.json';
 import extraChoices from '../learning/practiceExtraChoices.json';
 import {shuffle} from '../learning-arcade/expeditionScore.js';
 import {PRACTICE_EXPANSIONS} from './practiceExpansions.js';
-import {devicePhotoFor} from './practiceDeviceMedia.js';
+import {deviceVisualFor} from './practiceDeviceMedia.js';
 import {supabase} from '../lib/supabase';
 import './practice.css';
 
@@ -35,20 +35,21 @@ function pool(n,all){
  const earlier=shuffle(all.filter(q=>Number(q.lesson)<n)).slice(0,Math.max(0,16-current.length));
  return [...current,...earlier];
 }
+const DEVICE_ICONS={cpu:Cpu,ram:MemoryStick,ssd:HardDrive,microphone:Mic,hdmi:Cable,
+ keyboard:Keyboard,monitor:Monitor,mouse:Mouse,printer:Printer,scanner:ScanLine,
+ laptop:Laptop,tablet:Tablet,headphone:Headphones};
 function QuestionVisual({question}){
- const [failed,setFailed]=useState(false);
- const photo=devicePhotoFor(question);
- // Never show full PowerPoint slides or slide cover pages in practice.
- const local=!photo&&typeof question.image==='string'&&question.image.startsWith('/ic3-scenes/')
-  ?{src:question.image,label:question.alt||'Tình huống sử dụng máy tính',source:null,credit:'Học liệu tình huống của QLPM'}:null;
- const media=photo||local;
- if(!media||failed)return null;
- return <figure className="practice-reference-figure">
-  <img src={media.src} alt={media.label} loading="lazy" referrerPolicy="no-referrer"
-   onError={()=>setFailed(true)}/>
-  <figcaption><strong>{media.label}</strong>
-   {media.source?<span>Ảnh thiết bị thực tế · {media.credit} · {media.license} · <a href={media.source} target="_blank" rel="noopener noreferrer">Nguồn ảnh <ExternalLink size={13}/></a></span>:
-   <span>Ảnh tình huống minh họa thao tác, không phải slide PowerPoint.</span>}
+ const device=deviceVisualFor(question);
+ if(!device)return null;
+ const Icon=DEVICE_ICONS[device.kind]||Monitor;
+ return <figure className="practice-device-card" role="group" aria-label={device.label}>
+  <div className="practice-device-art" aria-hidden="true">
+    <span className="practice-device-halo"/>
+    <Icon size={118} strokeWidth={1.5}/>
+    <span className="practice-device-grid"/>
+  </div>
+  <figcaption><strong>{device.label}</strong><span>{device.description}</span>
+   <small>Minh họa dạng biểu tượng do hệ thống tạo · Không tải ảnh từ Internet</small>
   </figcaption>
  </figure>;
 }
