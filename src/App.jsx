@@ -112,6 +112,11 @@ function App() {
     return()=>{window.removeEventListener('focus',onFocus);document.removeEventListener('visibilitychange',onFocus);window.clearInterval(timer);};
   },[]);
 
+  useEffect(()=>{
+    const oauthError=e=>setProfileError('Google Windows: '+(e.detail?.message||'Không thể hoàn tất đăng nhập.'));
+    window.addEventListener('qlpm-native-oauth-error',oauthError);
+    return()=>window.removeEventListener('qlpm-native-oauth-error',oauthError);
+  },[]);
   useEffect(() => {
     if (!supabase) {
       setLoading(false);

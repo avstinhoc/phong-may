@@ -25,7 +25,9 @@ try {
     throw new Error(
       "Đang dùng khóa bí mật ở frontend. Hãy thu hồi khóa này và dùng publishable/anon key.",
     );
-  supabase = createClient(url, key);
+  supabase = createClient(url, key, typeof window!=='undefined'&&window.__TAURI_INTERNALS__
+    ?{auth:{flowType:'pkce',detectSessionInUrl:false,persistSession:true,autoRefreshToken:true}}
+    :undefined);
 } catch (e) {
   configurationError = e.message;
 }
