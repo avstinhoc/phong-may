@@ -49,7 +49,7 @@ begin
  if coalesce(p_new_pin,'') !~ '^[0-9]{6}$' or p_new_pin ~ '^([0-9])\1{5}$' then
    raise exception 'Mã PIN cần 6 chữ số, không lặp lại cùng một số.';
  end if;
- select cred.*,c.created_by,r.status into v
+ select cred.* into v
    from public.qlpm_student_web_credentials cred
    join public.classes c on c.id=cred.class_id
    join public.student_registrations r on r.id=cred.registration_id
