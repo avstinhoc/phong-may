@@ -1,4 +1,4 @@
-import {isTeacherNative,startTeacherNativeGoogle} from './nativeGoogleOAuth';
+import {isTeacherNative,startTeacherNativeGoogle} from './nativeGoogleOAuth.js';
 // OAuth remains owned by Supabase Auth. Never accept roles from Google metadata.
 export const GOOGLE_PROVIDER='google';
 const CALLBACK_PATH='/auth/callback';
