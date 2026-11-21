@@ -21,7 +21,7 @@ function model(draw,origin,scale=1,mirror=1){
  function ball(p,r,c,n=9){let prev;for(let j=0;j<=6;j++){const b=Math.PI*(j/6-.5),row=Array.from({length:n},(_,i)=>[p[0]+r[0]*cos(b)*cos(i*TAU/n),p[1]+r[1]*sin(b),p[2]+r[2]*cos(b)*sin(i*TAU/n)]);if(prev)for(let i=0;i<n;i++){const k=(i+1)%n;face([prev[i],prev[k],row[k],row[i]],c)}prev=row}}
  return {world,face,tube,ball};
 }
-function hero(m,skin,t,wind,hit,recoil,index){
+function hero(m,skin,t,wind,hit,recoil,index,look){
  const {tube,ball,world}=m,c=skin.outfit,g=skin.trim,d='#263047',gold='#ffd376',idle=sin(t*2.8)*.026;
  const hips=[-.09*wind+.08*hit,.73-.14*wind+.02*hit,0],ch=plus(hips,[.02+.15*hit-.13*wind-.12*recoil,.36+idle,0]);
  for(const s of [-1,1]){let foot=[s*.24,.10,s*.12],knee=[foot[0]+.13+.14*wind,.40-.06*wind,s*.16];tube(hips,knee,.13,.11,d);tube(knee,foot,.13,.11,c);ball(plus(foot,[.06,0,.03]),[.19,.11,.13],d)}
@@ -58,10 +58,61 @@ function hero(m,skin,t,wind,hit,recoil,index){
  tube(plus(ch,[-.15,-.22,.18]),plus(ch,[.15,-.22,.18]),.065,.055,gold);
  ball(plus(ch,[.02,.13,.28]),[.09,.12,.035],gold);
  for(let j=0;j<3;j++)ball(plus(ch,[.10-j*.07,.13-j*.11,.292]),[.028,.032,.017],g);
+ // A: layered fantasy armor and a visually recognizable equipment silhouette.
+ // Lightweight flat polygon inlays keep the classroom canvas responsive.
+ const metal=look?.metal||'#b3d6e0',crest=look?.crest||g;
+ for(const side of [-1,1]){
+   const sh=plus(ch,[0,.19,side*.28]);
+   m.face([plus(sh,[-.16,.07,-side*.04]),plus(sh,[.08,.10,side*.03]),
+     plus(sh,[.21,-.04,side*.07]),plus(sh,[-.08,-.12,side*.04])],metal);
+   m.face([plus(sh,[-.12,.05,side*.085]),plus(sh,[.05,.08,side*.11]),
+     plus(sh,[.14,-.03,side*.11]),plus(sh,[.02,-.045,side*.11])],crest);
+   const gauntlet=plus(ch,[.23,-.25,side*.23]);
+   tube(plus(gauntlet,[-.13,.04,0]),plus(gauntlet,[.13,-.02,side*.055]),.092,.067,metal,6);
+   // Knee guards with embossed fins.
+   m.face([[side*.22,.37,side*.18],[side*.35,.32,side*.19],
+     [side*.32,.20,side*.20],[side*.19,.20,side*.19]],metal);
+ }
+ m.face([plus(ch,[-.15,.21,.248]),plus(ch,[.18,.20,.248]),plus(ch,[.12,-.12,.267]),
+   plus(ch,[-.12,-.12,.267])],metal);
+ m.face([plus(ch,[-.11,.16,.278]),plus(ch,[.12,.14,.278]),
+   plus(ch,[.04,-.10,.29]),plus(ch,[-.07,-.10,.29])],c);
+ // Emblem centered on the armor, carrying the hero skin's own color.
+ m.face([plus(ch,[.02,.15,.302]),plus(ch,[.10,.05,.305]),
+   plus(ch,[.01,-.06,.305]),plus(ch,[-.07,.05,.305])],crest);
+ ball(plus(head,[.07,.18,.275]),[.11,.075,.042],crest,7);
+ if(skin.classId==='warrior'){
+   // Broad sword guard, faceted blade and an off-hand shield.
+   const shield=plus(ch,[.18,-.14,-.32]);
+   m.face([plus(shield,[-.19,.23,0]),plus(shield,[.19,.23,0]),
+     plus(shield,[.23,-.12,0]),plus(shield,[0,-.33,.03]),
+     plus(shield,[-.23,-.12,0])],metal);
+   m.face([plus(shield,[-.12,.14,.01]),plus(shield,[.12,.14,.01]),
+     plus(shield,[.13,-.11,.02]),plus(shield,[0,-.24,.025]),
+     plus(shield,[-.13,-.11,.02])],c);
+   ball(plus(shield,[0,0,.035]),[.07,.09,.035],crest,7);
+   tube(plus(hand,[-.16,.11,.08]),plus(hand,[.24,.12,.08]),.045,.038,crest,6);
+   if((look?.level||0)>=2)tube(mix(hand,tip,.35),mix(hand,tip,.88),.045,.007,crest,5);
+ } else if(skin.classId==='archer'){
+   // Quiver worn over the cape, fletching differentiates the class.
+   const quiver=plus(ch,[-.28,-.18,-.33]);
+   tube(quiver,plus(quiver,[.08,.48,0]),.14,.12,metal,6);
+   for(let j=0;j<3;j++)tube(plus(quiver,[j*.06-.1,.37,0]),
+     plus(quiver,[j*.06-.1,.65,j*.035]),.018,.013,crest,5);
+ } else if(skin.classId==='mage'){
+   // Staff orb floating above a ring of fine metal facets.
+   const gem=plus(tip,[0,.04,0]);
+   for(let j=0;j<4;j++){
+     const a=j*TAU/4;
+     tube(plus(gem,[.16*cos(a),.15*sin(a),0]),
+       plus(gem,[.22*cos(a+.15),.23*sin(a+.15),0]),.027,.007,crest,5);
+   }
+   ball(gem,[.095,.12,.095],crest,7);
+ }
  return world(tip);
 }
-function creature(m,i,t,wind,hit,recoil,palette=i,wave=1){
- const {ball,tube,face,world}=m,c=colors[palette],g=accent[palette],dark='#30263e',eye='#ffca48';
+function creature(m,i,t,wind,hit,recoil,palette=i,wave=1,look){
+ const {ball,tube,face,world}=m,c=look?.primary||colors[palette],g=look?.accent||accent[palette],dark=look?.metal||'#30263e',eye=look?.eye||'#ffca48';
  const bodyY=.82+.045*sin(t*2.3)-.13*wind+.08*hit, headY=bodyY+.37;let muzzle;
  function skull(p,r){ball(p,[r,r*.78,r*.90],c);ball(plus(p,[r*.64,-r*.14,r*.05]),[r*.7,r*.39,r*.64],g);
  for(const s of [-1,1]){ball(plus(p,[r*.60,r*.13,s*r*.59]),[r*.20,r*.23,r*.15],eye);ball(plus(p,[r*.70,r*.13,s*r*.65]),[r*.09,r*.16,r*.08],dark);tube(plus(p,[-r*.18,r*.50,s*r*.42]),plus(p,[-r*.50,r*1.14,s*r*.61]),r*.19,0,g)}
@@ -122,12 +173,90 @@ function creature(m,i,t,wind,hit,recoil,palette=i,wave=1){
   const fang=plus(muzzle,[-.10,-.03,side*.10]);
   tube(fang,plus(fang,[.05,-.15,.015*side]),.058,.006,'#ffe4ac',5);
  }
+ // A: per-name recognizable anatomy — wings, tusks, shells, scales and rune gears.
+ const kind=look?.kind||'beast',variant=look?.variant||0,
+   alloy=look?.metal||dark,glow=look?.energy||g;
+ const left=-.7,right=.55,back=bodyY+.47;
+ // Crown/spine type shifts for all seven encounters in each region.
+ const spines=2+variant%3;
+ for(let j=0;j<spines;j++){
+   const x=left+j*.29,z=.02+(j%2)*.15;
+   tube([x,back,z],[x-.12,back+.27+(variant%2)*.13,z*.88],.10,.006,j%2?alloy:g,5);
+ }
+ if(kind==='bird'||kind==='winged'||kind==='dragon'){
+   for(const side of [-1,1]){
+     const root=[-.24,bodyY+.22,side*.30],tip=[-.57,bodyY+.96+.13*sin(t*2.8),side*(1.12+variant*.05)];
+     face([root,tip,[-1.25,bodyY+.32,side*.92],[-.69,bodyY-.08,side*.56]],alloy);
+     for(let j=0;j<3;j++)face([tip,[-1.18-j*.13,bodyY+.12,side*(.91+j*.04)],
+       [-.58-j*.11,bodyY+.40,side*.43]],j%2?g:c);
+   }
+ }
+ if(kind==='arachnid'){
+   // Longer asymmetric legs and a segmented armored carapace.
+   for(const side of [-1,1])for(let j=0;j<2+variant%2;j++){
+      const x=-.48+j*.39;
+      tube([x,bodyY,side*.52],[x-.34,bodyY+.26+j*.11,side*(.93+j*.16)],.10,.045,alloy,5);
+      tube([x-.34,bodyY+.26+j*.11,side*(.93+j*.16)],
+        [x-.51,bodyY-.45,side*(1.30+j*.16)],.05,.006,g,5);
+   }
+ }
+ if(kind==='aquatic'){
+   for(const side of [-1,1])face([[-.17,bodyY+.18,side*.33],[-.86,bodyY+.66,side*.8],
+      [-1.06,bodyY-.18,side*.56],[-.47,bodyY-.32,side*.37]],side<0?alloy:g);
+   for(let j=0;j<3;j++){
+      const a=j*.31;
+      tube([-.55,bodyY-.28,.18*a],[ -.88-.10*sin(t*2+j),bodyY-.55-.09*j,a-.13],
+       .095,.012,g,5);
+   }
+ }
+ if(kind==='construct'){
+   // Segmented runic metal plating on stone or robot-themed enemies.
+   for(let j=0;j<3;j++){
+     const x=-.65+j*.30;
+     face([[x,bodyY+.26,.43],[x+.23,bodyY+.30,.43],
+       [x+.18,bodyY+.02,.47],[x,bodyY-.05,.47]],j%2?alloy:g);
+   }
+   for(let j=0;j<3;j++){
+     const x=-.32+j*.22;
+     ball([x,bodyY+.21,.49],[.045,.053,.028],glow,6);
+   }
+ }
+ if(kind==='beast'||kind==='serpent'){
+   for(const side of [-1,1]){
+     const ear=[.38,headY+.20,side*.33];
+     tube(ear,[.11,headY+.67+variant*.03,side*.64],.13,.004,alloy,5);
+   }
+   for(let j=0;j<3;j++)face([[-.65+j*.22,bodyY+.17,.41],[-.50+j*.22,bodyY+.29,.46],
+     [-.59+j*.22,bodyY+.12,.53]],j%2?g:alloy);
+ }
+ if(kind==='sprite'){
+   for(let j=0;j<4;j++){
+     const angle=t*.43+j*TAU/4;
+     const pos=[cos(angle)*.74,bodyY+.12+sin(angle)*.32,sin(angle)*.39];
+     face([plus(pos,[0,.14,0]),plus(pos,[.1,0,0]),plus(pos,[0,-.16,.04]),
+       plus(pos,[-.1,0,0])],j%2?glow:alloy);
+   }
+ }
+ if(look?.elite||look?.boss){
+   // Two shoulder banners mark higher-tier foes without changing hitboxes.
+   for(const side of [-1,1])face([[-.18,bodyY+.59,side*.30],
+     [-.48,bodyY+1.17,side*.60],[-.77,bodyY+.89,side*.41],
+     [-.55,bodyY+.28,side*.30]],alloy);
+ }
+ if(look?.boss){
+   for(let j=-2;j<=2;j++){
+     const x=j*.18;
+     tube([x,bodyY+.63,.02],[x*.95,bodyY+1.02+(.25-.09*Math.abs(j)),.03],
+       .085,.008,j%2?glow:alloy,6);
+   }
+   ball([.57,bodyY+.40,.37],[.12,.09,.045],glow,7);
+ }
  return world(muzzle)
 }
-export function paintArena(ctx,w,h,{skin,index=0,round=1,wave=3,action='idle',time=0,elapsed=2,portrait=false}){
+export function paintArena(ctx,w,h,{skin,index=0,round=1,wave=3,action='idle',time=0,elapsed=2,portrait=false,monsterAppearance=null,heroAppearance=null}){
  // Distinct creature archetypes, silhouette and palette for scouting / elite / boss.
  const region=round-1,variant=(region*3+wave*7)%22;
- const i=wave===7?region:(region*7+wave*5)%22;
+ const i=monsterAppearance?.archetype??(wave===7?region:(region*7+wave*5)%22);
  const monsterScale=wave===7?1.78+Math.min(16,region)*.065:1.04+wave*.095+region*.015;
  const palette=wave===7?region:(region*5+wave*11)%22;
  const t=time,p=Math.min(1,elapsed/1.15),att=action==='strike',counter=action==='counter';
@@ -148,8 +277,8 @@ export function paintArena(ctx,w,h,{skin,index=0,round=1,wave=3,action='idle',ti
  const heroPos=[playerX+heroTravel-(counter?.18*flinch:0),heroY,.23],foePos=[enemyX-foeTravel+(att?.20*flinch:0),foeY,-.15];
  function shadow(p,rx,rz){const a=project(p);ctx.fillStyle='rgba(27,53,32,.23)';ctx.beginPath();ctx.ellipse(a[0],a[1],rx*scale,rz*scale,0,0,TAU);ctx.fill()}
  shadow(heroPos,.41,.11);if(!portrait)shadow(foePos,monsterScale*.92,monsterScale*.19);
- const hand=hero(model(draw,heroPos),skin,t,att?wind:0,att?swing:0,counter?flinch:0,index);
- let mouth;if(!portrait)mouth=creature(model(draw,foePos,monsterScale,-1),i,t,counter?wind:0,counter?swing:0,att?flinch:0,palette,wave);
+ const hand=hero(model(draw,heroPos),skin,t,att?wind:0,att?swing:0,counter?flinch:0,index,heroAppearance);
+ let mouth;if(!portrait)mouth=creature(model(draw,foePos,monsterScale,-1),i,t,counter?wind:0,counter?swing:0,att?flinch:0,palette,wave,monsterAppearance);
  faces.sort((a,b)=>a[2]-b[2]);for(const [ps,c] of faces){ctx.fillStyle=ctx.strokeStyle=c;ctx.lineWidth=.55;ctx.beginPath();ps.forEach(([x,y],j)=>j?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.closePath();ctx.fill();ctx.stroke()}
  if(portrait||!(att||counter))return;
  const start=att?hand:mouth,target=att?[contact,monsterScale*1.03,0]:[heroPos[0]+.12,1.23,.22];

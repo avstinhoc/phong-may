@@ -1,0 +1,46 @@
+/* Character Art Pass A — class heraldry and clearly labeled enemy identities. */
+.cw-battle-field .cw-scene-title{
+ display:flex;align-items:center;justify-content:center;gap:13px;
+ top:12px;left:50%;max-width:min(92%,690px);width:max-content;
+ padding:9px 18px;white-space:normal;text-align:left;
+ color:#fff;border:1px solid #caeeef8a;border-radius:18px;
+ background:linear-gradient(105deg,#0b283edb,#184560d8);
+ box-shadow:0 7px 24px #071c2e8a, inset 0 1px #fff5;
+ backdrop-filter:blur(6px);
+}
+.cw-battle-hero-name,.cw-battle-monster-name{
+ display:grid;grid-template-columns:auto minmax(0,1fr);gap:2px 7px;
+ align-items:center;min-width:0;
+ max-width:260px;font-size:clamp(11px,.95vw,15px);line-height:1.15;font-weight:950;
+ text-shadow:0 2px 3px #112d41;
+}
+.cw-battle-hero-name>svg{color:#9ffff0}.cw-battle-monster-name>svg{color:#ffcaa4}
+.cw-scene-title .cw-battle-hero-name small,.cw-scene-title .cw-battle-monster-name small{
+ grid-column:2;display:block;color:#b5d8db;font-size:10px;font-weight:650;text-transform:capitalize;
+}
+.cw-scene-title .cw-battle-vs{
+ display:grid;place-items:center;width:34px;height:34px;min-width:34px;
+ color:#ffe79e;background:#2a5367;border:1px solid #f6ce75;border-radius:50%;
+ font-size:12px;font-weight:1000;box-shadow:0 0 10px #f6da7980;
+}
+.cw-battle-field[data-hero-class="warrior"] .cw-character-aura{filter:drop-shadow(0 0 12px #4de5ed)}
+.cw-battle-field[data-hero-class="archer"] .cw-character-aura{filter:drop-shadow(0 0 12px #8efca4)}
+.cw-battle-field[data-hero-class="mage"] .cw-character-aura{filter:drop-shadow(0 0 12px #e3a3ff)}
+.cw-battle-field[data-enemy-type="dragon"] .cw-depth-foreground{box-shadow:inset 0 0 60px #71332492}
+.cw-battle-field[data-enemy-type="aquatic"] .cw-depth-atmosphere{filter:hue-rotate(18deg)}
+.cw-battle-field[data-enemy-type="construct"] .cw-scene-lights{opacity:.35}
+.cw-gear-page .cw-character-card .cw-character-preview{
+ border:3px solid #d0f5f1;border-radius:20px;
+ box-shadow:inset 0 0 70px #082c4373,0 12px 22px #081f3670;
+}
+.cw-gear-page .cw-character-preview::after{
+ content:'✦';position:absolute;top:12px;right:22px;font-size:27px;color:#ffedb7;
+ text-shadow:0 0 12px #ffdf88;pointer-events:none;
+}
+@media(max-width:850px){
+ .cw-battle-field .cw-scene-title{width:auto;max-width:96%;gap:5px;padding:7px 8px}
+ .cw-battle-hero-name,.cw-battle-monster-name{font-size:10px;gap:2px 4px}
+ .cw-scene-title .cw-battle-hero-name small,.cw-scene-title .cw-battle-monster-name small{font-size:9px}
+ .cw-scene-title .cw-battle-vs{width:26px;height:26px;min-width:26px;font-size:9px}
+}
+@media(prefers-reduced-motion:reduce){.cw-battle-field .cw-scene-title{backdrop-filter:none}}
