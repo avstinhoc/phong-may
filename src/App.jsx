@@ -643,6 +643,10 @@ function Dashboard({ profile, refresh, setPage }) {
       </div>
       <div className="panel">
         <div className="panel-head"><div><h3>Bắt đầu nhanh</h3><p>Các thao tác thường dùng</p></div><Sparkles /></div>
+        <a className="task-row arcade-launch" href="/san-sao.html" target="_blank" rel="noopener noreferrer">
+          <span className="task-icon purple"><Sparkles /></span>
+          <div><b>Trò chơi Săn Sao IC3 ↗</b><small>Luyện phần cứng qua 12 ải · Điểm trò chơi lưu trên máy này</small></div>
+        </a>
         <div className="quick-grid">
           <button className="quick-item" onClick={() => setPage("students")}><UserPlus size={19} /><b>Thêm học sinh</b><small>Tạo hồ sơ mới</small></button>
           <button className="quick-item" onClick={() => setPage("computers")}><Monitor size={19} /><b>Quản lý máy</b><small>Thêm PC và phân chỗ</small></button>

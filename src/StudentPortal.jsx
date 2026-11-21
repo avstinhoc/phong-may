@@ -122,6 +122,9 @@ export function StudentPortal(){
           {payload&&<a className="portal-school-hero-link" href={'/school?code='+encodeURIComponent(code)}>
             🏆 Khám phá Top 5 toàn trường và các khối 8 · 7 · 6 <span aria-hidden="true">↗</span>
           </a>}
+          {payload&&<a className="portal-school-hero-link" href="/san-sao.html" target="_blank" rel="noopener noreferrer">
+            🎮 Chơi Săn Sao IC3 <span aria-hidden="true">↗</span>
+          </a>}
           <a className="portal-hero-register" href={code?'/register?code='+encodeURIComponent(code):'/register'}>
             <span className="portal-register-icon" aria-hidden="true">✍️</span>
             <span><strong>ĐĂNG KÝ LỚP</strong><small>Thêm bạn mới vào lớp ngay</small></span>

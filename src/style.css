@@ -1451,3 +1451,5 @@
 .history-scroll .record-row strong{margin-left:0;flex:none}
 .history-scroll .record-row .record-correction-edit-button{flex:none}
 @media(max-width:620px){.record-filter-bar>.student-picker{width:100%;min-width:0;max-width:none}.record-filter-bar>.field-inline{flex:1 1 100%;max-width:none}.record-history-heading{align-items:flex-start}.history-scroll .record-row{flex-wrap:wrap}}
+
+.arcade-launch { color: inherit; text-decoration: none; }

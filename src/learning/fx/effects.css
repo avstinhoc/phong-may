@@ -1,0 +1,11 @@
+.ic3-stage-actor .ic3-fx {
+  position:absolute; left:50%; top:35%; z-index:5; pointer-events:none;
+  width:min(160px,105%); aspect-ratio:1; transform:translate(-50%,-50%);
+  background-size:1200% 100%; background-repeat:no-repeat;
+  animation:ic3-strike-frames .54s steps(11,end) .12s both;
+}
+.ic3-fx.slash {background-image:url('./slash.png')}
+.ic3-fx.counter {background-image:url('./counter.png')}
+.ic3-fx.shield {background-image:url('./shield.png')}
+@keyframes ic3-strike-frames {from{background-position:0% 0}to{background-position:100% 0}}
+@media(prefers-reduced-motion:reduce){.ic3-stage-actor .ic3-fx{display:none}}
