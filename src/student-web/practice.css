@@ -42,12 +42,57 @@
 .practice-reference-figure img{display:block;width:100%;height:auto;max-height:290px;object-fit:contain;margin:auto;border-radius:11px}
 .practice-reference-figure figcaption{font-size:11px;color:#6e8997;margin-top:7px}
 .practice-question-topic{font-size:13px;color:#2b797b;font-weight:800}
-.practice-source-panel{border-top:1px solid #d7e7eb;margin-top:20px;padding-top:15px}
-.practice-source-panel>button{display:inline-flex;align-items:center;gap:7px;background:#e9f9f3;border:1px solid #b6dfd4;color:#0e7770;font-weight:850}
-.practice-source-image{padding:14px;background:#f3f8fd;border-radius:15px;margin-top:12px}
-.practice-source-image>img{width:100%;max-height:570px;object-fit:contain;background:white;border:1px solid #d7e9ef;border-radius:11px}
-.practice-source-image>div{display:flex;align-items:center;justify-content:center;gap:12px;margin:10px}
-.practice-source-image>div button{padding:6px 10px}.practice-source-image>p{font-size:12px;color:#6f8599;text-align:center}
 .practice-answer-result{margin:14px 0;padding:13px;background:#e7f8f2;border-radius:12px}
 .practice-notice{background:#fff7e3;color:#8d631f;padding:11px;border-radius:9px}
 @media(max-width:700px){.practice-visual-card .practice-options{grid-template-columns:1fr}.practice-visual .practice-card{padding:14px}}
+
+/* Picture-based practice — source-backed photo, not a PowerPoint cover. */
+.practice-visual-card .practice-reference-figure{
+ display:grid;gap:8px;justify-items:center;
+ width:min(100%,650px);max-width:650px;
+ margin:12px auto 16px;padding:12px;
+ background:linear-gradient(145deg,#f7fcfe,#eaf5f7);
+ border:1px solid #d5e7ee;border-radius:18px;
+}
+.practice-visual-card .practice-reference-figure img{
+ display:block;max-width:100%;width:auto;height:auto;
+ max-height:clamp(160px,26vh,255px);
+ object-fit:contain;border-radius:11px;
+ box-shadow:0 5px 18px #123a4b19;background:#fff;
+}
+.practice-visual-card .practice-reference-figure figcaption{
+ display:flex;flex-direction:column;align-items:center;gap:3px;
+ font-size:11px;line-height:1.4;text-align:center;color:#627f8c;
+}
+.practice-visual-card .practice-reference-figure figcaption strong{color:#2b5665;font-size:13px}
+.practice-visual-card .practice-reference-figure figcaption a{
+ display:inline-flex;align-items:center;gap:3px;
+ color:#096c87;text-decoration:underline;text-underline-offset:2px;
+}
+.practice-visual-card .practice-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.practice-visual-card .practice-options button{
+ display:flex;align-items:center;gap:13px;text-align:left;
+ font-size:clamp(14px,1.26vw,18px);line-height:1.38;min-height:68px;
+ border:1px solid #b7d5d5;border-radius:13px;
+ background:linear-gradient(135deg,#ffffff,#f7fbfb);
+ transition:transform .13s,border-color .13s,background .13s,box-shadow .13s;
+ overflow-wrap:anywhere;
+}
+.practice-visual-card .practice-options button b{
+ width:38px;height:38px;min-width:38px;display:grid;place-items:center;
+ padding:0;background:#e5f5ef;color:#166f70;border-radius:10px;
+ font-size:19px;font-weight:900;
+}
+.practice-visual-card .practice-options button>span{flex:1}
+.practice-visual-card .practice-options button:hover:enabled{
+ transform:translateY(-2px);border-color:#168f86;
+ background:#e9faf4;box-shadow:0 9px 20px #116b732b;
+}
+.practice-visual-card .practice-options button:focus-visible{outline:3px solid #f0b759;outline-offset:2px}
+.practice-visual-card .practice-options button.correct{border-color:#35ad8a;background:#e2f8eb}
+.practice-visual-card .practice-options button.incorrect{border-color:#dc8d85;background:#fff0eb}
+@media(max-width:700px){
+ .practice-visual-card .practice-options{grid-template-columns:1fr}
+ .practice-visual-card .practice-reference-figure img{max-height:220px}
+}
+@media(prefers-reduced-motion:reduce){.practice-visual-card .practice-options button{transition:none}}
