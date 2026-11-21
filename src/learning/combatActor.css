@@ -1,0 +1,13 @@
+.arc-foundry{position:absolute;inset:0;background:linear-gradient(0deg,#0c152955,transparent 46%),url('./fx/foundry.webp') center 68%/cover no-repeat}
+.ic3-stage-actor .arc-rig{position:relative;z-index:4;overflow:visible;display:block;width:clamp(150px,23vw,280px);height:auto;filter:drop-shadow(0 3px 2px #070b26ad);will-change:transform;pointer-events:none}
+.ic3-stage-actor .arc-rig.beast{width:clamp(168px,26vw,309px)}
+.ic3-stage-actor.attacking{z-index:9}
+.ic3-stage-actor.enemy{padding-bottom:32px}
+.ic3-stage-actor .ic3-fx{top:auto;bottom:22%;width:min(215px,125%);z-index:12;animation-delay:.38s}
+.ic3-arcade-stage .ic3-impact-text{animation-delay:.39s}
+.ic3-arcade-stage .ic3-arcade-hp span{transition:width .4s ease .38s}
+.ic3-arcade-stage .ic3-stage-aura{height:18px;bottom:75px;width:48%;background:radial-gradient(ellipse,#0d1124b0,transparent 72%)}
+.ic3-stage-actor.hit .arc-rig{animation:arc-rim-hit .88s linear}
+@keyframes arc-rim-hit{0%,42%,63%,100%{filter:drop-shadow(0 3px 2px #070b2677)}48%,53%{filter:brightness(1.65) drop-shadow(0 0 5px #70f3ff)}}
+.ic3-reduce-motion .arc-rig,.ic3-reduce-motion .ic3-impact-text{animation:none!important}
+@media(max-width:680px){.ic3-stage-actor .arc-rig{width:140px}.ic3-stage-actor .arc-rig.beast{width:155px}}
