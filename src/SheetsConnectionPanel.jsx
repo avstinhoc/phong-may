@@ -21,7 +21,10 @@ const getMessage=async error=>{
  if(error?.context?.json){
   try{const d=await error.context.json();if(d?.error)return d.error;}catch{}
  }
- return error?.message||'Không thể kết nối Google Sheets.';
+ const msg=error?.message||'Không thể kết nối Google Sheets.';
+ if(/failed to send a request to the edge function|failed to fetch|functionsfetcherror/i.test(msg))
+   return 'Không gọi được dịch vụ Google Sheets. Nếu đang dùng QLPM Teacher Windows, máy chủ cần cho phép địa chỉ nội bộ Tauri (CORS). Kiểm tra kết nối mạng rồi cập nhật Edge Function; không cần di chuyển hay tạo lại file Google Sheets.';
+ return msg;
 };
 export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=null,logoLabel='',rosterVersion=0,refresh=0,syncRefresh=0,onSynced}){
  const [open,setOpen]=useState(false),[link,setLink]=useState(null),

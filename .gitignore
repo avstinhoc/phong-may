@@ -4,3 +4,10 @@ dist/
 .env.*
 !.env.example
 .vercel/
+
+# Tauri-generated binaries and icons (icons generated from committed original SVG)
+desktop/**/src-tauri/target/
+desktop/**/src-tauri/gen/
+desktop/**/src-tauri/icons/
+
+/public/ic3-slides/

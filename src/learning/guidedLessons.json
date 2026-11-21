@@ -1,0 +1,464 @@
+[
+ {
+  "n": 1,
+  "title": "Một chiếc máy, ba công việc",
+  "hook": "Nhấp nút tính tổng điểm. Trước khi con số xuất hiện, lệnh và dữ liệu đi qua đâu?",
+  "concepts": [
+   [
+    "CPU thực thi lệnh",
+    "Khi bảng tính cộng 35 ô, CPU thực hiện các thao tác tính toán. Xung nhịp chỉ là một trong nhiều yếu tố ảnh hưởng tốc độ."
+   ],
+   [
+    "RAM giữ phiên làm việc",
+    "Dữ liệu tạm của bảng tính đang mở cần RAM. Mở thêm ứng dụng có thể làm bộ nhớ khả dụng giảm."
+   ],
+   [
+    "Ổ lưu trữ giữ bản đã lưu",
+    "SSD dùng bộ nhớ flash, HDD dùng đĩa từ quay. Cả hai có thể giữ tệp sau khi tắt máy."
+   ]
+  ],
+  "task": "Vẽ hành trình của một bảng điểm từ lúc mở tệp đến lúc nhấn Lưu.",
+  "solution": "Ổ lưu trữ → RAM khi mở → CPU xử lý → ổ lưu trữ khi lưu."
+ },
+ {
+  "n": 2,
+  "title": "Thông tin đi vào hay đi ra?",
+  "hook": "Lớp gọi video với trường bạn. Vì sao một chiếc headset đảm nhiệm được hai nhiệm vụ?",
+  "concepts": [
+   [
+    "Nhập dữ liệu",
+    "Bàn phím nhận ký tự, micrô thu âm, webcam thu hình. Xét chiều thông tin từ người dùng vào máy."
+   ],
+   [
+    "Xuất kết quả",
+    "Máy chiếu đưa ảnh lên màn chiếu. Loa biến dữ liệu âm thanh thành tiếng người nghe được."
+   ],
+   [
+    "Ghép đúng cổng",
+    "HDMI có thể mang hình và tiếng. USB nối nhiều loại thiết bị. Đầu cắm và cổng cần tương thích."
+   ]
+  ],
+  "task": "Chỉ vào hai bộ phận của headset và mô tả đường đi của giọng nói.",
+  "solution": "Micrô đưa tiếng vào máy. Tai nghe đưa tiếng từ máy đến người nghe."
+ },
+ {
+  "n": 3,
+  "title": "Chọn máy theo việc cần làm",
+  "hook": "Nhóm em có một bàn cố định ở lớp, nhưng cuối tuần cần phỏng vấn ngoài sân. Có một loại máy tốt nhất cho cả hai việc không?",
+  "concepts": [
+   [
+    "Máy bàn và All-in-one",
+    "Máy bàn thường đặt cố định, có màn hình rời. All-in-one tích hợp phần lớn linh kiện sau màn hình."
+   ],
+   [
+    "Laptop và Chromebook",
+    "Laptop có pin và bàn phím vật lý. Chromebook chạy ChromeOS. Hãy kiểm tra ứng dụng cần dùng có được hỗ trợ."
+   ],
+   [
+    "Tablet và smartphone",
+    "Cả hai thường có màn hình cảm ứng. Tablet có diện tích thao tác rộng, smartphone thuận tiện liên lạc khi di chuyển."
+   ]
+  ],
+  "task": "Chọn thiết bị cho người vừa phải ghi chép nhiều vừa đi thực địa. Nêu hai lý do.",
+  "solution": "Ví dụ laptop có pin và bàn phím. Nếu cần vẽ tay, tablet có bút là phương án khác."
+ },
+ {
+  "n": 4,
+  "title": "Từ nhiệm vụ đến ứng dụng",
+  "hook": "Nhóm lớp cần nộp báo cáo, bảng chi phí và bài thuyết trình. Nên tạo ba loại tệp nào?",
+  "concepts": [
+   [
+    "Viết và trình bày",
+    "Trình soạn thảo phù hợp với văn bản dài. Trình chiếu tổ chức nội dung thành các trang cho khán giả xem."
+   ],
+   [
+    "Dữ liệu và công thức",
+    "Bảng tính đặt dữ liệu trong ô. Công thức giúp tính lại kết quả khi một giá trị thay đổi."
+   ],
+   [
+    "Chạy tại máy hoặc trên web",
+    "Ứng dụng web thường mở qua trình duyệt. Khi nhiều bạn cùng sửa một tệp, cần đúng quyền chỉnh sửa."
+   ]
+  ],
+  "task": "Chọn công cụ cho bảng dự trù và cho áp phích giới thiệu sự kiện.",
+  "solution": "Dùng bảng tính cho dự trù. Dùng phần mềm đồ họa hoặc trình chiếu để thiết kế áp phích."
+ },
+ {
+  "n": 5,
+  "title": "Ai điều phối phòng máy?",
+  "hook": "Em vừa nghe nhạc, soạn bài và gửi lệnh in. Ba ứng dụng dùng phần cứng bằng cách nào?",
+  "concepts": [
+   [
+    "Cầu nối phần cứng",
+    "Hệ điều hành quản lý CPU, bộ nhớ và thiết bị. Trình điều khiển giúp hệ điều hành làm việc với thiết bị cụ thể."
+   ],
+   [
+    "Tổ chức công việc",
+    "Cửa sổ, thanh tác vụ và trình quản lý tệp cho phép chuyển ứng dụng, tìm tài liệu và lưu bài theo thư mục."
+   ],
+   [
+    "Tương thích hệ thống",
+    "Windows, macOS, Linux và các hệ điều hành di động có hệ sinh thái ứng dụng khác nhau. Kiểm tra yêu cầu trước khi cài."
+   ]
+  ],
+  "task": "Mở hai ứng dụng rồi chuyển cửa sổ mà không đóng tài liệu.",
+  "solution": "Trên Windows có thể dùng Alt + Tab. Ứng dụng trước vẫn giữ phiên làm việc."
+ },
+ {
+  "n": 6,
+  "title": "Một máy, nhiều tài khoản",
+  "hook": "Hai lớp dùng chung máy số 12. Làm sao để bạn tiết sau không mở được email của em?",
+  "concepts": [
+   [
+    "Danh tính và quyền",
+    "Tài khoản xác định người dùng. Tài khoản tiêu chuẩn phục vụ học tập, tài khoản quản trị được phép thay đổi hệ thống nhiều hơn."
+   ],
+   [
+    "Khóa và đăng xuất",
+    "Khóa máy giữ phiên đang mở. Đăng xuất kết thúc phiên để người tiếp theo đăng nhập bằng tài khoản riêng."
+   ],
+   [
+    "Điều hướng cửa sổ",
+    "Thu nhỏ đưa cửa sổ về thanh tác vụ. Đóng ứng dụng có thể hiện yêu cầu lưu bài. Đọc thông báo trước khi xác nhận."
+   ]
+  ],
+  "task": "Nêu thao tác khi lấy nước 2 phút và khi ra về cuối buổi.",
+  "solution": "Khóa máy khi tạm rời chỗ. Lưu bài rồi đăng xuất khi bàn giao."
+ },
+ {
+  "n": 7,
+  "title": "Tìm được bản đúng sau một tuần",
+  "hook": "Ba tệp đều tên “bài cuối”. Làm sao để nhóm biết tệp nào cần nộp và vẫn giữ được bản nháp?",
+  "concepts": [
+   [
+    "Đặt tên nhất quán",
+    "Tên gồm lớp, nội dung và phiên bản giúp phân biệt tệp. Phần mở rộng gợi ý loại tệp, ví dụ .docx hoặc .xlsx."
+   ],
+   [
+    "Tổ chức bằng thư mục",
+    "Chia theo môn hoặc dự án. Sao chép tạo thêm một bản. Di chuyển thay đổi vị trí của tệp."
+   ],
+   [
+    "Sao lưu và khôi phục",
+    "Giữ bản sao ở vị trí độc lập. Kiểm tra bằng cách phục hồi thử vào thư mục khác và mở lại tệp."
+   ]
+  ],
+  "task": "Lập cây thư mục cho dự án và đặt tên bản chỉnh sửa thứ hai.",
+  "solution": "ViDu: Lop6A/DuAnNuoc/BaoCao_v02.docx. Lưu thêm bản sao ở thiết bị hoặc dịch vụ khác."
+ },
+ {
+  "n": 8,
+  "title": "Trạm ôn tập phòng máy",
+  "hook": "Lớp nhận một phiếu giấy, cần sửa lại nội dung rồi nộp bản cuối. Hãy ghép các thao tác đã học.",
+  "concepts": [
+   [
+    "Nhận dữ liệu",
+    "Máy quét chuyển trang giấy thành ảnh số. Nếu cần sửa chữ, có thể nhập lại hoặc nhận dạng ký tự rồi soát lỗi."
+   ],
+   [
+    "Chọn ứng dụng",
+    "Trình soạn thảo phù hợp với phiếu dạng văn bản. Bảng tính phù hợp khi phiếu có phép tính và dữ liệu theo cột."
+   ],
+   [
+    "Lưu và bàn giao",
+    "Đặt tên tệp có chủ đề, lưu đúng thư mục và xác minh mở lại được. Đăng xuất sau khi nộp qua máy chung."
+   ]
+  ],
+  "task": "Xếp ba việc theo thứ tự và giải thích cách bảo vệ bản gốc.",
+  "solution": "Quét → biên tập trên bản sao → lưu bản cuối. Giữ bản quét để đối chiếu."
+ },
+ {
+  "n": 9,
+  "title": "Kết nối nào cho thiết bị nào?",
+  "hook": "Tai nghe kết nối được mà trang web vẫn không mở. Hai việc ấy dùng cùng một đường truyền không?",
+  "concepts": [
+   [
+    "Wi-Fi nối vào mạng",
+    "Thiết bị kết nối điểm truy cập qua sóng vô tuyến. Có tín hiệu Wi-Fi chưa chắc đường truyền Internet đang hoạt động."
+   ],
+   [
+    "Bluetooth nối ở gần",
+    "Dùng để ghép tai nghe, chuột hoặc một số thiết bị lân cận. Thường phải bật chế độ ghép đôi ở cả hai phía."
+   ],
+   [
+    "Khoanh vùng sự cố",
+    "Kiểm tra chế độ máy bay, tên mạng, tín hiệu và phạm vi ảnh hưởng. Nếu cả lớp đều mất mạng, báo người quản lý."
+   ]
+  ],
+  "task": "Giải thích vì sao tai nghe vẫn phát bản nhạc đã tải khi Internet gián đoạn.",
+  "solution": "Tệp có sẵn trên máy và âm thanh truyền qua Bluetooth ở khoảng cách gần."
+ },
+ {
+  "n": 10,
+  "title": "Trạm ôn tập kết nối",
+  "hook": "Trước buổi thuyết trình, máy chiếu chưa hiện hình và laptop chưa phát tiếng qua tai nghe. Thử gì trước?",
+  "concepts": [
+   [
+    "Vẽ đường tín hiệu",
+    "Ghi đầu phát, loại kết nối và đầu nhận. Hình có thể đi qua HDMI, tiếng có thể đi qua Bluetooth."
+   ],
+   [
+    "Kiểm tra từng biến",
+    "Xác nhận đầu vào trên TV, thiết bị đầu ra âm thanh và trạng thái kết nối. Sau mỗi thay đổi, thử lại."
+   ],
+   [
+    "Chuẩn bị bản dự phòng",
+    "Lưu bài trên máy và giữ bản sao riêng. Kiểm tra bài có thể mở khi Wi-Fi mất."
+   ]
+  ],
+  "task": "Lập danh sách ba kiểm tra trước khi lớp trình chiếu.",
+  "solution": "Mở đúng tệp, chọn đúng đầu vào hình, thử đường tiếng bằng một đoạn ngắn."
+ },
+ {
+  "n": 11,
+  "title": "Tìm lại đúng trang học",
+  "hook": "Tuần trước em đọc một tài liệu rất hay nhưng quên địa chỉ. Chức năng nào giúp tránh việc này?",
+  "concepts": [
+   [
+    "Trình duyệt và website",
+    "Chrome, Edge, Firefox và Safari là trình duyệt. Website là nội dung được tải từ địa chỉ web trong trình duyệt."
+   ],
+   [
+    "Điều hướng trong tab",
+    "Back quay về trang đã xem trước. Forward đi tới sau khi quay lại. Refresh tải lại trang đang mở."
+   ],
+   [
+    "Dấu trang có tổ chức",
+    "Lưu URL với tên dễ nhận biết rồi xếp vào thư mục môn học. Có thể sửa tên, đổi địa chỉ hoặc xóa dấu trang."
+   ]
+  ],
+  "task": "Tạo thư mục Tin học và lưu hai trang có tên phân biệt được.",
+  "solution": "Ví dụ “Bài đọc tuần 2” và “Phiếu luyện tuần 2”. Kiểm tra từng dấu trang mở đúng đích."
+ },
+ {
+  "n": 12,
+  "title": "Thu hẹp kết quả tìm kiếm",
+  "hook": "Tìm “nước” để làm bài khoa học cho quá nhiều kết quả. Thêm thông tin gì để tìm đúng tài liệu?",
+  "concepts": [
+   [
+    "Từ khóa cụ thể",
+    "Xác định đối tượng, địa điểm hoặc thời gian. Ví dụ thêm “nước ngầm” và “Đông Nam Bộ” vào truy vấn."
+   ],
+   [
+    "Lọc có chủ đích",
+    "Ngoặc kép giúp tìm cụm từ. Dùng bộ lọc loại nội dung hoặc thời gian nếu công cụ hỗ trợ."
+   ],
+   [
+    "Đánh giá kết quả",
+    "Kiểm tra tác giả, ngày cập nhật, dẫn chứng và mục đích của trang trước khi trích thông tin."
+   ]
+  ],
+  "task": "Viết hai truy vấn cho cùng một đề tài và so sánh kết quả.",
+  "solution": "Truy vấn thứ hai cần cụ thể hơn. Giải thích từ khóa hoặc bộ lọc đã thêm."
+ },
+ {
+  "n": 13,
+  "title": "Chọn ảnh được phép dùng",
+  "hook": "Nhóm muốn in áp phích có ảnh tải về. Tìm thấy ảnh trên Internet đã đủ để đưa vào sản phẩm chưa?",
+  "concepts": [
+   [
+    "Quyền sử dụng",
+    "Tác phẩm thuộc phạm vi công cộng và tác phẩm có giấy phép mở có cơ sở sử dụng khác nhau. Xem nguồn gốc và điều kiện áp dụng."
+   ],
+   [
+    "Đọc ký hiệu CC",
+    "BY yêu cầu ghi công. NC giới hạn mục đích thương mại. ND giới hạn chia sẻ bản chuyển thể. SA yêu cầu chia sẻ tương tự khi áp dụng."
+   ],
+   [
+    "Ghi nguồn dễ kiểm tra",
+    "Ghi tiêu đề nếu có, tác giả, nguồn và giấy phép. Nêu thay đổi nếu đã chỉnh sửa theo quyền được cấp."
+   ]
+  ],
+  "task": "Đọc “CC BY-SA” và nêu hai việc khi chia sẻ bản chuyển thể.",
+  "solution": "Ghi công phù hợp và chia sẻ bản chuyển thể theo giấy phép tương thích với yêu cầu SA."
+ },
+ {
+  "n": 14,
+  "title": "Dấu vết sau một bài đăng",
+  "hook": "Một ảnh góc học tập có thể vô tình tiết lộ trường, lớp hoặc địa chỉ bằng chi tiết nào?",
+  "concepts": [
+   [
+    "Thông tin nhận dạng",
+    "Họ tên, mã học sinh, số liên hệ và tổ hợp dữ liệu có thể nhận diện một người. Xem kỹ hậu cảnh trước khi đăng."
+   ],
+   [
+    "Danh tính trực tuyến",
+    "Tên hiển thị, ảnh đại diện, bài đăng và tương tác góp phần tạo hình ảnh của em trên mạng."
+   ],
+   [
+    "Quản lý phạm vi chia sẻ",
+    "Chọn đúng đối tượng, kiểm tra quyền xem và hạn chế đăng chi tiết không cần thiết. Người xem vẫn có thể lưu bản sao."
+   ]
+  ],
+  "task": "Soát một ảnh giả định có thẻ học sinh và bảng tên đường.",
+  "solution": "Che thông tin nhận dạng và vị trí, cân nhắc người xem trước khi chia sẻ."
+ },
+ {
+  "n": 15,
+  "title": "Góp ý mà bạn vẫn muốn nghe",
+  "hook": "Một bạn làm sai trong nhóm lớp và ảnh chụp lỗi đang lan rộng. Em có thể giúp gì?",
+  "concepts": [
+   [
+    "Tôn trọng người khác",
+    "Trao đổi về nội dung cụ thể. Chọn cách diễn đạt em sẵn sàng nói trực tiếp trước mặt người nhận."
+   ],
+   [
+    "Đồng thuận khi chia sẻ",
+    "Hỏi ý kiến trước khi đăng ảnh hay thông tin của người khác. Hạn chế chuyển tiếp nội dung gây tổn thương."
+   ],
+   [
+    "Xử lý hành vi xấu",
+    "Dừng lan truyền, hỗ trợ người bị ảnh hưởng và báo cho người lớn hoặc quản trị viên phù hợp."
+   ]
+  ],
+  "task": "Viết lại một bình luận chê bai thành góp ý về bài làm.",
+  "solution": "Ví dụ “Mình tính được kết quả khác ở bước 2. Hai bạn cùng kiểm tra công thức nhé?”"
+ },
+ {
+  "n": 16,
+  "title": "Chọn nơi trao đổi",
+  "hook": "Lớp cần nhật ký dài hạn, một nơi hỏi đáp và kênh nhắn lịch hẹn riêng. Mỗi việc dùng gì?",
+  "concepts": [
+   [
+    "Blog lưu hành trình",
+    "Bài viết theo thời gian thích hợp cho nhật ký dự án, có thể đính kèm ảnh và nhận bình luận."
+   ],
+   [
+    "Diễn đàn theo chủ đề",
+    "Luồng thảo luận giúp gom câu hỏi và phản hồi liên quan. Tìm trong chủ đề cũ trước khi đăng câu mới."
+   ],
+   [
+    "Mạng xã hội và tin nhắn",
+    "Trang và nhóm cập nhật cho cộng đồng. Tin nhắn riêng phù hợp để trao đổi khi phạm vi người nhận hẹp."
+   ]
+  ],
+  "task": "Chọn kênh cho nhật ký trồng cây và cho lịch hẹn giữa hai bạn.",
+  "solution": "Blog lưu nhật ký theo tuần. Tin nhắn riêng dùng cho lịch hẹn."
+ },
+ {
+  "n": 17,
+  "title": "Đọc nội quy trước khi đăng",
+  "hook": "Em sắp làm quản trị viên nhóm học tập. Dựa vào đâu để duyệt bài và phân quyền?",
+  "concepts": [
+   [
+    "Chính sách sử dụng",
+    "Chính sách quy định hành vi, trách nhiệm và phạm vi dùng dịch vụ. Nội quy lớp có thể bổ sung quy tắc trao đổi."
+   ],
+   [
+    "Quyền thành viên",
+    "Người xem, thành viên và quản trị viên có quyền khác nhau. Chỉ cấp mức cần thiết cho nhiệm vụ."
+   ],
+   [
+    "Xử lý vi phạm",
+    "Dùng chức năng báo cáo hoặc liên hệ người quản lý. Khi cần đưa tài liệu ra ngoài nhóm, kiểm tra quyền trước."
+   ]
+  ],
+  "task": "Viết một quy định chia sẻ tài liệu riêng của lớp.",
+  "solution": "Ví dụ “Muốn đăng tài liệu của lớp lên trang công khai, hãy xin phép người có quyền chia sẻ.”"
+ },
+ {
+  "n": 18,
+  "title": "Gửi đúng người, đúng cách",
+  "hook": "Cùng một việc xin hỗ trợ, lúc nào nên gửi email, nhắn tin hoặc gọi trực tuyến?",
+  "concepts": [
+   [
+    "Chọn kênh",
+    "Email phù hợp khi cần nội dung rõ và dễ tìm lại. Cuộc gọi hữu ích khi cần trao đổi trực tiếp. Xem mức khẩn và lịch của người nhận."
+   ],
+   [
+    "Viết thư có mục đích",
+    "Dùng tiêu đề nêu lớp và việc cần hỗ trợ, lời chào phù hợp và nội dung ngắn. Kiểm tra tệp đính kèm trước khi gửi."
+   ],
+   [
+    "Họp và chia sẻ",
+    "Tắt mic khi có tiếng nền. Chọn riêng cửa sổ cần chiếu. Dùng Bcc trong email khi cần giữ riêng danh sách địa chỉ."
+   ]
+  ],
+  "task": "Soạn tiêu đề email xin giáo viên kiểm tra bài thực hành số 3.",
+  "solution": "Ví dụ “Lớp 6A – xin góp ý bài thực hành số 3”. Kiểm tra người nhận và tệp trước khi gửi."
+ },
+ {
+  "n": 19,
+  "title": "Giữ tài khoản trên máy chung",
+  "hook": "Em vừa nộp bài ở thư viện. Đóng tab có chắc đã kết thúc phiên đăng nhập chưa?",
+  "concepts": [
+   [
+    "Mật khẩu riêng",
+    "Dùng mật khẩu dài, khó đoán và riêng cho từng dịch vụ. Nếu nghi bị lộ, đổi mật khẩu và xem lại các phiên đăng nhập."
+   ],
+   [
+    "Bước xác thực bổ sung",
+    "Giữ kín mã xác thực. Kiểm tra yêu cầu đăng nhập bất ngờ qua kênh chính thức."
+   ],
+   [
+    "Kết thúc phiên",
+    "Trên máy dùng chung, từ chối lưu mật khẩu, đăng xuất và kiểm tra tệp cá nhân còn trong thư mục tải xuống."
+   ]
+  ],
+  "task": "Sắp xếp ba bước cuối giờ khi dùng cổng nộp bài công cộng.",
+  "solution": "Kiểm tra đã nộp → đăng xuất → kiểm tra dữ liệu cá nhân còn trên máy."
+ },
+ {
+  "n": 20,
+  "title": "Dừng lại trước một cú nhấp",
+  "hook": "Một thư báo trúng quà yêu cầu mở tệp trong năm phút. Dấu hiệu nào cần kiểm tra trước?",
+  "concepts": [
+   [
+    "Nhận diện rủi ro",
+    "Tin nhắn bất ngờ, yêu cầu gấp và tệp lạ cần được xác minh. Tên hiển thị của người gửi chưa đủ để chứng minh danh tính."
+   ],
+   [
+    "Phần mềm độc hại",
+    "Một số chương trình có thể gây hại, lấy dữ liệu hoặc gián đoạn hoạt động. Chỉ lấy bản cài từ nơi đáng tin cậy."
+   ],
+   [
+    "Nhờ hỗ trợ",
+    "Tránh mở nội dung khả nghi. Báo giáo viên hoặc người quản lý để được kiểm tra và xử lý theo quy trình."
+   ]
+  ],
+  "task": "Nêu hai chi tiết cần xác minh trong thư báo trúng quà.",
+  "solution": "Nguồn gửi và lý do yêu cầu mở tệp. Kiểm tra qua kênh liên lạc đã biết."
+ },
+ {
+  "n": 21,
+  "title": "Giảm rủi ro trước khi gặp sự cố",
+  "hook": "Nếu laptop ngừng chạy ngay trước giờ báo cáo, nhóm em còn cách nào mở bài đã chuẩn bị?",
+  "concepts": [
+   [
+    "Cập nhật đúng nguồn",
+    "Cài bản vá qua kênh chính thức và phù hợp chính sách phòng máy. Hẹn thời điểm để tránh gián đoạn tiết học."
+   ],
+   [
+    "Giới hạn quyền",
+    "Kiểm tra quyền ứng dụng yêu cầu. Chỉ cho truy cập dữ liệu, camera, mic hoặc vị trí khi thực sự cần."
+   ],
+   [
+    "Thử phục hồi",
+    "Tạo bản sao độc lập và mở thử bản khôi phục. Chuẩn bị giúp giảm hậu quả khi thiết bị gặp vấn đề."
+   ]
+  ],
+  "task": "Chọn ba việc nên làm trước ngày báo cáo dự án.",
+  "solution": "Lưu bài, tạo bản sao độc lập, mở thử bản sao trên thiết bị dự kiến sử dụng."
+ },
+ {
+  "n": 22,
+  "title": "Dữ liệu nào đi theo một lần chạm?",
+  "hook": "Website nhớ giỏ hàng, ứng dụng biết vị trí và ảnh lưu nơi chụp. Ba dấu vết này đến từ đâu?",
+  "concepts": [
+   [
+    "Cookie và phiên",
+    "Website có thể dùng cookie để nhận diện phiên, giữ tùy chọn hoặc hỗ trợ phân tích. Mục đích sử dụng khác nhau."
+   ],
+   [
+    "Vị trí và siêu dữ liệu",
+    "Thiết bị có thể ghi tọa độ nếu được phép. Một số tệp ảnh lưu thời gian hoặc vị trí trong siêu dữ liệu."
+   ],
+   [
+    "Quyết định trước khi cho phép",
+    "So sánh quyền yêu cầu với chức năng đang dùng. Xem lại quyền đã cấp và lựa chọn cookie tùy chọn."
+   ]
+  ],
+  "task": "Chọn quyền vị trí cho ứng dụng chỉ dùng để dẫn đường trong lúc mở.",
+  "solution": "Ưu tiên cho phép khi đang dùng nếu đáp ứng mục đích. Xem lại quyền khi ngừng sử dụng."
+ }
+]

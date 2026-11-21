@@ -122,7 +122,7 @@ export function StudentPortal(){
           {payload&&<a className="portal-school-hero-link" href={'/school?code='+encodeURIComponent(code)}>
             🏆 Khám phá Top 5 toàn trường và các khối 8 · 7 · 6 <span aria-hidden="true">↗</span>
           </a>}
-          <a className="portal-hero-register" href={code?'/register?code='+encodeURIComponent(code):'/register'}>
+          <a className="portal-hero-register" href={code?'/student-web?mode=register&code='+encodeURIComponent(code):'/student-web?mode=register'}>
             <span className="portal-register-icon" aria-hidden="true">✍️</span>
             <span><strong>ĐĂNG KÝ LỚP</strong><small>Thêm bạn mới vào lớp ngay</small></span>
             <span className="portal-register-arrow" aria-hidden="true">→</span>

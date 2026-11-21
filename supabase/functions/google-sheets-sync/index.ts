@@ -15,6 +15,8 @@ const cors=(origin:string)=>({
 });
 const respond=(status:number,body:Dict,origin:string)=>new Response(JSON.stringify(body),{status,headers:cors(origin)});
 const fail=(message:string,code=400)=>Object.assign(new Error(message),{status:code});
+// Teacher Google Sheets sync is a web-only feature; no native WebView origin.
+// Each POST still validates the teacher JWT and authorized school membership.
 const permitted=(s:string)=>s===ORIGIN||s==="https://phong-may-avstinhoc.vercel.app"||/^http:\/\/localhost:\d{2,5}$/.test(s)||/^http:\/\/127\.0\.0\.1:\d{2,5}$/.test(s);
 const clean=(v:unknown)=>String(v??"").trim();
 const normalize=(s:unknown)=>clean(s).normalize("NFC").replace(/\s+/g," ").toLocaleLowerCase("vi");
