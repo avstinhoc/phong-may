@@ -5,6 +5,8 @@ import {ArrowLeft,ArrowRight,BookOpen,CheckCircle2,ChevronRight,Crown,
 import {supabase} from '../lib/supabase';
 import {HERO_SKINS} from '../learning-arcade/PixelArt.jsx';
 import {Tabletop} from '../learning-arcade/Tabletop.jsx';
+import {BattleVFX} from './BattleVFX.jsx';
+import {battleTheme,battleBackground} from './battleThemes.js';
 import {lessonTitle} from './Practice.jsx';
 import {GEAR_CATALOG,WAVES_PER_WORLD,WORLD_MAPS,worldAt,waveAt} from './worldMap.js';
 import './campaignWorld.css';
@@ -57,6 +59,8 @@ export default function Campaign({session}){
  const [claim,setClaim]=useState(null);
  const [fullscreen,setFullscreen]=useState(false);
  const [fallbackFull,setFallbackFull]=useState(false);
+ const [fx,setFx]=useState(null);
+ const fxSequence=useRef(0);
  const gate=useRef(false),alive=useRef(true),end=useRef(0),root=useRef(null);
 
  async function call(action,extra={}){
@@ -74,6 +78,11 @@ export default function Campaign({session}){
    const remain=Number.isFinite(server)&&Number.isFinite(deadline)?Math.max(0,deadline-server):0;
    end.current=Date.now()+remain;setTime(Math.ceil(remain/1000));
    setData(res);
+   // Animation is a transient reaction to a server-confirmed answer, never
+   // an independent damage or reward calculation in the browser.
+   if(action==='answer'&&['correct','wrong','wave_clear','victory','defeat'].includes(res.outcome)){
+     setFx({id:++fxSequence.current,kind:res.outcome,damage:num(res.damage)});
+   }
    if(res.outcome==='redeemed')setClaim(null);
   } catch(e){
    if(alive.current)setError(e.message||'Không tải được dữ liệu trò chơi. Hãy thử lại.');
@@ -92,6 +101,11 @@ export default function Campaign({session}){
   const id=setInterval(tick,240);return()=>clearInterval(id);
  },[data?.turn,view,error]);
  useEffect(()=>{
+   if(!fx)return;
+   const id=setTimeout(()=>setFx(null),1400);
+   return()=>clearTimeout(id);
+ },[fx?.id]);
+ useEffect(()=>{
   const listener=()=>setFullscreen(document.fullscreenElement===root.current);
   document.addEventListener('fullscreenchange',listener);
   return()=>document.removeEventListener('fullscreenchange',listener);
@@ -102,7 +116,7 @@ export default function Campaign({session}){
   try{if(!root.current?.requestFullscreen)throw Error('unsupported');await root.current.requestFullscreen();}
   catch{setFallbackFull(true);}
  }
- const next=()=>{setView('battle');void call(data?.turn?'status':'next')};
+ const next=()=>{setFx(null);setView('battle');void call(data?.turn?'status':'next')};
  const feedback=data?.feedback;
  const world=worldAt(data?.stage||1);
  const currentId=num(data?.stage)||1;
@@ -122,7 +136,11 @@ export default function Campaign({session}){
  const clearCount=num(data?.cleared);
  const unlockedSkins=Math.min(HERO_SKINS.length,clearCount+1);
  const damage=num(data?.damage)||160+18*num(data?.gear);
- const sceneStyle={backgroundImage:"linear-gradient(180deg,#0b253450,transparent 58%,#0e243956),url('"+world.background+"')"};
+ const theme=battleTheme(currentId);
+ const sceneStyle={
+   backgroundImage:"linear-gradient(180deg,#09192c28,transparent 60%,#081f2650),url('"+battleBackground(currentId)+"')",
+   '--cw-light':theme.light,'--cw-accent':theme.accent,'--cw-shadow':theme.shadow
+ };
  const wallet=data?.wallet||{earned:0,available:0};
  const notice=error&&<div className="cw-error" role="alert">{error} <button onClick={()=>call('status')}>Kết nối lại</button></div>;
  if(!data)return <section className="cw-loading" role="status">{notice||'Đang tải 22 bản đồ Săn Sao...'}</section>;
@@ -191,15 +209,17 @@ export default function Campaign({session}){
     <div><strong><Crown size={18}/> {boss.name}</strong><span>{monsterHp} / {hpMax} HP</span></div>
     <progress aria-label="Sinh lực quái vật" value={Math.min(hpMax,monsterHp)} max={hpMax}/>
    </div>
-   <div className={'cw-battle-field'+(data.outcome==='correct'?' cw-hit':'')+(data.outcome==='wrong'?' cw-damage':'')}
-     style={sceneStyle}>
+   <div className={'cw-battle-field'+(fx?.kind==='correct'||fx?.kind==='wave_clear'||fx?.kind==='victory'?' cw-stage-hit':'')+(fx?.kind==='wrong'||fx?.kind==='defeat'?' cw-stage-hurt':'')}
+     style={sceneStyle} data-weather={theme.weather}>
+    <div className="cw-depth cw-depth-distant" aria-hidden="true"/>
+    <div className="cw-depth cw-depth-atmosphere" aria-hidden="true"/>
+    <div className="cw-scene-lights" aria-hidden="true"/>
     <div className="cw-scene-title">⚔️ {skinBase.name} <span>VS</span> {boss.name}</div>
     <div className="cw-character-aura" aria-hidden="true"/>
     <Tabletop key={currentId+'-'+wave} skin={skin} index={costumeId} round={currentId} wave={wave}
-     action={data.outcome==='correct'?'strike':data.outcome==='wrong'?'counter':data.outcome==='victory'?'victory':'idle'}/>
-    {data.outcome==='correct'&&<div className="cw-combat-fx cw-slash-fx" aria-hidden="true"><span>✦</span><b>-{damage} HP</b></div>}
-    {data.outcome==='wrong'&&<div className="cw-combat-fx cw-heart-fx" aria-hidden="true"><span>✺</span><b>-1 ❤</b></div>}
-    {data.outcome==='wave_clear'&&<div className="cw-combat-fx cw-clear-fx" aria-hidden="true"><span>✷</span><b>VƯỢT ẢI!</b></div>}
+     action={fx?.kind==='correct'||fx?.kind==='wave_clear'||fx?.kind==='victory'?'strike':fx?.kind==='wrong'||fx?.kind==='defeat'?'counter':'idle'}/>
+    <div className="cw-depth cw-depth-foreground" aria-hidden="true"/>
+    <BattleVFX key={fx?.id||'idle'} event={fx}/>
     <span className="cw-field-badge">Bài {currentId} · {lessonTitle(currentId)}</span>
    </div>
    <div className="cw-fight-question">
