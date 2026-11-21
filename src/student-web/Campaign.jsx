@@ -13,6 +13,7 @@ import {lessonTitle} from './Practice.jsx';
 import {GEAR_CATALOG,WAVES_PER_WORLD,WORLD_MAPS,worldAt,waveAt} from './worldMap.js';
 import './campaignWorld.css';
 import './battleFX.css';
+import './battleCharacter.css';
 
 const num=n=>Number.isFinite(Number(n))?Number(n):0;
 const maxHearts=3;
