@@ -37,7 +37,9 @@ test('Student Web SQL restricts credentials; reused school leaderboard is author
  assert.match(sql,/extensions\.crypt\(p_pin/);
  assert.match(sql,/failed_attempts/);
  assert.match(sql,/qlpm_teacher_student_web_approve/);
- assert.match(web,/\/school\?code=/);
+ assert.match(web,/StudentLeaderboard/);
+ assert.doesNotMatch(web,/<iframe/);
+ assert.doesNotMatch(web,/student-desktop-header/);
  assert.doesNotMatch(web,/DesktopLeaderboard/);
 });
 test('Student Web name lookup avoids PL/pgSQL full_name ambiguity',()=>{
@@ -58,4 +60,34 @@ test('Approved old-style registrations synchronize uniquely and teacher may secu
  assert.match(sql,/qlpm_teacher_student_web_reset_pin/);
  assert.match(sql,/not public\.can_access_school/);
  assert.match(sql,/revoked_at=now\(\)/);
+});
+
+test('Student Web removes duplicate page shells and resolves school PC safely',()=>{
+ const student=read('src/student-web/StudentWeb.jsx');
+ const ranking=read('src/student-web/StudentLeaderboard.jsx');
+ const sql=read('supabase/migrations/20261121230000_student_web_pc_resolution.sql');
+ const teacher=read('src/StudentWebManagement.jsx');
+ assert.match(student,/refreshStudent/);
+ assert.match(student,/pc_requested/);
+ assert.match(student,/StudentLeaderboard/);
+ assert.doesNotMatch(student,/<iframe/);
+ assert.match(ranking,/ic3_school_public_portal/);
+ assert.match(sql,/computer_assignments/);
+ assert.match(sql,/a\.active=true and a\.released_at is null/);
+ assert.match(sql,/can_access_school/);
+ assert.match(teacher,/Quản lý Student Web/);
+ assert.match(teacher,/qlpm_teacher_student_web_devices/);
+});
+test('Practice expands source-backed questions and supports teacher-published visual assets',async()=>{
+ const {PRACTICE_EXPANSIONS}=await import('../src/student-web/practiceExpansions.js');
+ assert.equal(PRACTICE_EXPANSIONS.length,120);
+ assert.equal(PRACTICE_EXPANSIONS.filter(q=>q.lesson===8||q.lesson===10).length,0);
+ assert.ok(PRACTICE_EXPANSIONS.every(q=>q.choices.includes(q.choices[0])));
+ assert.ok(PRACTICE_EXPANSIONS.some(q=>q.image?.startsWith('/ic3-slides/')));
+ const practice=read('src/student-web/Practice.jsx');
+ const sql=read('supabase/migrations/20261121231000_student_web_teacher_practice_questions.sql');
+ assert.match(practice,/qlpm_student_web_practice_questions/);
+ assert.match(practice,/practice-source-image/);
+ assert.match(sql,/enable row level security/);
+ assert.match(sql,/published=true/);
 });
