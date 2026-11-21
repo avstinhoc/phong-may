@@ -35,6 +35,11 @@ export function hasGoogleIdentity(identities=[]){
 }
 
 export async function startGoogleAuth(auth,baseCallback,{linkExisting=false}={}){
+  // WebView OAuth must not silently redirect a Windows desktop app into the website.
+  // Until an approved external-browser + deep-link flow exists, retain email/password
+  // in Teacher Desktop and keep Google OAuth available on the existing website.
+  if(typeof window!=='undefined'&&window.__TAURI_INTERNALS__)
+    throw new Error('Đăng nhập Google trong QLPM Teacher Windows đang được hoàn thiện. Hiện hãy đăng nhập bằng email/mật khẩu trong ứng dụng, hoặc dùng đăng nhập Google trên https://phong-may.vercel.app. Phiên web không tự chuyển vào ứng dụng.');
   const redirectTo=googleCallbackUrl(baseCallback,linkExisting);
   const args={provider:GOOGLE_PROVIDER,options:{redirectTo}};
   const method=linkExisting?'linkIdentity':'signInWithOAuth';

@@ -219,20 +219,20 @@ function GameSection({selected,setSelected,heroSkin,setHeroSkin,battle,setBattle
   {pickerOpen&&<HeroPicker selected={heroSkin} onSelect={setHeroSkin} onClose={()=>setPickerOpen(false)}/>}
  </div>;
 }
-export default function LearningPrototype(){
- const [section,setSection]=useState('lessons'),[exerciseTab,setExerciseTab]=useState('questions');
+export default function LearningPrototype({embedded=false,initialSection='lessons',initialExerciseTab='questions'}){
+ const [section,setSection]=useState(initialSection),[exerciseTab,setExerciseTab]=useState(initialExerciseTab);
  const [selectedLesson,setSelectedLesson]=useState('lv1-01'),[heroSkin,setHeroSkin]=useState(DEFAULT_HERO_SKIN),[battle,setBattle]=useState(null);
  const [quizKey,setQuizKey]=useState(0);
  const lesson=lessonById(selectedLesson);
  const questions=useMemo(()=>lessonQuestions(selectedLesson),[selectedLesson]);
  const chooseLesson=id=>{setSelectedLesson(id);setBattle(null);setQuizKey(k=>k+1);};
- return <div className="ic3-learning-app" id="ic3-home">
-  <Header section={section} onSection={setSection}/>
+ return <div className={'ic3-learning-app'+(embedded?' ic3-learning-embedded':'')} id="ic3-home">
+  {!embedded&&<Header section={section} onSection={setSection}/>}
   <main>
-   <section className="ic3-intro"><span className="ic3-eyebrow">IC3 GLOBAL STANDARD 6 · THCS</span>
+   {!embedded&&<section className="ic3-intro"><span className="ic3-eyebrow">IC3 GLOBAL STANDARD 6 · THCS</span>
     <h1>Học để hiểu. Chơi để nhớ. <span>Thử thách để tiến bộ.</span></h1>
     <p>Trình chiếu tài liệu của giáo viên, ôn luyện bằng câu hỏi hình ảnh và thử thách quái vật – cùng một lộ trình Level 1.</p>
-   </section>
+   </section>}
    <div className="ic3-level-tabs" aria-label="Cấp độ IC3">
     {LEVELS.map(l=><button key={l.number} type="button" disabled={l.locked} className={!l.locked?'active':''}>
       {l.locked&&<LockKeyhole size={14}/>} {l.label} {l.locked?'— Tạm khóa':''}</button>)}
@@ -256,6 +256,6 @@ export default function LearningPrototype(){
      </>:<GameSection selected={selectedLesson} setSelected={chooseLesson} heroSkin={heroSkin} setHeroSkin={setHeroSkin} battle={battle} setBattle={setBattle}/>}
    </section>}
   </main>
-  <footer className="ic3-foot"><Monitor size={16}/> QLPM Student · Bản thử nghiệm trên nhánh phát triển · Chưa có đăng nhập/PIN hay đồng bộ kết quả</footer>
+  {!embedded&&<footer className="ic3-foot"><Monitor size={16}/> QLPM Student · Bản thử nghiệm trên nhánh phát triển · Chưa có đăng nhập/PIN hay đồng bộ kết quả</footer>}
  </div>;
 }
