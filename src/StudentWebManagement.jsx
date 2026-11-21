@@ -51,13 +51,10 @@ export default function StudentWebManagement({profile,onNavigate}){
   if(choices.length!==4||new Set(choices).size!==4||!choices.includes(draft.solution)){
    setError('Mỗi câu cần đúng 4 đáp án A–D khác nhau và phải chỉ rõ đáp án đúng.');return;
   }
-  if(draft.image_path.trim()&&!/^\/ic3-scenes\/[a-zA-Z0-9_./-]+\.(png|jpg|jpeg|webp)$/.test(draft.image_path.trim())){
-   setError('Mục Câu hỏi chỉ dùng ảnh thiết bị/phần mềm hoặc ảnh tình huống; không được dùng slide PowerPoint.');return;
-  }
   setBusy(true);setError('');setMessage('');
   const row={school_id:schoolId,lesson:Number(draft.lesson),title:draft.title.trim(),
    q:draft.q.trim(),choices,solution:draft.solution,why:draft.why.trim(),
-   image_path:draft.image_path.trim()||null,alt:draft.alt.trim(),published:!!draft.published,updated_at:new Date().toISOString()};
+   image_path:null,alt:'',published:!!draft.published,updated_at:new Date().toISOString()};
   try{
    const result=draft.id?
     await supabase.from('student_web_practice_questions').update(row).eq('id',draft.id).eq('school_id',schoolId):
@@ -142,15 +139,8 @@ export default function StudentWebManagement({profile,onNavigate}){
       {draft.choices.filter(Boolean).map((c,i)=><option key={i} value={c}>{c}</option>)}
      </select></label>
      <label>Giải thích<textarea rows={2} value={draft.why} onChange={e=>setDraft(v=>({...v,why:e.target.value}))}/></label>
-     <label>Ảnh minh họa từ bài
-      <button type="button" onClick={()=>setDraft(v=>({...v,image_path:'/ic3-scenes/case-'+v.lesson+'.png',alt:'Tình huống minh họa bài '+v.lesson}))}>Chọn tình huống bài {draft.lesson}</button>
-      <button type="button" onClick={()=>setDraft(v=>({...v,image_path:'',alt:''}))}>Bỏ ảnh</button>
-     </label>
-     <label className="wide">Đường dẫn ảnh hiện tại<input value={draft.image_path} onChange={e=>setDraft(v=>({...v,image_path:e.target.value}))}
-       placeholder="/ic3-scenes/case-1.png (ảnh tình huống, không phải slide)"/></label>
-     <label className="wide">Mô tả ảnh cho học sinh<input value={draft.alt} onChange={e=>setDraft(v=>({...v,alt:e.target.value}))}/></label>
+     <p className="wide">Hình câu hỏi hiện chỉ dùng biểu tượng thiết bị vẽ sẵn trong hệ thống. Đã vô hiệu hóa ảnh bên ngoài để bảo vệ học sinh.</p>
     </div>
-    {draft.image_path&&<img className="swm-image-preview" src={draft.image_path} alt={draft.alt||'Ảnh học liệu'} onError={e=>{e.currentTarget.style.opacity=.3}}/>}
     <label className="swm-checkbox"><input type="checkbox" checked={draft.published} onChange={e=>setDraft(v=>({...v,published:e.target.checked}))}/>
       Xuất bản cho học sinh trường này (câu nháp không hiển thị)</label>
     <div className="swm-form-actions"><button type="submit" disabled={busy||!editsAvailable}><Save size={17}/> {draft.id?'Lưu thay đổi':'Thêm câu hỏi'}</button><button type="button" onClick={()=>setDraft(blank())}>Hủy chỉnh sửa</button></div>
