@@ -47,14 +47,27 @@ test('practice no longer displays PowerPoint slides or an image unrelated to the
  const expansion=read('src/student-web/practiceExpansions.js');
  const media=read('src/student-web/practiceDeviceMedia.js');
  const editor=read('src/StudentWebManagement.jsx');
- assert.match(practice,/devicePhotoFor/);
+ assert.match(practice,/deviceVisualFor/);
  assert.match(practice,/LETTERS=\['A','B','C','D'\]/);
  assert.match(practice,/completeQuestion/);
- assert.doesNotMatch(practice,/practice-source-panel|showSlide|lessonImage|sourceSlide/i);
+ assert.doesNotMatch(practice,/<img|referrerPolicy|https?:\/\/|practice-source-panel|showSlide|lessonImage|sourceSlide/i);
  assert.doesNotMatch(expansion,/ic3-slides|sourceSlide|slide='/);
- assert.match(media,/Cpu-processor\.jpg/);
- assert.match(media,/Special:FilePath/);
- assert.match(media,/license:|license='/);
- assert.doesNotMatch(editor,/Chọn ảnh slide này|Ảnh từ slide: số slide/);
+ assert.match(media,/DEVICES=/);
+ assert.match(media,/PER_QUESTION=/);
+ assert.doesNotMatch(media,/https?:\/\/|FilePath|commons\.wikimedia|\bsrc\s*:/i);
+ assert.doesNotMatch(editor,/Chọn ảnh slide này|Ảnh từ slide: số slide|swm-image-preview/);
+ assert.match(editor,/image_path:null,alt:''/);
  assert.match(editor,/choices\.length!==4/);
+});
+
+test('No remotely loaded image can appear in student practice (safety regression)',()=>{
+ const q=read('src/student-web/Practice.jsx');
+ const photos=read('src/student-web/practiceDeviceMedia.js');
+ const teacher=read('src/StudentWebManagement.jsx');
+ assert.doesNotMatch(q,/<img\b|<picture\b|<iframe\b/);
+ assert.doesNotMatch(q,/src=\{q\.image\}|src=\{media/);
+ assert.doesNotMatch(photos,/https?:\/\/|commons\.wikimedia|Special:FilePath|<img/);
+ assert.match(q,/DEVICE_ICONS/);
+ assert.match(q,/practice-device-card/);
+ assert.doesNotMatch(teacher,/src=\{draft\.image_path\}|swm-image-preview/);
 });
