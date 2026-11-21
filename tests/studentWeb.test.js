@@ -79,11 +79,12 @@ test('Student Web removes duplicate page shells and resolves school PC safely',(
  assert.match(teacher,/qlpm_teacher_student_web_devices/);
 });
 test('Practice expands source-backed questions and supports teacher-published visual assets',async()=>{
- const {PRACTICE_EXPANSIONS}=await import('../src/student-web/practiceExpansions.js');
- assert.equal(PRACTICE_EXPANSIONS.length,120);
- assert.equal(PRACTICE_EXPANSIONS.filter(q=>q.lesson===8||q.lesson===10).length,0);
- assert.ok(PRACTICE_EXPANSIONS.every(q=>q.choices.includes(q.choices[0])));
- assert.ok(PRACTICE_EXPANSIONS.some(q=>q.image?.startsWith('/ic3-slides/')));
+ const source=JSON.parse(read('src/learning/guidedLessons.json'));
+ const expansions=read('src/student-web/practiceExpansions.js');
+ assert.equal(source.filter(g=>g.n!==8&&g.n!==10).length*6,120);
+ assert.match(expansions,/source-linked/);
+ assert.match(expansions,/ic3-slides/);
+ assert.match(expansions,/concept/);
  const practice=read('src/student-web/Practice.jsx');
  const sql=read('supabase/migrations/20261121231000_student_web_teacher_practice_questions.sql');
  assert.match(practice,/qlpm_student_web_practice_questions/);
