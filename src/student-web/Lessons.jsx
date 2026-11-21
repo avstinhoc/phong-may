@@ -35,7 +35,7 @@ export default function Lessons(){
   } catch {setImmersive(true);}
  }
  useEffect(()=>{
-  const sync=()=>{if(!document.fullscreenElement)setImmersive(false)};
+  const sync=()=>setImmersive(document.fullscreenElement===viewer.current);
   document.addEventListener('fullscreenchange',sync);
   return()=>document.removeEventListener('fullscreenchange',sync);
  },[]);
@@ -61,7 +61,7 @@ export default function Lessons(){
    </button>)}
   </div>
  </section>;
- const isFullscreen=immersive||(typeof document!=='undefined'&&document.fullscreenElement===viewer.current);
+ const isFullscreen=immersive||Boolean(viewer.current&&typeof document!=='undefined'&&document.fullscreenElement===viewer.current);
  return <section className="practice lecture-view">
   <div className="lecture-heading">
     <button type="button" onClick={()=>{if(document.fullscreenElement===viewer.current)void document.exitFullscreen();setImmersive(false);setN(0)}}><ArrowLeft size={17}/> Danh sách bài</button>
