@@ -39,6 +39,10 @@ function hero(m,skin,t,wind,hit,recoil,index){
  }
  tube(plus(ch,[.11,.15,.17]),plus(ch,[-.10,-.19,.17]),.044,.037,gold,5);
  let hand;for(const s of [-1,1]){const shoulder=plus(ch,[0,.17,s*.23]),elbow=plus(shoulder,[.04-.22*wind+.20*hit,-.22+.12*wind,s*.07]),wrist=plus(elbow,[.22-.29*wind+.10*hit,.035+.32*wind+.12*hit,s*.02]);tube(shoulder,elbow,.12,.092,c);ball(shoulder,[.16,.15,.14],g);tube(elbow,wrist,.091,.07,d);ball(wrist,[.083,.08,.085],skin.skin);if(s===1)hand=wrist}
+ if(skin.gear){
+  const socket=plus(hand,[-.05,.036,.05]);ball(socket,[.115,.095,.115],g);
+  for(let j=0;j<skin.gear;j++){const a=j*TAU/skin.gear;const root=plus(socket,[.06*cos(a),.04,.06*sin(a)]);tube(root,plus(root,[.06*cos(a),.10,.06*sin(a)]),.033,0,gold,5)}
+ }
  let tip=plus(hand,[.16-.54*wind+.60*hit,.70-.42*hit,.01]);
  if(skin.classId==='archer'){const a=plus(hand,[.08,.37,0]),b=plus(hand,[.10,-.34,0]),mid=plus(hand,[.24,.04,0]);tube(a,mid,.04,.05,g);tube(mid,b,.05,.035,g);tube(a,b,.012,.012,gold);tip=mid}
  else if(skin.classId==='mage'){tube(hand,tip,.034,.032,'#995f45');ball(tip,[.12,.18,.12],g)}

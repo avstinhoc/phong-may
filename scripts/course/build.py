@@ -49,3 +49,7 @@ def assemble(entry):
     os.replace(tmp,output)
 with ThreadPoolExecutor(max_workers=4) as pool:
     list(pool.map(assemble,manifest.items()))
+# Pre-rendered classroom pages keep all original diagrams readable in WebView, including offline.
+for archive in sorted((here / 'preview').glob('*.zip')):
+    with zipfile.ZipFile(archive) as pages:
+        pages.extractall(destination)
