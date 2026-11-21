@@ -6,7 +6,7 @@
   "build": {
     "beforeDevCommand": "npm --prefix ../.. run dev -- --host 127.0.0.1",
     "devUrl": "http://localhost:5173/student-desktop.html",
-    "beforeBuildCommand": "npm --prefix ../.. run build",
+    "beforeBuildCommand": "npm --prefix ../.. run build -- --mode desktop",
     "frontendDist": "../../../dist"
   },
   "app": {
