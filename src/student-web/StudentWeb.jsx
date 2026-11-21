@@ -8,6 +8,7 @@ import StudentOnboarding from './StudentOnboarding.jsx';
 const Lessons=React.lazy(()=>import('./Lessons.jsx'));
 const Practice=React.lazy(()=>import('./Practice.jsx'));
 const Campaign=React.lazy(()=>import('./Campaign.jsx'));
+const StudentLeaderboard=React.lazy(()=>import('./StudentLeaderboard.jsx'));
 import './studentDesktop.css';
 import {supabase} from '../lib/supabase';
 import './studentExtras.css';
@@ -27,7 +28,7 @@ function StatusPill({online}){
    {online?'Đã kết nối Internet':'Không có Internet'}
  </span>;
 }
-function StudentHome({onNavigate,online}){
+function StudentHome({onNavigate,online,session}){
  return <>
   <section className="student-hero">
    <div className="student-hero-copy">
@@ -73,7 +74,7 @@ function StudentHome({onNavigate,online}){
   <section className="student-bottom-grid">
    <article className="student-small-panel">
     <div className="student-small-icon"><School size={22}/></div>
-    <div><h3>Trường, lớp và máy PC</h3><p>Thiết bị chưa được liên kết với một phòng máy. Giáo viên sẽ kích hoạt khi hoàn thiện cơ chế ghép nối an toàn.</p></div>
+    <div><h3>Trường, lớp và máy PC</h3><p>{session?.pc?'Máy liên kết: '+session.pc:session?.pc_requested?'Đã gửi yêu cầu PC '+session.pc_requested+'. Giáo viên cần duyệt trước khi liên kết.':'Chưa gán PC. Giáo viên có thể phân chỗ ngồi trong Quản lý phòng máy.'}</p></div>
    </article>
    <article className="student-small-panel">
     <div className="student-small-icon"><ShieldCheck size={22}/></div>
@@ -88,17 +89,17 @@ function StudentAccount({session,onLogout}){
   <div className="student-locked-icon"><UserRound size={37}/></div>
   <span className="student-eyebrow">TÀI KHOẢN HỌC SINH</span>
   <h2>{session.name}</h2>
-  <p>Lớp {session.class_name||'—'} · {session.pc?'Đã ghép '+session.pc:'Chưa ghép PC'}</p>
+  <p>Lớp {session.class_name||'—'} · {session.pc?'Đã liên kết '+session.pc:session.pc_requested?'Đang chờ ghép '+session.pc_requested:'Chưa được gán PC'}</p>
   <p>Phiên đăng nhập được xác minh trên máy chủ. PIN không được lưu lại trên máy tính dùng chung.</p>
   <div className="student-login-steps">
    <div><span>✓</span><strong>Đã đăng nhập</strong><small>{session.name}</small></div>
    <div><span>✓</span><strong>Lớp</strong><small>{session.class_name||'—'}</small></div>
-   <div><span>🖥</span><strong>Máy tính</strong><small>{session.pc||'Đợi giáo viên duyệt ghép PC'}</small></div>
+   <div><span>🖥</span><strong>Máy tính</strong><small>{session.pc||('Chờ duyệt '+(session.pc_requested||'PC'))}</small></div>
   </div>
   <button className="student-signout" type="button" onClick={onLogout}><LockKeyhole size={18}/> Đăng xuất và xóa phiên</button>
  </section>;
 }
-function DeviceSettings({online,session}){
+function DeviceSettings({online,session,onRefresh}){
  const [pcCode,setPcCode]=useState(''),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
  async function requestPc(e){
   e.preventDefault();if(!session?.token||!pcCode.trim())return;
@@ -108,14 +109,14 @@ function DeviceSettings({online,session}){
      p_session_token:session.token,p_pc:pcCode.trim(),p_device_id:''
    });
    if(error)throw error;
-   setMessage(data?.message||'Đã gửi yêu cầu.');
+   setMessage(data?.message||'Đã gửi yêu cầu.');if(data?.ok)onRefresh?.();
   }catch(e){setMessage(e.message||String(e));}finally{setBusy(false);}
  }
  return <div className="student-device-settings">
   <div className="student-section-title"><h2>Thiết bị & cài đặt</h2><p>PC01–PC40 phải được giáo viên xác nhận trước khi gắn với tài khoản học sinh.</p></div>
   <div className="student-settings-grid">
    <article className="student-setting-card"><Laptop size={28}/><h3>Máy tính đang ghép</h3>
-    <strong>{session?.pc||'Chưa ghép PC'}</strong><p>Máy chỉ được xác nhận khi giáo viên duyệt yêu cầu và kiểm tra vị trí thực tế.</p>
+    <strong>{session?.pc||'Chưa ghép PC'}</strong><p>{session?.pc?'Máy đã được giáo viên gán hoặc duyệt.':session?.pc_requested?'PC mong muốn: '+session.pc_requested+' (chưa được gán hoặc xác nhận).':'Giáo viên cần gán máy hoặc phê duyệt yêu cầu ghép PC.'}</p>
     {session?<form className="student-pc-request" onSubmit={requestPc}>
       <label>Nhập mã PC muốn ghép<input placeholder="VD: PC21" value={pcCode} onChange={e=>setPcCode(e.target.value)} maxLength={16}/></label>
       <button disabled={busy||!pcCode.trim()} type="submit">Gửi giáo viên duyệt PC</button>
@@ -134,11 +135,20 @@ export default function StudentWeb(){
  const [online,setOnline]=useState(typeof navigator!=='undefined'?navigator.onLine:true);
  const [session,setSession]=useState(null);
  const [lastCode,setLastCode]=useState('');
+ const [syncWarning,setSyncWarning]=useState('');
  useEffect(()=>{
   const goOnline=()=>setOnline(true),goOffline=()=>setOnline(false);
   window.addEventListener('online',goOnline);window.addEventListener('offline',goOffline);
   return()=>{window.removeEventListener('online',goOnline);window.removeEventListener('offline',goOffline);};
  },[]);
+ async function refreshStudent(token=sessionStorage.getItem('qlpm.student.web.session')){
+  if(!token||!supabase)return;
+  const {data,error}=await supabase.rpc('qlpm_student_web_whoami',{p_session_token:token});
+  if(error)throw error;
+  if(!data)throw Error('Phiên học sinh hết hạn.');
+  setSession(v=>({...v,...data,token,name:data.name||v?.name||data.student_name}));
+  if(data.class_code)setLastCode(data.class_code);
+ }
  useEffect(()=>{
   let active=true;
   const token=sessionStorage.getItem('qlpm.student.web.session');
@@ -146,7 +156,7 @@ export default function StudentWeb(){
   supabase.rpc('qlpm_student_web_whoami',{p_session_token:token}).then(({data,error})=>{
    if(!active)return;
    if(error||!data){sessionStorage.removeItem('qlpm.student.web.session');setSession(null);setPage('account');return;}
-   setSession({...data,token,student_name:data.name});setLastCode(data.class_code||'');setPage('home');
+   setSession({...data,token,student_name:data.name,name:data.name});setLastCode(data.class_code||'');setPage('home');
   }).catch(()=>{});
   return()=>{active=false;};
  },[]);
@@ -165,14 +175,28 @@ export default function StudentWeb(){
   },60000);
   return()=>{window.clearInterval(timer);for(const name of events)window.removeEventListener(name,touch);};
  },[session?.token]);
+ useEffect(()=>{
+  if(!session?.token)return;
+  let lastCheck=0;
+  const update=()=>{
+   if(document.visibilityState==='hidden'||Date.now()-lastCheck<12000)return;
+   lastCheck=Date.now();
+   refreshStudent(session.token).then(()=>setSyncWarning('')).catch(e=>setSyncWarning(e.message||'Không cập nhật được trạng thái PC.'));
+  };
+  document.addEventListener('visibilitychange',update);
+  window.addEventListener('focus',update);
+  return()=>{document.removeEventListener('visibilitychange',update);window.removeEventListener('focus',update)};
+ },[session?.token]);
  const current=navigation.find(x=>x.id===page)||navigation[0];
  const navigate=next=>{setPage(session?next:'account');window.scrollTo({top:0,behavior:'auto'});};
- function acceptLogin(data){
+ async function acceptLogin(data){
   if(!data?.session_token)return;
-  sessionStorage.setItem('qlpm.student.web.session',data.session_token);
+  const token=data.session_token;
+  sessionStorage.setItem('qlpm.student.web.session',token);
   setLastCode(data.class_code||'');
-  setSession({...data,token:data.session_token,name:data.student_name,pc:null});
+  setSession({...data,token,name:data.student_name,pc:data.pc||null});
   setPage('home');
+  try{await refreshStudent(token);}catch(e){setSyncWarning('PC sẽ cập nhật khi kết nối lại: '+(e.message||String(e)))}
  }
  async function logout(){
   const token=session?.token;
@@ -188,25 +212,25 @@ export default function StudentWeb(){
       <x.icon size={20}/><span>{x.title}</span>{['lessons','questions','games'].includes(x.id)&&<span className="student-side-marker"/>}
      </button>):<p style={{padding:12,fontSize:13,color:'#bdd5df'}}>Đăng nhập để mở bài giảng, câu hỏi và trò chơi.</p>}</nav>
    <div className="student-side-spacer"/>
+   <div className="student-sidebar-connection"><StatusPill online={online}/></div>
+   <button type="button" className="student-profile-sidebar" onClick={()=>navigate('account')}><UserRound size={18}/>{session?.name||'Đăng nhập'}</button>
    <div className="student-device-badge"><Monitor size={23}/><div><strong>{session?.pc||'Máy chưa liên kết'}</strong><small>{session?session.name:'Chưa đăng nhập'}</small></div></div>
    <div className="student-sidebar-footer"><Info size={15}/> QLPM Student · Web</div>
   </aside>
   <div className="student-desktop-body">
-   <header className="student-desktop-header">
-    <div className="student-header-current"><current.icon size={19}/><strong>{current.title}</strong><span>IC3 GS6 · Level 1</span></div>
-    <div className="student-header-actions"><StatusPill online={online}/><button type="button" className="student-profile-shortcut" onClick={()=>navigate('account')} title="Tài khoản học sinh"><UserRound size={17}/>{session?.name||'Đăng nhập'}</button></div>
-   </header>
    <main className={'student-desktop-content '+(embedded||page==='games'?'learning-active':'')}>
     {page==='account'&&(session?<StudentAccount session={session} onLogout={logout}/>:
       <StudentOnboarding onLogin={acceptLogin} defaultCode={lastCode}/>)}
-    {session&&page==='home'&&<StudentHome onNavigate={navigate} online={online}/>}
+    {session&&page==='home'&&<StudentHome onNavigate={navigate} online={online} session={session}/>}
     <React.Suspense fallback={<p className="student-load-status" role="status">Đang mở nội dung học tập...</p>}>
      {session&&page==='lessons'&&<Lessons/>}
      {session&&page==='questions'&&<Practice/>}
      {session&&page==='games'&&<Campaign key={session.token} session={session}/>}
+     {session&&page==='leaderboard'&&<StudentLeaderboard classCode={lastCode}/>} 
     </React.Suspense>
-    {session&&page==='leaderboard'&&(lastCode?<iframe title="Bảng xếp hạng QLPM của trường" loading="lazy" src={'/school?code='+encodeURIComponent(lastCode)} style={{width:'100%',minHeight:'83vh',border:0,borderRadius:18,background:'#fff'}}/>:<p>Không xác định được mã lớp. Hãy đăng nhập lại.</p>)}
-    {session&&page==='device'&&<DeviceSettings online={online} session={session}/>}
+
+    {session&&page==='device'&&<DeviceSettings online={online} session={session} onRefresh={()=>refreshStudent(session.token)}/>}
+    {syncWarning&&page==='device'&&<p role="status" className="student-sync-warning">{syncWarning}</p>}
    </main>
    <footer className="student-desktop-footer"><span>✦ Học để hiểu · Chơi để nhớ · Tự tin sử dụng công nghệ</span><span>Level 2 & 3 tạm khóa</span></footer>
   </div>
