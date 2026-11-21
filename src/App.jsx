@@ -242,7 +242,8 @@ function App() {
         </div>
         <nav className="nav-scroll" aria-label="Menu chính">
           {[["GIẢNG DẠY", ["dashboard", "attendance", "rollcall", "roster", "records", "student_rewards", "evaluation"]],
-            ["PHÒNG MÁY", ["computers", "desktop_controls", "students", "settings", "leaderboard", "cleaning"]],
+            ["PHÒNG MÁY", ["computers", "students", "settings", "leaderboard", "cleaning"]],
+            ["QLPM DESKTOP", ["desktop_controls"]],
             ["QUẢN LÝ", ["workplaces", "schools", "finance", "reports", "accounts"]]].map(([group, ids]) => <React.Fragment key={group}>
             <div className="nav-label">{group}</div>
             <ChevronRight size={17} className="profile-chevron"/>
