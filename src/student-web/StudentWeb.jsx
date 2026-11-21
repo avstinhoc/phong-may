@@ -122,13 +122,14 @@ function DeviceSettings({online,session}){
       {message&&<p role="status">{message}</p>}
     </form>:<p>Đăng nhập PIN trước để gửi yêu cầu kết nối máy.</p>}
    </article>
-   <article className="student-setting-card"><CalendarDays size={28}/><h3>Truy cập bằng trình duyệt</h3><strong>Bật mặc định lần đầu</strong><p>Student Web hoạt động trong trình duyệt, không cài đặt phần mềm Windows.</p></article>
+   <article className="student-setting-card"><CalendarDays size={28}/><h3>Truy cập bằng trình duyệt</h3><strong>Không cần cài đặt</strong><p>Student Web mở bằng trình duyệt. Lưu đường dẫn trên màn hình chính hoặc thanh dấu trang để vào nhanh.</p></article>
    <article className="student-setting-card">{online?<Wifi size={28}/>:<WifiOff size={28}/>}<h3>Kết nối mạng</h3><strong>{online?'Đang trực tuyến':'Không có kết nối'}</strong><p>Phiên đăng nhập và yêu cầu duyệt cần Internet; mất kết nối không tự xóa điểm đã lưu trên máy chủ.</p></article>
    <article className="student-setting-card"><ShieldCheck size={28}/><h3>Giao diện web</h3><strong>Thu nhỏ và phóng to được</strong><p>Có thể mở trên máy tính hoặc điện thoại; dữ liệu cá nhân chỉ hiện sau khi đăng nhập.</p></article>
   </div>
  </div>;
 }
 export default function StudentWeb(){
+ useEffect(()=>{const previous=document.title;document.title='QLPM Student – IC3 GS6';return()=>{document.title=previous;};},[]);
  const [page,setPage]=useState('account');
  const [online,setOnline]=useState(typeof navigator!=='undefined'?navigator.onLine:true);
  const [session,setSession]=useState(null);
