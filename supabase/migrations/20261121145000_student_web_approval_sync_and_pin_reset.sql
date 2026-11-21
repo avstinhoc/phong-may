@@ -13,7 +13,7 @@ begin
    where registration_id = new.id and student_id is null
    for update;
   if v.registration_id is null then return new; end if;
-  select count(*),min(s.id) into candidates,target_id
+  select count(*),max(s.id::text)::uuid into candidates,target_id
    from public.students s
    join public.classes c on c.id=v.class_id and c.school_id=v.school_id
    where s.school_id=v.school_id and s.status='active'
