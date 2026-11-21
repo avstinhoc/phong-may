@@ -1,10 +1,11 @@
-name: QLPM Desktop Windows installers (development only)
+name: QLPM Student Windows installer (development only)
 
 on:
   push:
     branches:
       - feature/qlpm-desktop-teacher-student-20261121
       - feature/qlpm-desktop-integration-20261121
+      - fix/qlpm-student-white-screen-20261121
     paths:
       - ".github/workflows/desktop-windows.yml"
       - "desktop/**"
@@ -23,6 +24,7 @@ on:
       - "package-lock.json"
       - "tests/desktopApps.test.js"
       - "tests/desktopIntegration.test.js"
+      - "tests/studentDesktopStartup.test.js"
       - "src/SheetsConnectionPanel.jsx"
   workflow_dispatch:
 
@@ -41,7 +43,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        app: [teacher, student]
+        app: [student]
     steps:
       - uses: actions/checkout@v4
         with:
