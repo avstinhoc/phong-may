@@ -49,8 +49,8 @@ function hero(m,skin,t,wind,hit,recoil,index){
  else{tube(hand,mix(hand,tip,.23),.045,.045,d);tube(plus(hand,[-.09,.1,0]),plus(hand,[.13,.05,0]),.041,.04,gold);tube(mix(hand,tip,.19),tip,.092,0,'#e5f6fb',4);if(index===15||index===18)ball(tip,[.20,.16,.14],gold)}
  return world(tip);
 }
-function creature(m,i,t,wind,hit,recoil){
- const {ball,tube,face,world}=m,c=colors[i],g=accent[i],dark='#30263e',eye='#ffca48';
+function creature(m,i,t,wind,hit,recoil,palette=i){
+ const {ball,tube,face,world}=m,c=colors[palette],g=accent[palette],dark='#30263e',eye='#ffca48';
  const bodyY=.82+.045*sin(t*2.3)-.13*wind+.08*hit, headY=bodyY+.37;let muzzle;
  function skull(p,r){ball(p,[r,r*.78,r*.90],c);ball(plus(p,[r*.64,-r*.14,r*.05]),[r*.7,r*.39,r*.64],g);
  for(const s of [-1,1]){ball(plus(p,[r*.60,r*.13,s*r*.59]),[r*.20,r*.23,r*.15],eye);ball(plus(p,[r*.70,r*.13,s*r*.65]),[r*.09,r*.16,r*.08],dark);tube(plus(p,[-r*.18,r*.50,s*r*.42]),plus(p,[-r*.50,r*1.14,s*r*.61]),r*.19,0,g)}
@@ -106,6 +106,7 @@ export function paintArena(ctx,w,h,{skin,index=0,round=1,wave=3,action='idle',ti
  const region=round-1,variant=(region*3+wave*7)%22;
  const i=wave===3?region:(variant===region?(variant+1)%22:variant);
  const monsterScale=wave===3?1.62+Math.min(16,region)*.075:1.22+wave*.19+region*.018;
+ const palette=wave===3?region:(region*5+wave*11)%22;
  const t=time,p=Math.min(1,elapsed/1.15),att=action==='strike',counter=action==='counter';
  const wind=(att||counter)?Math.sin(Math.PI*Math.min(1,p/.33)):0;
  const swing=(att||counter)?smooth((p-.27)/.22)*(1-smooth((p-.64)/.34)):0;
@@ -125,11 +126,11 @@ export function paintArena(ctx,w,h,{skin,index=0,round=1,wave=3,action='idle',ti
  function shadow(p,rx,rz){const a=project(p);ctx.fillStyle='rgba(27,53,32,.23)';ctx.beginPath();ctx.ellipse(a[0],a[1],rx*scale,rz*scale,0,0,TAU);ctx.fill()}
  shadow(heroPos,.41,.11);if(!portrait)shadow(foePos,monsterScale*.92,monsterScale*.19);
  const hand=hero(model(draw,heroPos),skin,t,att?wind:0,att?swing:0,counter?flinch:0,index);
- let mouth;if(!portrait)mouth=creature(model(draw,foePos,monsterScale,-1),i,t,counter?wind:0,counter?swing:0,att?flinch:0);
+ let mouth;if(!portrait)mouth=creature(model(draw,foePos,monsterScale,-1),i,t,counter?wind:0,counter?swing:0,att?flinch:0,palette);
  faces.sort((a,b)=>a[2]-b[2]);for(const [ps,c] of faces){ctx.fillStyle=ctx.strokeStyle=c;ctx.lineWidth=.55;ctx.beginPath();ps.forEach(([x,y],j)=>j?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.closePath();ctx.fill();ctx.stroke()}
  if(portrait||!(att||counter))return;
  const start=att?hand:mouth,target=att?[contact,monsterScale*1.03,0]:[heroPos[0]+.12,1.23,.22];
- const hue=att?skin.trim:accent[i],style=att?index:i;
+ const hue=att?skin.trim:accent[palette],style=att?index:i;
  function line(points,c,width){ctx.strokeStyle=c;ctx.lineWidth=width;ctx.lineCap='round';ctx.beginPath();points.forEach((p,i)=>{const [x,y]=project(p);i?ctx.lineTo(x,y):ctx.moveTo(x,y)});ctx.stroke()}
  // Charge sparks converge on the actual hand or jaw before release.
  if(p>.08&&p<.37){const v=(p-.08)/.29;for(let n=0;n<5;n++){const a=n*TAU/5+v*2,r=(1-v)*.34+.04;
