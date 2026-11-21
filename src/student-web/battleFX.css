@@ -1,0 +1,198 @@
+/* Săn Sao B — cinematic background and battle FX.
+   Procedural CSS only: zero new image downloads, no external subscriptions.
+   Layers stay separate from the existing accessible battle UI and server rules. */
+.cw-battle-field{
+ isolation:isolate;
+ background-repeat:no-repeat;
+ background-size:cover;
+ background-position:center;
+ box-shadow:inset 0 8px 30px #071a2855,0 16px 36px #092b3e2b;
+ will-change:auto;
+}
+.cw-battle-field .cw-depth,.cw-battle-field .cw-scene-lights{
+ position:absolute;inset:0;pointer-events:none;
+}
+.cw-battle-field .cw-depth-distant{
+ z-index:1;
+ opacity:.3;
+ background:
+  radial-gradient(ellipse 45% 65% at 77% 23%,var(--cw-light),transparent 74%),
+  radial-gradient(ellipse 35% 75% at 11% 74%,var(--cw-accent),transparent 80%);
+ background-size:112% 105%;
+ background-position:50% 35%;
+ animation:cw-distant-drift 20s ease-in-out infinite alternate;
+}
+.cw-battle-field .cw-depth-atmosphere{
+ z-index:2;
+ opacity:.37;
+ background-image:
+  radial-gradient(circle at 14% 21%,#fffc,transparent 2px),
+  radial-gradient(circle at 46% 67%,#fffd,transparent 2px),
+  radial-gradient(circle at 78% 24%,var(--cw-light),transparent 3px),
+  radial-gradient(circle at 84% 85%,#fff8,transparent 2px),
+  radial-gradient(circle at 28% 90%,var(--cw-light),transparent 3px);
+ background-size:195px 178px,310px 220px,235px 290px,170px 185px,240px 210px;
+ animation:cw-motes-float 13s linear infinite;
+}
+.cw-battle-field[data-weather="snow"] .cw-depth-atmosphere{
+ opacity:.7;filter:brightness(1.18);
+ background-size:120px 130px,210px 180px,170px 205px,140px 150px,245px 195px;
+ animation-duration:10s;
+}
+.cw-battle-field[data-weather="embers"] .cw-depth-atmosphere{
+ opacity:.75;filter:sepia(.55) saturate(2.2);
+ animation-duration:7s;
+}
+.cw-battle-field[data-weather="dust"] .cw-depth-atmosphere{
+ opacity:.30;filter:sepia(.6);
+ animation-duration:18s;
+}
+.cw-battle-field[data-weather="bubbles"] .cw-depth-atmosphere{
+ opacity:.55;
+ background-image:
+  radial-gradient(circle,#eafffeaf 0 1px,#c6faff52 2px 4px,transparent 5px),
+  radial-gradient(circle,#e3faffd0 0 2px,#bbf8ff60 3px 7px,transparent 8px);
+ background-size:115px 140px,210px 180px;
+ animation-direction:reverse;
+}
+.cw-battle-field .cw-scene-lights{
+ z-index:2;
+ background:
+  linear-gradient(113deg,transparent 17%,#fff7 17.4%,transparent 20%,transparent 31%,#fff3 31.4%,transparent 34%),
+  radial-gradient(ellipse 20% 37% at 32% 48%,var(--cw-light),transparent 84%),
+  radial-gradient(ellipse 25% 42% at 72% 52%,var(--cw-accent),transparent 83%);
+ opacity:.18;
+ mix-blend-mode:screen;
+}
+.cw-battle-field canvas.toy-arena{
+ z-index:3;
+ filter:drop-shadow(0 6px 5px #02172835);
+}
+.cw-battle-field .cw-depth-foreground{
+ z-index:4;
+ background:
+  radial-gradient(ellipse 24% 10% at 28% 88%,#02162282,transparent 88%),
+  radial-gradient(ellipse 26% 13% at 75% 89%,#02162274,transparent 92%),
+  linear-gradient(0deg,#071e3150,transparent 16%,transparent 75%,#071e3122);
+ box-shadow:inset 0 0 35px var(--cw-shadow);
+ opacity:.66;
+}
+.cw-battle-field .cw-character-aura{
+ z-index:2;mix-blend-mode:screen;opacity:.48;
+ background:radial-gradient(ellipse,var(--cw-light),transparent 70%);
+}
+.cw-battle-field .cw-scene-title,.cw-battle-field .cw-field-badge{z-index:9}
+.cw-battle-field .cw-scene-title{
+ box-shadow:inset 0 1px #ffffff3d,0 8px 20px #091a2c45;
+ backdrop-filter:blur(5px);
+}
+
+/* The class is applied only when a submitted/expired question receives server feedback. */
+.cw-battle-field.cw-stage-hit{animation:cw-stage-success 480ms ease-out both}
+.cw-battle-field.cw-stage-hurt{animation:cw-stage-counter 400ms ease-out both}
+.cw-vfx{
+ --center-x:73%;--center-y:49%;
+ --fx-color:var(--cw-light,#aeffee);
+ position:absolute;inset:0;z-index:8;pointer-events:none;overflow:hidden;
+}
+.cw-vfx-wrong,.cw-vfx-defeat{--center-x:28%;--center-y:49%;--fx-color:#ff9caa}
+.cw-vfx-wave_clear,.cw-vfx-victory{--center-x:52%;--center-y:44%;--fx-color:#ffdf77}
+.cw-vfx-wash{
+ position:absolute;inset:0;
+ background:radial-gradient(ellipse 30% 47% at var(--center-x) var(--center-y),var(--fx-color),transparent 80%);
+ opacity:0;mix-blend-mode:screen;animation:cw-vfx-flash 560ms ease-out both;
+}
+.cw-vfx-wrong .cw-vfx-wash,.cw-vfx-defeat .cw-vfx-wash{
+ background:radial-gradient(ellipse 33% 52% at var(--center-x) var(--center-y),#ff434a8c,transparent 84%);
+ mix-blend-mode:normal;
+}
+.cw-vfx-impact{
+ position:absolute;left:var(--center-x);top:var(--center-y);
+ width:85px;height:85px;border-radius:50%;
+ transform:translate(-50%,-50%) scale(.1);
+ background:radial-gradient(circle,#fff 0 8%,var(--fx-color) 12% 29%,transparent 69%);
+ box-shadow:0 0 25px var(--fx-color);
+ animation:cw-vfx-impact 500ms ease-out both;
+}
+.cw-vfx-ring{
+ position:absolute;left:var(--center-x);top:var(--center-y);
+ width:60px;height:50px;border:3px solid var(--fx-color);border-radius:50%;
+ filter:drop-shadow(0 0 6px var(--fx-color));
+ transform:translate(-50%,-50%) rotate(-28deg) scale(.1);
+ animation:cw-vfx-ring 620ms cubic-bezier(.15,.65,.2,1) both;
+}
+.cw-vfx-slash{
+ position:absolute;left:var(--center-x);top:var(--center-y);width:clamp(120px,19vw,310px);height:clamp(16px,2.4vw,34px);
+ background:linear-gradient(0deg,transparent,var(--fx-color) 23%,#fff 50%,var(--fx-color) 80%,transparent);
+ border-radius:80% 12% 80% 12%;box-shadow:0 0 19px var(--fx-color),0 0 28px #ffefba55;
+ transform-origin:0 50%;filter:drop-shadow(0 0 8px #fff);
+ opacity:0;
+}
+.cw-vfx-slash-one{
+ transform:translate(-45%,-50%) rotate(-33deg) scaleX(.12);
+ animation:cw-vfx-slash 440ms cubic-bezier(.2,.6,.15,1) 80ms both;
+}
+.cw-vfx-slash-two{
+ transform:translate(-45%,-50%) rotate(30deg) scaleX(.12);
+ animation:cw-vfx-slash-cross 410ms ease-out 170ms both;
+}
+.cw-vfx-particle{
+ position:absolute;left:var(--center-x);top:var(--center-y);
+ width:clamp(3px,.7vw,8px);height:clamp(6px,1.15vw,14px);
+ background:linear-gradient(#fff,var(--fx-color));
+ border-radius:50% 50% 30% 30%;
+ box-shadow:0 0 9px var(--fx-color);
+ opacity:0;transform:translate(-50%,-50%) scale(.35);
+ animation:cw-vfx-spark 850ms cubic-bezier(.18,.67,.2,.95) var(--particle-delay,0ms) both;
+}
+.cw-vfx-damage{
+ position:absolute;left:var(--center-x);top:calc(var(--center-y) - 37px);
+ transform:translateX(-50%);
+ color:#fff4b2;font-size:clamp(20px,2.7vw,42px);font-weight:1000;
+ white-space:nowrap;text-shadow:0 3px #663c2f,0 7px 15px #031f3e;
+ animation:cw-vfx-damage-up 1200ms ease-out both;
+}
+.cw-vfx-damage-heart{color:#ffb3c3;text-shadow:0 3px #84363e,0 7px 15px #031f3e}
+.cw-vfx-win{
+ position:absolute;left:50%;top:24%;white-space:nowrap;
+ transform:translateX(-50%);
+ padding:12px 28px;border-radius:999px;border:2px solid #ffdfa1;
+ background:linear-gradient(110deg,#92612c,#ecba62,#8b5c23);
+ color:#fff9e6;box-shadow:inset 0 2px #fff9,0 10px 30px #061a2b8a;
+ font-size:clamp(17px,2.4vw,34px);font-weight:1000;
+ text-shadow:0 3px 8px #593917;
+ animation:cw-vfx-victory 1200ms cubic-bezier(.2,.7,.25,1) both;
+}
+
+/* Only translate/opacity for weather & sparks; no expensive per-frame JS or bitmap assets. */
+@keyframes cw-distant-drift{from{background-position:45% 27%;transform:scale(1.025)}to{background-position:60% 40%;transform:scale(1.045)}}
+@keyframes cw-motes-float{from{background-position:0 0,0 0,0 0,0 0,0 0}to{background-position:35px -220px,-28px -210px,20px -260px,0 -200px,-40px -230px}}
+@keyframes cw-stage-success{25%{filter:brightness(1.19) saturate(1.23)}100%{filter:none}}
+@keyframes cw-stage-counter{0%,100%{transform:translateX(0)}20%{transform:translateX(-5px)}40%{transform:translateX(4px)}60%{transform:translateX(-3px)}80%{transform:translateX(2px)}}
+@keyframes cw-vfx-flash{0%{opacity:0}14%{opacity:.67}100%{opacity:0}}
+@keyframes cw-vfx-impact{0%{opacity:0;transform:translate(-50%,-50%) scale(.15)}17%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-50%) scale(3.2)}}
+@keyframes cw-vfx-ring{0%{opacity:0;transform:translate(-50%,-50%) rotate(-28deg) scale(.1)}17%{opacity:1}100%{opacity:0;transform:translate(-50%,-50%) rotate(-28deg) scale(3.8)}}
+@keyframes cw-vfx-slash{0%{opacity:0;transform:translate(-45%,-50%) rotate(-33deg) scaleX(.15)}20%{opacity:1}65%{opacity:1;transform:translate(-45%,-50%) rotate(-33deg) scaleX(1)}100%{opacity:0;transform:translate(-45%,-50%) rotate(-33deg) scaleX(1.4)}}
+@keyframes cw-vfx-slash-cross{0%{opacity:0;transform:translate(-45%,-50%) rotate(30deg) scaleX(.2)}20%{opacity:1}70%{opacity:1;transform:translate(-45%,-50%) rotate(30deg) scaleX(1)}100%{opacity:0;transform:translate(-45%,-50%) rotate(30deg) scaleX(1.4)}}
+@keyframes cw-vfx-spark{0%{opacity:0;transform:translate(-50%,-50%) scale(.35)}20%{opacity:1}100%{opacity:0;transform:translate(calc(-50% + var(--particle-x)),calc(-50% + var(--particle-y))) rotate(240deg) scale(.6)}}
+@keyframes cw-vfx-damage-up{0%{opacity:0;transform:translate(-50%,15px) scale(.65)}18%{opacity:1;transform:translate(-50%,-15px) scale(1.19)}74%{opacity:1}100%{opacity:0;transform:translate(-50%,-105px) scale(.95)}}
+@keyframes cw-vfx-victory{0%{opacity:0;transform:translate(-50%,30px) scale(.4)}25%{opacity:1;transform:translate(-50%,-7px) scale(1.12)}80%{opacity:1;transform:translateX(-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-32px)}}
+
+/* Classroom performance: less background work on compact PC displays. */
+@media(max-width:900px){
+ .cw-battle-field .cw-depth-distant{animation-duration:27s;opacity:.2}
+ .cw-battle-field .cw-depth-atmosphere{opacity:.26}
+ .cw-vfx-particle:nth-of-type(n+9){display:none}
+ .cw-vfx-win{font-size:18px;padding:10px 14px}
+}
+@media(prefers-reduced-motion:reduce){
+ .cw-battle-field .cw-depth,.cw-battle-field .cw-character-aura,
+ .cw-battle-field.cw-stage-hit,.cw-battle-field.cw-stage-hurt,
+ .cw-vfx *{animation:none!important}
+ .cw-battle-field .cw-depth-distant{opacity:.13}
+ .cw-battle-field .cw-depth-atmosphere{opacity:.14}
+ .cw-vfx .cw-vfx-slash,.cw-vfx .cw-vfx-particle,
+ .cw-vfx .cw-vfx-ring,.cw-vfx .cw-vfx-impact,
+ .cw-vfx .cw-vfx-wash{display:none}
+ .cw-vfx-damage,.cw-vfx-win{opacity:1;transform:translateX(-50%)}
+}
