@@ -42,8 +42,6 @@ import {
   ChevronLeft, ChevronRight, Printer, UserCheck, UserRound, Building2, Trophy, Star, KeyRound
 } from "lucide-react";
 
-const StudentWeb=React.lazy(()=>import('./student-web/StudentWeb.jsx'));
-
 const nav = [
   ["dashboard", "Tổng quan", LayoutDashboard],
   ["students", "Đăng ký & duyệt", Users],
@@ -194,9 +192,6 @@ function App() {
 
   if (!supabase) return <SetupScreen />;
   if (window.location.pathname === "/auth/callback") return <AuthCallback />;
-  if (window.location.pathname === "/student-web") {
-    return <React.Suspense fallback={<div className="center-screen">Đang mở Student Web...</div>}><StudentWeb /></React.Suspense>;
-  }
   if (window.location.pathname === "/student") {
     return <StudentPortal />;
   }

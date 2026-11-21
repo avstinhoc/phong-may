@@ -171,18 +171,18 @@ export default function StudentWeb(){
   sessionStorage.setItem('qlpm.student.web.session',data.session_token);
   setLastCode(data.class_code||'');
   setSession({...data,token:data.session_token,name:data.student_name,pc:null});
-  navigate('home');
+  setPage('home');
  }
  async function logout(){
   const token=session?.token;
-  sessionStorage.removeItem('qlpm.student.web.session');setSession(null);navigate('account');
-  if(token&&supabase)await supabase.rpc('qlpm_student_desktop_logout',{p_session_token:token});
+  sessionStorage.removeItem('qlpm.student.web.session');setSession(null);setPage('account');
+  if(token&&supabase)try{await supabase.rpc('qlpm_student_desktop_logout',{p_session_token:token});}catch{}
  }
  const embedded=page==='lessons'||page==='questions';
  return <div className="student-desktop-root">
   <aside className="student-desktop-sidebar">
    <div className="student-logo"><span><GraduationCap size={29}/></span><div><strong>QLPM Student</strong><small>Phòng máy thông minh</small></div></div>
-   <div className="student-side-label">HỌC TẬP & KHÁM PHÁ</div>
+   <div className="student-side-label">{session?'HỌC TẬP & KHÁM PHÁ':'ĐĂNG NHẬP ĐỂ BẮT ĐẦU'}</div>
    <nav aria-label="Menu QLPM Student">{session?navigation.map(x=><button key={x.id} type="button" className={page===x.id?'current':''} onClick={()=>navigate(x.id)}>
       <x.icon size={20}/><span>{x.title}</span>{['lessons','questions','games'].includes(x.id)&&<span className="student-side-marker"/>}
      </button>):<p style={{padding:12,fontSize:13,color:'#bdd5df'}}>Đăng nhập để mở bài giảng, câu hỏi và trò chơi.</p>}</nav>
