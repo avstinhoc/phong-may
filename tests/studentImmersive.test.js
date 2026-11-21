@@ -41,7 +41,7 @@ test('Lecture displays original 22 slide decks large with fullscreen and keyboar
 test('One core campaign, removes two unfinished mini games and uses server-validated waves',()=>{
  const src=read('src/student-web/Campaign.jsx');
  const backend=read('supabase/migrations/20261122210000_ic3_arcade_three_waves.sql');
- const upgraded=read('supabase/migrations/20261121232000_ic3_arcade_seven_waves.sql');
+ const upgraded=read('supabase/migrations/20261122220000_ic3_arcade_seven_waves.sql');
  const style=read('src/student-web/campaignWorld.css');
  assert.match(src,/WORLD_MAPS.map/);
  assert.match(src,/WAVES_PER_WORLD/);
