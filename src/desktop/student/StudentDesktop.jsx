@@ -2,7 +2,7 @@ import React,{useEffect,useState} from 'react';
 import {
  Monitor, BookOpen, ClipboardList, Gamepad2, GraduationCap, Star, Trophy,
  LockKeyhole, Settings2, Wifi, WifiOff, ArrowLeft, ChevronRight,
- CalendarDays, ShieldCheck, Info, Laptop, School, HelpCircle, MoonStar
+ CalendarDays, ShieldCheck, Info, Laptop, School, HelpCircle, MoonStar, UserRound
 } from 'lucide-react';
 import LearningPrototype from '../../learning/LearningPrototype.jsx';
 import StudentOnboarding from './StudentOnboarding.jsx';
