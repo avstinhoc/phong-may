@@ -3,6 +3,7 @@ import {BookOpen,Gamepad2,Monitor,RefreshCw,ExternalLink,Save,Trash2,Plus,Image,
 import {supabase} from './lib/supabase';
 import {LEVEL_1_LESSONS} from './learning/curriculum.js';
 import baseQuestions from './learning/practiceBank.json';
+import {PRACTICE_EXPANSIONS} from './student-web/practiceExpansions.js';
 import {WORLD_MAPS,WAVES_PER_WORLD} from './student-web/worldMap.js';
 import './StudentWebManagement.css';
 
@@ -10,7 +11,7 @@ const blank=()=>({id:null,lesson:1,title:'',q:'',choices:['','','',''],solution:
 const deviceLabels={assigned:'Đã gán PC',approved:'Yêu cầu đã duyệt',requested:'PC mong muốn',unlinked:'Chưa có PC'};
 const titles=LEVEL_1_LESSONS.map(l=>l.title||'Bài '+l.number);
 const imageFor=(lesson,page)=>'/ic3-slides/Bai-'+String(lesson).padStart(2,'0')+'/'+String(page)+'.webp';
-const countBase=n=>baseQuestions.filter(q=>q.lesson===n).length;
+const countBase=n=>[...baseQuestions,...PRACTICE_EXPANSIONS].filter(q=>q.lesson===n).length;
 
 export default function StudentWebManagement({profile,onNavigate}){
  const schoolId=profile?.school_id;
@@ -98,7 +99,7 @@ export default function StudentWebManagement({profile,onNavigate}){
    <div className="swm-kpis">
     <article><Monitor/><strong>{devices.length}</strong><span>Tài khoản Student Web trong trường</span></article>
     <article><ShieldCheck/><strong>{withPC}</strong><span>Học sinh có PC liên kết</span></article>
-    <article><BookOpen/><strong>{baseQuestions.length+published}</strong><span>Câu hỏi hiện có + đã xuất bản</span></article>
+    <article><BookOpen/><strong>{baseQuestions.length+PRACTICE_EXPANSIONS.length+published}</strong><span>Câu hỏi hiện có + đã xuất bản</span></article>
     <article><Gamepad2/><strong>{WORLD_MAPS.length*WAVES_PER_WORLD}</strong><span>Ải chiến dịch trên 22 bản đồ</span></article>
    </div>
    <div className="swm-action-grid">
@@ -124,7 +125,7 @@ export default function StudentWebManagement({profile,onNavigate}){
   </>}
   {tab==='questions'&&<>
    <div className="swm-section-head"><div><h2>Ngân hàng câu hỏi & hình ảnh</h2>
-    <p>{baseQuestions.length} câu hỏi nền, {published} câu bổ sung đã xuất bản, {questions.length-published} bản nháp của trường.</p></div>
+    <p>{baseQuestions.length+PRACTICE_EXPANSIONS.length} câu hỏi nền, {published} câu bổ sung đã xuất bản, {questions.length-published} bản nháp của trường.</p></div>
     <button onClick={()=>{setDraft(blank());setPreviewSlide(1)}}><Plus size={16}/> Tạo câu hỏi mới</button></div>
    <div className="swm-counts">{LEVEL_1_LESSONS.map(l=><span key={l.number}>Bài {l.number}: <b>{numberOfVisible(l.number)}</b> câu</span>)}</div>
    <form id="swm-editor" className="swm-editor" onSubmit={saveQuestion}>
