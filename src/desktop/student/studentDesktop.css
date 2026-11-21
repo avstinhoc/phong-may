@@ -83,3 +83,20 @@
 @media(max-width:800px){.student-desktop-sidebar{width:77px;flex-basis:77px;align-items:center;padding:17px 8px}.student-logo{margin:0 0 28px}.student-logo>div,.student-side-label,.student-desktop-sidebar nav button span,.student-device-badge>div,.student-sidebar-footer{display:none}.student-desktop-sidebar nav button{justify-content:center}.student-device-badge{padding:12px}.student-hero-graphic{display:none}.student-feature-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:610px){.student-desktop-header{padding:13px}.student-header-current>span{display:none}.student-desktop-content{padding:14px}.student-hero{padding:25px}.student-feature-grid,.student-bottom-grid,.student-settings-grid{grid-template-columns:1fr}.student-feature-card{min-height:180px}.student-login-steps{grid-template-columns:1fr}.student-locked-panel{padding:25px}.student-desktop-footer{flex-wrap:wrap}}
 @media(prefers-reduced-motion:reduce){.student-desktop-root *, .student-desktop-root *:before,.student-desktop-root *:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+
+.student-work-game{background:#f8fbff;border:1px solid #dae9f3;border-radius:20px;overflow:hidden;box-shadow:0 8px 30px #1645601c}
+.student-work-intro{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;padding:18px 22px;background:linear-gradient(110deg,#193650,#28617d);color:white}
+.student-work-intro h2{margin:0 0 6px;font-size:20px}.student-work-intro p{margin:0;font-size:12px;color:#daebf5}
+.student-work-intro>span{max-width:340px;background:#fde8b5;color:#77521c;padding:10px;border-radius:12px;font-size:11px;line-height:1.5;font-weight:800}
+.student-work-game iframe{display:block;width:100%;height:calc(100vh - 210px);min-height:590px;max-height:1050px;border:0;background:#f2f5fa}
+.student-game-followup{padding:11px 20px;background:#edf8f6;color:#477a78;font-size:11px}
+.student-home-leaderboard{margin-top:18px}
+.student-home-leaderboard button{width:100%;display:flex;align-items:center;gap:14px;padding:17px;background:linear-gradient(100deg,#fff1c9,#fffdf5);border:2px solid #f1d89d;border-radius:17px;color:#684c27;text-align:left}
+.student-home-leaderboard button>span{display:flex;flex:1;flex-direction:column;gap:3px}
+.student-home-leaderboard strong{font-size:16px}.student-home-leaderboard small{font-size:11px;color:#947b58}
+.student-signout{display:flex;align-items:center;justify-content:center;gap:8px;margin:24px auto 0;padding:12px 18px;background:#aa4d4d;color:#fff;border:0;border-radius:11px;font-weight:800}
+.student-pc-request{margin:12px 0;border-top:1px solid #dceaf0;padding-top:12px}
+.student-pc-request label{display:block;font-size:12px;font-weight:700;color:#55748e}
+.student-pc-request input{display:block;margin-top:7px;max-width:260px;padding:10px;border:1px solid #bcd2dd;border-radius:9px}
+.student-pc-request button{margin-top:10px;padding:9px 12px;border-radius:9px;background:#147d86;color:#fff;border:0;font-weight:800}
+.student-pc-request p{font-size:11px;line-height:1.6}

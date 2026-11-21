@@ -5,12 +5,17 @@ import {
  CalendarDays, ShieldCheck, Info, Laptop, School, HelpCircle, MoonStar
 } from 'lucide-react';
 import LearningPrototype from '../../learning/LearningPrototype.jsx';
+import StudentOnboarding from './StudentOnboarding.jsx';
+import DesktopLeaderboard from './DesktopLeaderboard.jsx';
+import {supabase} from '../../lib/supabase';
+import './studentExtras.css';
 
 const navigation=[
  {id:'home',title:'Trang chủ',icon:Monitor},
  {id:'lessons',title:'Bài giảng',icon:BookOpen},
  {id:'questions',title:'Câu hỏi',icon:ClipboardList},
  {id:'games',title:'Trò chơi',icon:Gamepad2},
+ {id:'leaderboard',title:'BXH toàn trường',icon:Trophy},
  {id:'account',title:'Tài khoản học sinh',icon:LockKeyhole},
  {id:'device',title:'Thiết bị & cài đặt',icon:Settings2}
 ];
@@ -58,10 +63,11 @@ function StudentHome({onNavigate,online}){
    <button type="button" className="student-feature-card adventure" onClick={()=>onNavigate('games')}>
     <span className="student-feature-icon"><Gamepad2 size={32}/></span>
     <strong>Trò chơi</strong>
-    <p>Phiêu lưu RPG, câu cá kiến thức và lắp ráp phần cứng.</p>
+    <p>Quần đảo Săn Sao IC3 từ GPT Work: 12 ải, Boss, trang bị và mini-game.</p>
     <span className="student-card-action">Vào thế giới trò chơi <ChevronRight size={17}/></span>
    </button>
   </section>
+  <div className="student-home-leaderboard"><button type="button" onClick={()=>onNavigate('leaderboard')}><Trophy size={22}/> <span><strong>Bảng xếp hạng toàn trường</strong><small>Top 5 trường · Top 10 từng khối · Sao và thành tích</small></span><ChevronRight size={18}/></button></div>
   <section className="student-bottom-grid">
    <article className="student-small-panel">
     <div className="student-small-icon"><School size={22}/></div>
@@ -75,67 +81,131 @@ function StudentHome({onNavigate,online}){
   {!online&&<p className="student-notice offline"><WifiOff size={18}/> Bài giảng Drive và game có dữ liệu trực tuyến cần kết nối Internet.</p>}
  </>;
 }
-function StudentAccount(){
+function StudentAccount({session,onLogout}){
  return <section className="student-locked-panel">
-  <div className="student-locked-icon"><LockKeyhole size={37}/></div>
-  <span className="student-eyebrow">ĐĂNG NHẬP CÁ NHÂN</span>
-  <h2>Chọn lớp → Chọn tên → Nhập PIN</h2>
-  <p>Đây là phương thức đăng nhập chính thức đã chọn cho QLPM Student. Phần xác thực PIN phía máy chủ hiện chưa được kích hoạt trong bản thử nghiệm, để không xảy ra tình trạng truy cập nhầm hồ sơ học sinh.</p>
+  <div className="student-locked-icon"><UserRound size={37}/></div>
+  <span className="student-eyebrow">TÀI KHOẢN HỌC SINH</span>
+  <h2>{session.name}</h2>
+  <p>Lớp {session.class_name||'—'} · {session.pc?'Đã ghép '+session.pc:'Chưa ghép PC'}</p>
+  <p>Phiên đăng nhập được xác minh trên máy chủ. PIN không được lưu lại trên máy tính dùng chung.</p>
   <div className="student-login-steps">
-   <div><span>1</span><strong>Trường & lớp</strong><small>Hiển thị theo buổi học đã được giáo viên mở</small></div>
-   <div><span>2</span><strong>Họ tên</strong><small>Chỉ hiển thị danh sách được cấp quyền</small></div>
-   <div><span>3</span><strong>PIN 6 số</strong><small>Máy chủ kiểm tra, không lưu PIN trên máy chung</small></div>
+   <div><span>✓</span><strong>Đã đăng nhập</strong><small>{session.name}</small></div>
+   <div><span>✓</span><strong>Lớp</strong><small>{session.class_name||'—'}</small></div>
+   <div><span>🖥</span><strong>Máy tính</strong><small>{session.pc||'Đợi giáo viên duyệt ghép PC'}</small></div>
   </div>
-  <p className="student-private-note"><ShieldCheck size={17}/> Hiện không có nút đăng nhập giả và không tải danh sách học sinh khi chưa được phép.</p>
+  <button className="student-signout" type="button" onClick={onLogout}><LockKeyhole size={18}/> Đăng xuất và xóa phiên</button>
  </section>;
 }
-function DeviceSettings({online}){
+function DeviceSettings({online,session}){
+ const [pcCode,setPcCode]=useState(''),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
+ async function requestPc(e){
+  e.preventDefault();if(!session?.token||!pcCode.trim())return;
+  setBusy(true);setMessage('');
+  try{
+   const {data,error}=await supabase.rpc('qlpm_student_desktop_request_pc',{
+     p_session_token:session.token,p_pc:pcCode.trim(),p_device_id:''
+   });
+   if(error)throw error;
+   setMessage(data?.message||'Đã gửi yêu cầu.');
+  }catch(e){setMessage(e.message||String(e));}finally{setBusy(false);}
+ }
  return <div className="student-device-settings">
-  <div className="student-section-title"><h2>Thiết bị & cài đặt</h2><p>Thông tin của bản QLPM Student thử nghiệm</p></div>
+  <div className="student-section-title"><h2>Thiết bị & cài đặt</h2><p>PC01–PC40 phải được giáo viên xác nhận trước khi gắn với tài khoản học sinh.</p></div>
   <div className="student-settings-grid">
-   <article className="student-setting-card"><Laptop size={28}/><h3>Định danh máy</h3><strong>Chưa liên kết PC</strong><p>PC01–PC40 sẽ chỉ được gán bởi giáo viên/Admin khi cơ chế đăng ký thiết bị đã sẵn sàng.</p></article>
-   <article className="student-setting-card"><CalendarDays size={28}/><h3>Tự mở cùng Windows</h3><strong>Bật mặc định lần đầu</strong><p>Bản Windows đăng ký khởi chạy khi người dùng đăng nhập. Có thể tắt trong Windows Settings → Apps → Startup, ứng dụng sẽ không tự bật lại.</p></article>
-   <article className="student-setting-card">{online?<Wifi size={28}/>:<WifiOff size={28}/>}<h3>Kết nối mạng</h3><strong>{online?'Đang trực tuyến':'Không có kết nối'}</strong><p>Ứng dụng không tự ghi kết quả trong chế độ offline và không xóa lịch sử học sinh.</p></article>
-   <article className="student-setting-card"><ShieldCheck size={28}/><h3>Chế độ cửa sổ</h3><strong>Thu nhỏ và phóng to được</strong><p>Có thể sử dụng Word, Excel, PowerPoint hoặc các ứng dụng học IC3 khác bình thường.</p></article>
+   <article className="student-setting-card"><Laptop size={28}/><h3>Máy tính đang ghép</h3>
+    <strong>{session?.pc||'Chưa ghép PC'}</strong><p>Máy chỉ được xác nhận khi giáo viên duyệt yêu cầu và kiểm tra vị trí thực tế.</p>
+    {session?<form className="student-pc-request" onSubmit={requestPc}>
+      <label>Nhập mã PC muốn ghép<input placeholder="VD: PC21" value={pcCode} onChange={e=>setPcCode(e.target.value)} maxLength={16}/></label>
+      <button disabled={busy||!pcCode.trim()} type="submit">Gửi giáo viên duyệt PC</button>
+      {message&&<p role="status">{message}</p>}
+    </form>:<p>Đăng nhập PIN trước để gửi yêu cầu kết nối máy.</p>}
+   </article>
+   <article className="student-setting-card"><CalendarDays size={28}/><h3>Tự mở cùng Windows</h3><strong>Bật mặc định lần đầu</strong><p>Bản Windows đăng ký khởi chạy khi người dùng đăng nhập. Có thể tắt trong Windows Settings → Apps → Startup.</p></article>
+   <article className="student-setting-card">{online?<Wifi size={28}/>:<WifiOff size={28}/>}<h3>Kết nối mạng</h3><strong>{online?'Đang trực tuyến':'Không có kết nối'}</strong><p>Phiên đăng nhập và yêu cầu duyệt cần Internet; mất kết nối không tự xóa điểm đã lưu trên máy chủ.</p></article>
+   <article className="student-setting-card"><ShieldCheck size={28}/><h3>Chế độ cửa sổ</h3><strong>Thu nhỏ và phóng to được</strong><p>Có thể dùng Word, Excel và các phần mềm IC3 khác cùng lúc.</p></article>
   </div>
  </div>;
 }
 export default function StudentDesktop(){
- const [page,setPage]=useState('home');
+ const [page,setPage]=useState('account');
  const [online,setOnline]=useState(typeof navigator!=='undefined'?navigator.onLine:true);
+ const [session,setSession]=useState(null);
+ const [lastCode,setLastCode]=useState('');
  useEffect(()=>{
-  const goOnline=()=>setOnline(true);
-  const goOffline=()=>setOnline(false);
-  window.addEventListener('online',goOnline);
-  window.addEventListener('offline',goOffline);
-  return()=>{window.removeEventListener('online',goOnline);window.removeEventListener('offline',goOffline)};
+  const goOnline=()=>setOnline(true),goOffline=()=>setOnline(false);
+  window.addEventListener('online',goOnline);window.addEventListener('offline',goOffline);
+  return()=>{window.removeEventListener('online',goOnline);window.removeEventListener('offline',goOffline);};
  },[]);
+ useEffect(()=>{
+  let active=true;
+  const token=sessionStorage.getItem('qlpm.student.session');
+  if(!token||!supabase)return;
+  supabase.rpc('qlpm_student_desktop_whoami',{p_session_token:token}).then(({data,error})=>{
+   if(!active)return;
+   if(error||!data){sessionStorage.removeItem('qlpm.student.session');setSession(null);setPage('account');return;}
+   setSession({...data,token,student_name:data.name});setPage('home');
+  }).catch(()=>{});
+  return()=>{active=false;};
+ },[]);
+ useEffect(()=>{
+  if(!session)return;
+  let lastActivity=Date.now();
+  const touch=()=>{lastActivity=Date.now()};
+  const events=['pointerdown','keydown','mousemove'];
+  for(const name of events)window.addEventListener(name,touch,{passive:true});
+  const timer=window.setInterval(async()=>{
+   if(Date.now()-lastActivity>20*60*1000){
+    const token=sessionStorage.getItem('qlpm.student.session');sessionStorage.removeItem('qlpm.student.session');
+    setSession(null);setPage('account');
+    if(token)void supabase?.rpc('qlpm_student_desktop_logout',{p_session_token:token}).catch(()=>{});
+   }
+  },60000);
+  return()=>{window.clearInterval(timer);for(const name of events)window.removeEventListener(name,touch);};
+ },[session?.token]);
  const current=navigation.find(x=>x.id===page)||navigation[0];
- const navigate=(next)=>{setPage(next);window.scrollTo({top:0,behavior:'instant'});};
- const embedded=page==='lessons'||page==='questions'||page==='games';
- const learningSection=page==='lessons'?'lessons':'exercises';
+ const navigate=next=>{setPage(next);window.scrollTo({top:0,behavior:'auto'});};
+ function acceptLogin(data){
+  if(!data?.session_token)return;
+  sessionStorage.setItem('qlpm.student.session',data.session_token);
+  setSession({...data,token:data.session_token,name:data.student_name,pc:null});
+  navigate('home');
+ }
+ async function logout(){
+  const token=session?.token;
+  sessionStorage.removeItem('qlpm.student.session');setSession(null);navigate('account');
+  if(token&&supabase)await supabase.rpc('qlpm_student_desktop_logout',{p_session_token:token});
+ }
+ const embedded=page==='lessons'||page==='questions';
  return <div className="student-desktop-root">
   <aside className="student-desktop-sidebar">
    <div className="student-logo"><span><GraduationCap size={29}/></span><div><strong>QLPM Student</strong><small>Phòng máy thông minh</small></div></div>
    <div className="student-side-label">HỌC TẬP & KHÁM PHÁ</div>
    <nav aria-label="Menu QLPM Student">{navigation.map(x=><button key={x.id} type="button" className={page===x.id?'current':''} onClick={()=>navigate(x.id)}>
-      <x.icon size={20}/><span>{x.title}</span>{x.id==='lessons'||x.id==='questions'||x.id==='games'?<span className="student-side-marker"/>:null}
+      <x.icon size={20}/><span>{x.title}</span>{['lessons','questions','games'].includes(x.id)&&<span className="student-side-marker"/>}
      </button>)}</nav>
    <div className="student-side-spacer"/>
-   <div className="student-device-badge"><Monitor size={23}/><div><strong>Máy chưa liên kết</strong><small>Chế độ học thử</small></div></div>
-   <div className="student-sidebar-footer"><Info size={15}/> QLPM Student v0.1 · Preview</div>
+   <div className="student-device-badge"><Monitor size={23}/><div><strong>{session?.pc||'Máy chưa liên kết'}</strong><small>{session?session.name:'Chưa đăng nhập'}</small></div></div>
+   <div className="student-sidebar-footer"><Info size={15}/> QLPM Student · Desktop Preview</div>
   </aside>
   <div className="student-desktop-body">
    <header className="student-desktop-header">
     <div className="student-header-current"><current.icon size={19}/><strong>{current.title}</strong><span>IC3 GS6 · Level 1</span></div>
-    <div className="student-header-actions"><StatusPill online={online}/><button type="button" className="student-profile-shortcut" onClick={()=>navigate('account')} title="Tài khoản học sinh"><LockKeyhole size={17}/> Đăng nhập</button></div>
+    <div className="student-header-actions"><StatusPill online={online}/><button type="button" className="student-profile-shortcut" onClick={()=>navigate('account')} title="Tài khoản học sinh"><UserRound size={17}/>{session?.name||'Đăng nhập'}</button></div>
    </header>
-   <main className={'student-desktop-content '+(embedded?'learning-active':'')}>
+   <main className={'student-desktop-content '+(embedded||page==='games'?'learning-active':'')}>
+    {page==='account'&&(session?<StudentAccount session={session} onLogout={logout}/>:
+      <StudentOnboarding onLogin={acceptLogin} onTrial={()=>navigate('home')} onLeaderboard={()=>navigate('leaderboard')} defaultCode={lastCode}/>)}
     {page==='home'&&<StudentHome onNavigate={navigate} online={online}/>}
-    {embedded&&<><div className="student-learning-heading"><button type="button" onClick={()=>navigate('home')}><ArrowLeft size={17}/> Trang chủ</button><span>{page==='lessons'?'Bài giảng':page==='questions'?'Câu hỏi':'Trò chơi'} · 22 bài IC3 Level 1</span></div>
-      <LearningPrototype key={page} embedded initialSection={learningSection} initialExerciseTab={page==='games'?'games':'questions'}/></>}
-    {page==='account'&&<StudentAccount/>}
-    {page==='device'&&<DeviceSettings online={online}/>}
+    {embedded&&<><div className="student-learning-heading"><button type="button" onClick={()=>navigate('home')}><ArrowLeft size={17}/> Trang chủ</button><span>{page==='lessons'?'Bài giảng':'Câu hỏi'} · 22 bài IC3 Level 1</span></div>
+      <LearningPrototype key={page} embedded initialSection={page==='lessons'?'lessons':'exercises'} initialExerciseTab="questions"/></>}
+    {page==='games'&&<div className="student-work-game">
+      <div className="student-work-intro"><div><h2>⚔️ IC3 Arcade · Quần đảo Săn Sao</h2><p>Phiên bản game nâng cấp từ GPT Work, giữ nhân vật, Boss và hiệu ứng.</p></div>
+      <span>Điểm/sao arcade hiện lưu cục bộ; chưa cộng sang BXH thật khi chưa có cơ chế xác nhận của giáo viên.</span></div>
+      <iframe src="/san-sao.html" title="Trò chơi Săn Sao IC3" allow="fullscreen" loading="eager"/>
+      <div className="student-game-followup">Các game 22 bài IC3 và 88 Boss đang được hoàn thiện theo ngân hàng câu hỏi được giáo viên duyệt.</div>
+    </div>}
+    {page==='leaderboard'&&<DesktopLeaderboard initialCode={lastCode} onCodeChange={setLastCode}/>}
+    {page==='device'&&<DeviceSettings online={online} session={session}/>}
    </main>
    <footer className="student-desktop-footer"><span>✦ Học để hiểu · Chơi để nhớ · Tự tin sử dụng công nghệ</span><span>Level 2 & 3 tạm khóa</span></footer>
   </div>
