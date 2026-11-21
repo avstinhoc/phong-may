@@ -1,34 +1,38 @@
 import guided from '../learning/guidedLessons.json';
+import extraChoices from '../learning/practiceExtraChoices.json';
 import {LEVEL_1_LESSONS} from '../learning/curriculum.js';
 
-// New factual matching questions are derived directly from the existing
-// three concept / explanation pairs in each source-linked guided lesson.
-// Do not fabricate content for lesson slots 8 and 10, which lack source slides.
+// Use only the original lesson concept/explanation texts. A short first sentence
+// is sufficient for reading a timed quiz; full source detail stays in "why".
+const concise=text=>{
+ const value=String(text||'').trim();
+ return value.match(/^(.+?[.!?])(?:\s|$)/)?.[1]||value;
+};
+
+// 120 source-grounded questions. Each answer set contains four real, distinct
+// choices, and NO PowerPoint cover/slides are used as unrelated illustrations.
 export const PRACTICE_EXPANSIONS=guided.flatMap(guide=>{
  const lesson=LEVEL_1_LESSONS[guide.n-1];
  if(!lesson||lesson.status!=='source-linked')return [];
- const list=guide.concepts||[];
- if(list.length!==3)return [];
- return list.flatMap(([name,explanation],i)=>{
-  const others=list.filter((_,j)=>j!==i);
-  const slide='/ic3-slides/Bai-'+String(guide.n).padStart(2,'0')+'/'+(i+2)+'.webp';
+ const concepts=guide.concepts||[];
+ if(concepts.length!==3)return [];
+ return concepts.flatMap(([name,explanation],i)=>{
+  const others=concepts.filter((_,j)=>j!==i);
+  const meaningId='guide-'+guide.n+'-'+i+'-meaning';
+  const conceptId='guide-'+guide.n+'-'+i+'-concept';
   return [
    {
-    id:'guide-'+guide.n+'-'+i+'-meaning',lesson:guide.n,
-    title:'Nhận biết khái niệm trong bài',
-    q:'Trong bài học, câu nào giải thích phù hợp nhất về “'+name+'”?',
-    choices:[explanation,...others.map(x=>x[1])],
-    why:'Kiến thức đối chiếu: '+name+' — '+explanation,
-    image:slide,alt:'Trang tham khảo từ PowerPoint bài '+guide.n+' (cần đọc nội dung hình trước khi trả lời).',
-    sourceSlide:i+2,sourceType:'slide'
+    id:meaningId,lesson:guide.n,title:'Nhận biết khái niệm',
+    q:'Tình huống nào minh họa đúng nhất cho “'+name+'”?',
+    choices:[concise(explanation),...others.map(x=>concise(x[1])),concise(extraChoices[meaningId])],
+    solution:concise(explanation),
+    why:'Kiến thức bài học: '+name+' — '+explanation
    },
    {
-    id:'guide-'+guide.n+'-'+i+'-concept',lesson:guide.n,
-    title:'Gắn tình huống với thuật ngữ',
-    q:'Theo bài học, mô tả “'+explanation+'” liên quan trực tiếp nhất đến khái niệm nào?',
-    choices:[name,...others.map(x=>x[0])],
-    why:explanation,
-    sourceSlide:i+2,sourceType:'text'
+    id:conceptId,lesson:guide.n,title:'Áp dụng thuật ngữ',
+    q:'“'+concise(explanation)+'” nói đến khái niệm nào?',
+    choices:[name,...others.map(x=>x[0]),extraChoices[conceptId]],
+    solution:name,why:explanation
    }
   ];
  });
