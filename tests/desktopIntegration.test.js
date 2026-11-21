@@ -73,6 +73,7 @@ test('Sheets Edge Function allows exact Windows origin but retains teacher JWT g
  const edge=text('supabase/functions/google-sheets-sync/index.ts');
  assert.ok(edge.includes('s==="http://tauri.localhost"'));
  assert.ok(edge.includes('if(!jwt)'));
- assert.ok(!edge.includes('*.vercel.app'));
+ assert.ok(edge.includes('s===ORIGIN'));
+ assert.ok(edge.includes('s==="http://tauri.localhost"'));
  assert.ok(!edge.includes('origin==="*"'));
 });
