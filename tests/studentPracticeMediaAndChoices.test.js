@@ -1,73 +1,31 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
-const read=file=>readFileSync(new URL('../'+file,import.meta.url),'utf8');
-const bank=JSON.parse(read('src/learning/practiceBank.json'));
-const fourth=JSON.parse(read('src/learning/practiceExtraChoices.json'));
-const guided=JSON.parse(read('src/learning/guidedLessons.json'));
-const trim=s=>{
- const t=String(s).trim();
- return t.match(/^(.+?[.!?])(?:\s|$)/)?.[1]||t;
-};
-test('all existing 116 baseline practice questions have 4 unique real answers',()=>{
- assert.equal(bank.length,116);
- for(const q of bank){
-  const choices=[...q.choices];
-  if(choices.length===3)choices.push(fourth[q.id]);
-  assert.equal(choices.length,4,q.id);
-  assert.equal(new Set(choices).size,4,q.id);
-  assert.ok(choices.every(x=>typeof x==='string'&&x.trim()),q.id);
-  assert.ok(choices.includes(q.choices[0]),q.id);
- }
-});
-test('120 guided question expansions use exactly 4 unique options and original explanations',()=>{
- let count=0;
- for(const guide of guided){
-  if([8,10].includes(guide.n))continue;
-  assert.equal(guide.concepts.length,3);
-  for(let i=0;i<guide.concepts.length;i++){
-   const [concept,explanation]=guide.concepts[i];
-   const others=guide.concepts.filter((_,j)=>j!==i);
-   const meaningId='guide-'+guide.n+'-'+i+'-meaning';
-   const conceptId='guide-'+guide.n+'-'+i+'-concept';
-   const meaning=[trim(explanation),...others.map(x=>trim(x[1])),trim(fourth[meaningId])];
-   const concepts=[concept,...others.map(x=>x[0]),fourth[conceptId]];
-   for(const answers of [meaning,concepts]){
-    assert.equal(answers.length,4);
-    assert.equal(new Set(answers).size,4,guide.n+'-'+i);
-    assert.ok(answers.every(x=>x.trim().length>1));
-   }
-   count+=2;
+import {readFileSync,readdirSync} from 'node:fs';
+import {previewDeck} from '../src/learning/offlineQuiz.js';
+const read=f=>readFileSync(new URL('../'+f,import.meta.url),'utf8');
+const bank=JSON.parse(read('src/learning/quizCatalog.json'));
+const norm=s=>s.normalize('NFC').toLowerCase().replace(/[^\p{L}\p{N}]+/gu,' ').trim();
+test('all 22 lesson pools have distinct concepts, prompts, four choices and an explanation',()=>{
+ for(const key of ['id','concept','prompt'])assert.equal(new Set(bank.map(q=>norm(q[key]))).size,bank.length,key);
+ for(let n=1;n<=22;n++){
+  const deck=previewDeck('lv1-'+String(n).padStart(2,'0'));
+  assert.ok(deck.length>=8,'lesson '+n);
+  for(const q of deck){
+   assert.equal(new Set(q.options.map(o=>norm(o.label))).size,4,q.id);
+   assert.equal(q.options.filter(o=>o.id===q.correctId).length,1,q.id);
+   assert.ok(q.explanation.trim(),q.id);
   }
  }
- assert.equal(count,120);
 });
-test('practice no longer displays PowerPoint slides or an image unrelated to the question',()=>{
- const practice=read('src/student-web/Practice.jsx');
- const expansion=read('src/student-web/practiceExpansions.js');
- const media=read('src/student-web/practiceDeviceMedia.js');
- const editor=read('src/StudentWebManagement.jsx');
- assert.match(practice,/deviceVisualFor/);
- assert.match(practice,/LETTERS=\['A','B','C','D'\]/);
- assert.match(practice,/completeQuestion/);
- assert.doesNotMatch(practice,/<img|referrerPolicy|https?:\/\/|practice-source-panel|showSlide|lessonImage|sourceSlide/i);
- assert.doesNotMatch(expansion,/ic3-slides|sourceSlide|slide='/);
- assert.match(media,/DEVICES=/);
- assert.match(media,/PER_QUESTION=/);
- assert.doesNotMatch(media,/https?:\/\/|FilePath|commons\.wikimedia|\bsrc\s*:/i);
- assert.doesNotMatch(editor,/Chọn ảnh slide này|Ảnh từ slide: số slide|swm-image-preview/);
- assert.match(editor,/image_path:null,alt:''/);
- assert.match(editor,/choices\.length!==4/);
-});
-
-test('No remotely loaded image can appear in student practice (safety regression)',()=>{
- const q=read('src/student-web/Practice.jsx');
- const photos=read('src/student-web/practiceDeviceMedia.js');
- const teacher=read('src/StudentWebManagement.jsx');
- assert.doesNotMatch(q,/<img\b|<picture\b|<iframe\b/);
- assert.doesNotMatch(q,/src=\{q\.image\}|src=\{media/);
- assert.doesNotMatch(photos,/https?:\/\/|commons\.wikimedia|Special:FilePath|<img/);
- assert.match(q,/DEVICE_ICONS/);
- assert.match(q,/practice-device-card/);
- assert.doesNotMatch(teacher,/src=\{draft\.image_path\}|swm-image-preview/);
+test('every image is an attributed, local WebP used by a catalog item',()=>{
+ const credits=JSON.parse(read('public/ic3-media/credits.json'));
+ const used=new Set(bank.map(q=>q.media).filter(Boolean));
+ assert.deepEqual(new Set(credits.map(r=>r.file)),new Set([...used].map(id=>id+'.webp')));
+ for(const r of credits){
+  assert.ok(r.author&&r.source&&r.license);assert.match(r.file,/^m\d\d\.webp$/);
+  const data=readFileSync(new URL('../public/ic3-media/'+r.file,import.meta.url));
+  assert.equal(data.toString('ascii',8,12),'WEBP');
+ }
+ const component=read('src/student-web/QuestionPhoto.jsx');
+ assert.doesNotMatch(component,/title=|figcaption|src=\{media\}|alt=\{(?:solution|title|q\.)/);
 });

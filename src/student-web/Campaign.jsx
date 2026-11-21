@@ -59,7 +59,7 @@ export default function Campaign({session}){
  const [selectedWave,setSelectedWave]=useState(null);
  const [error,setError]=useState('');
  const [busy,setBusy]=useState(false);
- const [time,setTime]=useState(20);
+ const [time,setTime]=useState(30);
  const [claim,setClaim]=useState(null);
  const [fullscreen,setFullscreen]=useState(false);
  const [fallbackFull,setFallbackFull]=useState(false);
@@ -233,15 +233,15 @@ export default function Campaign({session}){
     <span className="cw-field-badge">Bài {currentId} · {lessonTitle(currentId)}</span>
    </div>
    <div className="cw-fight-question">
-    {data.turn?<BattleQuiz key={data.turn} turn={data.turn} prompt={data.prompt} choices={data.choices}
+    {data.turn?<BattleQuiz key={data.turn} turn={data.turn} prompt={data.prompt} media={data.media} choices={data.choices}
      time={time} disabled={busy||!!error} stage={currentId} wave={wave}
      onAnswer={choice=>call('answer',{p_turn:data.turn,p_choice:choice})}
      onRefresh={()=>call('status')}/>:
      <div className="cw-combat-result">
       <span className={'cw-result-symbol '+(data.outcome||'idle')}>{data.outcome==='wrong'?'💥':data.outcome==='defeat'?'💔':data.outcome==='wave_clear'?'🏅':'✨'}</span>
       <div><h2>{stateLabel[data.outcome]||'Sẵn sàng bước vào ải!'}</h2>
-       <p>{feedback||'Trả lời câu hỏi để nhân vật tấn công quái vật.'}{num(data.bonus)>0?' Thưởng mốc: +'+data.bonus+' sao đã được ghi nhận.':''}</p></div>
-      {!isComplete?<button type="button" className="cw-primary" disabled={busy||!!error} onClick={next}>
+       <p>{data.review&&<strong>Đáp án đúng · {data.review.solution}<br/></strong>}{feedback||'Trả lời câu hỏi để nhân vật tấn công quái vật.'}{num(data.bonus)>0?' Thưởng mốc: +'+data.bonus+' sao đã được ghi nhận.':''}</p>{data.review&&<small>{data.review.media_title&&data.review.media_title+' · '}Bài {data.review.lesson} {data.review.media_title&&<a href="/ic3-media/credits.json" target="_blank" rel="noreferrer">Nguồn ảnh</a>}</small>}{data.outcome==='set_complete'&&<p>Em đã gặp hết câu hỏi của lượt này. Tiếp tục để mở lượt ôn mới.</p>}</div>
+      {!isComplete?<button type="button" className="cw-primary" disabled={busy||!!error||!!fx} onClick={next}>
        {busy?'Đang mở trận…':'Tiếp tục chiến đấu'} <ArrowRight size={19}/></button>:
       <button type="button" className="cw-primary" onClick={()=>setView('world')}>Xem hành trình</button>}
      </div>}
@@ -276,7 +276,7 @@ export default function Campaign({session}){
      })}</div>
      <div className="cw-wave-selected"><strong>Đang xem: {selectedEncounter.name}</strong>
       <small>{selectedEncounter.hint}</small></div>
-     {selectedActive&&!isComplete?<button type="button" className="cw-primary" disabled={busy||!!error} onClick={next}>
+     {selectedActive&&!isComplete?<button type="button" className="cw-primary" disabled={busy||!!error||!!fx} onClick={next}>
       <Swords size={20}/> {busy?'Đang mở…':data.turn?'Tiếp tục ải '+wave:'Vào ải '+wave+' / '+WAVES_PER_WORLD} <ArrowRight size={19}/></button>:
       <p className="cw-map-locked">{isComplete?'🎉 Đã chinh phục toàn bộ 22 bản đồ!':
        mapId<currentId?'Bản đồ hoàn thành. Chọn bản đồ đang mở để tiếp tục.':'🔒 Hãy hoàn thành bản đồ '+currentId+' trước.'}</p>}

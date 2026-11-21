@@ -1,7 +1,8 @@
 import React,{useMemo,useState} from 'react';
 import {ArrowLeft,ArrowRight,Heart,RotateCcw,Trophy,BookOpen,Volume2,VolumeX,Anchor,CheckCircle2} from 'lucide-react';
 import {PixelFish,PixelHero} from './PixelArt.jsx';
-import {lessonQuestions} from './questionBank.js';
+import {previewDeck} from '../learning/offlineQuiz.js';
+import {useQuestionClock} from '../learning/useQuestionClock.js';
 import {GameSoundButton,playGameSound} from './BattleScene.jsx';
 
 const colorPool=['blue','orange','pink','gold'];
@@ -11,8 +12,8 @@ const sceneDecor=[
  {x:87,y:24,color:'blue',delay:1.8}
 ];
 
-export function FishingGame({skinId,onBack}){
- const questions=useMemo(()=>lessonQuestions('lv1-11').filter(q=>q.status==='teacher-review-required'),[]);
+export function FishingGame({skinId,onBack,profile}){
+ const [questions,setQuestions]=useState(()=>previewDeck('lv1-11',profile));
  const [index,setIndex]=useState(0),[hearts,setHearts]=useState(3),[score,setScore]=useState(0);
  const [feedback,setFeedback]=useState(null),[finished,setFinished]=useState(false),[muted,setMuted]=useState(true);
  const q=questions[index];
@@ -24,8 +25,9 @@ export function FishingGame({skinId,onBack}){
   if(correct)setScore(n=>n+1);
   else setHearts(n=>Math.max(0,n-1));
  };
+ const clock=useQuestionClock(q,!feedback&&!finished,choose);
  const next=()=>{if(index>=questions.length-1||hearts===0){setFinished(true);return;}setIndex(n=>n+1);setFeedback(null);};
- const reset=()=>{setIndex(0);setHearts(3);setScore(0);setFeedback(null);setFinished(false);};
+ const reset=()=>{setQuestions(previewDeck('lv1-11',profile));setIndex(0);setHearts(3);setScore(0);setFeedback(null);setFinished(false);};
  return <div className="ic3-fishing-page">
   <div className="ic3-fishing-head">
    <div><button type="button" className="ic3-back" onClick={onBack}><ArrowLeft size={16}/> Trở lại trò chơi vui</button>
@@ -40,18 +42,18 @@ export function FishingGame({skinId,onBack}){
    <span><BookOpen size={18}/> {finished?'Đã kết thúc':`Câu ${index+1}/${questions.length}`}</span>
    <button className="ic3-fish-end" onClick={()=>setFinished(true)} disabled={finished}>Kết thúc & xem kết quả</button>
   </div>
-  {!finished&&q?<><div className="ic3-fishing-question"><strong>Câu {index+1}:</strong> {q.prompt}</div>
+  {!finished&&q?<><div className="ic3-fishing-question"><strong>Câu {index+1}:</strong> {q.prompt} · {clock.seconds} giây</div>
    <div className="ic3-fishing-ocean" aria-label="Hồ cá câu hỏi">
     <div className="ic3-fishing-sun"/><div className="ic3-fishing-coast"/>
     <div className="ic3-fishing-sea"><div className="ic3-fishing-rays"/>
       {Array.from({length:19},(_,i)=><i key={i} className="ic3-fishing-bubble" style={{'--x':(i*41)%96+'%','--delay':((i*3)%9)+'s','--size':(i%3+1)*5+'px'}}/>)}
       {sceneDecor.map((fish,i)=><span aria-hidden="true" key={i} className="ic3-fishing-extra-fish" style={{left:fish.x+'%',top:fish.y+'%','--delay':fish.delay+'s'}}><PixelFish color={fish.color}/></span>)}
-      {q.options.map((option,i)=><button key={option.id} type="button" onClick={()=>choose(option.id)}
+      {q.options.map((option,i)=><button key={option.id} type="button" onClick={()=>clock.submit(option.id)}
        disabled={Boolean(feedback)} className={'ic3-fishing-fish ic3-fish-pos-'+i+
        (feedback?.id===option.id?(feedback.correct?' caught':' lost'):'')+
        (feedback&&q.correctId===option.id?' answer':'')}>
        <PixelFish color={colorPool[i]}/>
-       <span>{option.label}</span></button>)}
+       <span>{'ABCD'[i]} · {option.label}</span></button>)}
       <div className="ic3-fishing-seabed"><div className="ic3-reef r1">♣</div><div className="ic3-reef r2">♣</div>
         <div className="ic3-reef r3">❋</div><div className="ic3-shell s1">◕</div><div className="ic3-shell s2">◕</div>
        </div>
@@ -62,9 +64,9 @@ export function FishingGame({skinId,onBack}){
    </div>
    {feedback?<div className={'ic3-fishing-feedback '+(feedback.correct?'right':'wrong')}>
     <div><strong>{feedback.correct?'🎉 Câu đúng! Cá đã mắc câu.':'💡 Chưa đúng, cùng tìm hiểu nhé!'}</strong>
-      <p>{q.explanation}</p><small>Nguồn: Bài 11 · Slide {q.sourceSlides.join(', ')}</small></div>
+      <p>{q.solution} · {q.explanation}</p><small>Bài 11</small></div>
     <button type="button" className="ic3-main-btn" onClick={next}>{hearts===0||index===questions.length-1?'Xem kết quả':'Câu tiếp theo'} <ArrowRight size={17}/></button>
-   </div>:<div className="ic3-fishing-hint">🐟 Các chú cá bơi chậm để em có thời gian suy nghĩ. Không giới hạn thời gian, không phạt tốc độ.</div>}
+   </div>:<div className="ic3-fishing-hint">Chọn một đáp án trong 30 giây.</div>}
   </>:<div className="ic3-fishing-complete">
     <Trophy size={52}/><h2>{hearts===0?'Cùng ôn lại bài rồi thử nhé!':'Hoàn thành chuyến đi câu!'}</h2>
     <p>Em đã câu đúng <strong>{score}/{questions.length}</strong> câu.</p>

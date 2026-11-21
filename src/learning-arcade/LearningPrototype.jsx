@@ -1,10 +1,13 @@
+import quizCatalog from '../learning/quizCatalog.json';
 import React,{useMemo,useState} from 'react';
 import {BookOpen,ClipboardList,Swords,Trophy,LockKeyhole,ExternalLink,ArrowLeft,ArrowRight,Play,RotateCcw,Heart,Shield,Volume2,VolumeX,Info,Monitor,UserRound,CheckCircle2,AlertTriangle,ChevronRight,Target,Medal} from 'lucide-react';
 import {LEVEL_1_LESSONS,LEVELS,lessonById} from './curriculum.js';
 import {PROTOTYPE_QUESTIONS,lessonQuestions} from './questionBank.js';
 import {BALANCE,HERO_STYLES,MONSTERS,MINI_GAMES,monsterFor,WORLDS,EQUIPMENT_SLOTS} from './adventureCatalog.js';
 import {beginBattle,currentQuestion,answerBattle,nextBattle,missedQuestions,learningStarRating} from './battleEngine.js';
-import {DeviceIllustration} from './DeviceIllustration.jsx';
+import {QuestionPhoto} from '../student-web/QuestionPhoto.jsx';
+import {useQuestionClock} from '../learning/useQuestionClock.js';
+import {previewDeck} from '../learning/offlineQuiz.js';
 import {HardwareBuilder} from './HardwareBuilder.jsx';
 import {PixelHero,skinById,HERO_SKINS,DEFAULT_HERO_SKIN} from './PixelArt.jsx';
 import {HeroPicker} from './HeroPicker.jsx';
@@ -30,8 +33,8 @@ function Header({section,onSection}){
 function LessonTiles({selected,onChoose,mode='lessons'}){
  return <div className="ic3-lesson-grid">
  {LEVEL_1_LESSONS.map(lesson=>{
-  const available=lesson.status==='source-linked';
-  const qCount=lessonQuestions(lesson.id).length;
+  const available=mode==='questions'||lesson.status==='source-linked';
+  const qCount=quizCatalog.filter(q=>q.lesson===lesson.number).length;
   const open=mode==='lessons'?available:mode==='questions'?qCount>0:lesson.number===1;
   const selectedClass=selected===lesson.id?' is-selected':'';
   return <button key={lesson.id} type="button" disabled={!open}
@@ -69,11 +72,12 @@ function LessonViewer({lesson}){
  </article>;
 }
 function QuestionCard({question,selected,onSelect,showAnswer,questionIndex,total}){
+ const clock=useQuestionClock(question,!showAnswer,id=>onSelect(id??''));
  if(!question)return null;
  return <div className="ic3-question-card">
-  <div className="ic3-question-eyebrow"><span>Câu {questionIndex+1}/{total}</span><span>Slide nguồn: {question.sourceSlides.join(', ')}</span></div>
+  <div className="ic3-question-eyebrow"><span>Câu {questionIndex+1}/{total}</span><span>{clock.seconds} giây</span></div>
   <h3>{question.prompt}</h3>
-  {question.visual&&<DeviceIllustration device={question.visual.device}/>}
+  <QuestionPhoto media={question.media}/>
   <div className="ic3-options">
    {question.options.map((option,i)=>{
     const isCorrect=option.id===question.correctId;
@@ -81,24 +85,25 @@ function QuestionCard({question,selected,onSelect,showAnswer,questionIndex,total
     if(showAnswer&&isCorrect)cls+=' correct';
     if(showAnswer&&selected===option.id&&!isCorrect)cls+=' incorrect';
     return <button type="button" key={option.id} className={cls} disabled={showAnswer}
-      onClick={()=>onSelect(option.id)}><span className="ic3-option-letter">{String.fromCharCode(65+i)}</span>{option.label}</button>;
+      onClick={()=>clock.submit(option.id)}><span className="ic3-option-letter">{String.fromCharCode(65+i)}</span>{option.label}</button>;
    })}
   </div>
   {showAnswer&&<div className={'ic3-explanation '+(selected===question.correctId?'good':'review')}>
    <strong>{selected===question.correctId?'✓ Chính xác!':'↻ Mình cùng ôn lại nhé!'}</strong>
-   <p>{question.explanation}</p>
+   <p>{question.options.find(o=>o.id===question.correctId)?.label} · {question.explanation}</p><small>{question.mediaTitle} · Bài {question.lesson}</small>
   </div>}
  </div>;
 }
-function Quiz({lesson,questions}){
+function Quiz({lesson}){
+ const [questions,setQuestions]=useState(()=>previewDeck(lesson.id));
  const [index,setIndex]=useState(0),[selected,setSelected]=useState(null),[answers,setAnswers]=useState([]);
  const done=index>=questions.length;
  const current=questions[index];
  const choose=id=>{if(selected!==null)return;setSelected(id);setAnswers(old=>[...old,{questionId:current.id,choice:id,correct:id===current.correctId}]);};
  const next=()=>{setSelected(null);setIndex(x=>x+1);};
- const restart=()=>{setIndex(0);setSelected(null);setAnswers([]);};
+ const restart=()=>{setQuestions(previewDeck(lesson.id));setIndex(0);setSelected(null);setAnswers([]);};
  return <section className="ic3-panel">
-  <div className="ic3-panel-title"><h2>Câu hỏi · Bài {lesson.number}</h2><p>Ôn tập kiểu Quizizz/Wayground, không giới hạn thời gian.</p></div>
+  <div className="ic3-panel-title"><h2>Câu hỏi · Bài {lesson.number}</h2><p>Ôn tập kiểu Quizizz/Wayground, 30 giây mỗi câu.</p></div>
   <p className="ic3-warning"><AlertTriangle size={17}/> Bộ câu hỏi được biên soạn từ slide và đang chờ giáo viên duyệt, chưa phải đề IC3 chính thức; kết quả chỉ lưu trong phiên xem thử.</p>
   {done?<div className="ic3-finish">
    <Trophy size={50}/><h2>Hoàn thành lượt ôn tập!</h2>
@@ -111,18 +116,17 @@ function Quiz({lesson,questions}){
   </>}
  </section>;
 }
-export function Battle({battle,setBattle,questions,skinId,monster}){
+export function Battle({battle,setBattle,questions,skinId,monster,retry}){
  const [muted,setMuted]=useState(true);
  const [lowMotion,setLowMotion]=useState(false);
  const question=currentQuestion(battle,questions);
  const answer=id=>{
-  const next=answerBattle(battle,question,id);
+  const next=answerBattle(battle,question,id||question.options.find(o=>o.id!==question.correctId).id);
   if(next===battle)return;
   playGameSound(next.currentFeedback.correct?'correct':'wrong',muted);
   setBattle(next);
  };
  const next=()=>setBattle(old=>nextBattle(old));
- const retry=()=>setBattle(beginBattle({lessonId:monster.lessonId,monster,questions,hero:skinById(skinId).classId}));
  return <div className="ic3-battle-layout ic3-battle-polished">
   <BattleScene battle={battle} monster={monster} skinId={skinId}
    muted={muted} setMuted={setMuted} lowMotion={lowMotion} setLowMotion={setLowMotion}/>
@@ -153,7 +157,8 @@ function Adventure({selectedLesson,setSelectedLesson,heroSkin,onOpenPicker,battl
  const lesson=lessonById(selectedLesson);
  const heroData=skinById(heroSkin);
  const monster=monsterFor('lv1-01',1);
- const start=()=>setBattle(beginBattle({lessonId:'lv1-01',monster,questions:lessonQuestions('lv1-01'),hero:heroData.classId}));
+ const [deck,setDeck]=useState(()=>previewDeck('lv1-01'));
+ const start=()=>{const next=previewDeck('lv1-01');setDeck(next);setBattle(beginBattle({lessonId:'lv1-01',monster,questions:next,hero:heroData.classId}));};
  return <div className="ic3-adventure">
   <div className="ic3-panel-title"><h2>⚔️ Phiêu lưu kiến thức – Hero vs Monster</h2>
    <p>Chọn nhân vật pixel-art, chiến đấu trong đấu trường nhiều lớp. Bài 1 · Vòng 1 là trận chơi thử đã có câu hỏi.</p></div>
@@ -168,13 +173,13 @@ function Adventure({selectedLesson,setSelectedLesson,heroSkin,onOpenPicker,battl
    <LessonTiles selected={selectedLesson} onChoose={setSelectedLesson} mode="games"/>
    {lesson?.number===1?<div className="ic3-start-panel ic3-start-arcade">
     <p><strong>🌌 Xưởng Linh Kiện</strong> · Vòng 1 · Quái vật: {monster.name} · {monster.hp} HP.</p>
-    <p>Đáp án đúng mới gây sát thương. Đáp án sai mất 1 tim, luôn có giải thích. Không giới hạn thời gian.</p>
+    <p>Đáp án đúng mới gây sát thương. Đáp án sai mất 1 tim, luôn có giải thích. Mỗi câu có 30 giây.</p>
     <button className="ic3-main-btn" type="button" onClick={start}><Play size={18}/> Vào đấu trường</button>
     <small>Vòng 2–4 và Boss đang đợi ngân hàng câu hỏi được kiểm duyệt.</small>
    </div>:<p className="ic3-warning"><LockKeyhole size={17}/> Bài này cần bộ câu hỏi theo vòng được giáo viên phê duyệt trước khi mở phiêu lưu.</p>}
   </>}
   {battle&&<div><button type="button" className="ic3-back" onClick={()=>setBattle(null)}><ArrowLeft size={17}/> Rời trận thử nghiệm</button>
-   <Battle battle={battle} setBattle={setBattle} questions={lessonQuestions('lv1-01')} skinId={heroSkin} monster={monster}/></div>}
+   <Battle battle={battle} setBattle={setBattle} questions={deck} retry={start} skinId={heroSkin} monster={monster}/></div>}
  </div>;
 }
 function MiniGameLibrary({skinId}){
@@ -224,7 +229,7 @@ export default function LearningPrototype(){
  const [selectedLesson,setSelectedLesson]=useState('lv1-01'),[heroSkin,setHeroSkin]=useState(DEFAULT_HERO_SKIN),[battle,setBattle]=useState(null);
  const [quizKey,setQuizKey]=useState(0);
  const lesson=lessonById(selectedLesson);
- const questions=useMemo(()=>lessonQuestions(selectedLesson),[selectedLesson]);
+ const questions=useMemo(()=>previewDeck(selectedLesson),[selectedLesson]);
  const chooseLesson=id=>{setSelectedLesson(id);setBattle(null);setQuizKey(k=>k+1);};
  return <div className="ic3-learning-app" id="ic3-home">
   <Header section={section} onSection={setSection}/>

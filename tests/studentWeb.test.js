@@ -80,16 +80,11 @@ test('Student Web removes duplicate page shells and resolves school PC safely',(
 });
 test('Practice expands source-backed questions and supports teacher-published visual assets',async()=>{
  const source=JSON.parse(read('src/learning/guidedLessons.json'));
- const expansions=read('src/student-web/practiceExpansions.js');
- assert.equal(source.filter(g=>g.n!==8&&g.n!==10).length*6,120);
- assert.match(expansions,/source-linked/);
- assert.doesNotMatch(expansions,/ic3-slides/);
- assert.match(expansions,/concept/i);
+ assert.equal(source.length,22);
  const practice=read('src/student-web/Practice.jsx');
  const sql=read('supabase/migrations/20261121231000_student_web_teacher_practice_questions.sql');
- assert.match(practice,/qlpm_student_web_practice_questions/);
- assert.match(practice,/deviceVisualFor/);
- assert.doesNotMatch(practice,/practice-source-image|practice-source-panel/);
+ assert.match(practice,/ic3_practice_turn/);
+ assert.match(practice,/QuestionPhoto/);
  assert.match(sql,/enable row level security/);
  assert.match(sql,/published=true/);
 });

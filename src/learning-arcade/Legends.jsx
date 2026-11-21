@@ -1,7 +1,8 @@
 import React,{useState,useEffect,useRef,useLayoutEffect} from 'react';
 import {ArrowLeft,ArrowRight,Volume2,VolumeX,Wind,Heart,RotateCcw} from 'lucide-react';
 import {CombatActor} from './CombatActor.jsx';
-import {DeviceIllustration} from './DeviceIllustration.jsx';
+import {QuestionPhoto} from '../student-web/QuestionPhoto.jsx';
+import {recordPresentation} from '../learning/offlineQuiz.js';
 import {HERO_SKINS,skinById} from './PixelArt.jsx';
 import {answerBattle,currentQuestion,nextBattle} from './battleEngine.js';
 import {playGameSound} from './BattleScene.jsx';
@@ -20,7 +21,7 @@ export function LegendsBattle({battle:b,setBattle,questions,monster,hero,onBack,
  const action=feedback?(feedback.correct?'strike':'counter'):b.phase;
  const deadline=useRef(0),locked=useRef(false);
  const [seconds,setSeconds]=useState(monster.seconds);
- useLayoutEffect(()=>{if(b.phase==='question'){deadline.current=performance.now()+monster.seconds*1000;locked.current=false;setSeconds(monster.seconds)}},[b.phase,b.questionIndex,b.monsterId,b.order]);
+ useLayoutEffect(()=>{if(b.phase==='question'){recordPresentation(q);deadline.current=performance.now()+monster.seconds*1000;locked.current=false;setSeconds(monster.seconds)}},[b.phase,b.questionIndex,b.monsterId,b.order]);
  function choose(id){
   if(locked.current||b.phase!=='question')return;
   const n=resolveTurn(b,q,id,performance.now(),deadline.current);if(n===b)return;
@@ -37,5 +38,5 @@ export function LegendsBattle({battle:b,setBattle,questions,monster,hero,onBack,
  <Tabletop skin={skin} index={HERO_SKINS.indexOf(skin)} round={monster.round} action={action} quiet={quiet}/>
  {feedback&&<output className={'ring-impact '+(feedback.correct?'right':'left')}>{feedback.correct?'−'+feedback.damage+' HP':'−1 ♥'}<small>{spellNames[spell]}</small></output>}
  </div><div className="ring-panel" key={b.questionIndex}>{error&&<p role="alert">{error}</p>}{ended?<><small>KẾT QUẢ TRẬN ĐẤU</small><h2>{b.phase==='victory'?(monster.round===stages.length?'Đã chinh phục Nhật Thực!':'Vượt ải thành công!'):b.phase==='defeat'?'Hết tim!':'Đã hết câu hỏi'}</h2><p>{b.correct} câu đúng · {b.wrong} câu cần ôn · {stagePoints(b)} điểm ải<br/>Tổng đã lưu: {money.points} điểm · {money.available} ★</p>{b.phase==='victory'&&monster.round<stages.length?<button className="ring-primary" onClick={advance}>Sang ải {monster.round+1} <ArrowRight/></button>:<button className="ring-primary" onClick={()=>retry(monster)}><RotateCcw/> Đấu lại</button>}</>:<><header><small>CÂU {b.questionIndex+1} / {b.order.length}</small>{!feedback&&<b className={seconds<=5?'timer urgent':'timer'} role="timer">◷ {seconds} giây</b>}<span>{stagePoints(b)} điểm ải · Chuỗi {b.streak}</span></header>
- {feedback?<><h2>{feedback.correct?'Chính xác!':feedback.timedOut?'Hết giờ!':'Cùng xem lại nhé'}</h2><p aria-live="polite"><b>{q.options.find(o=>o.id===q.correctId)?.label}</b> · {feedback.explanation}</p><button className="ring-primary" disabled={busy} onClick={()=>{const next=nextBattle(b);if(next.phase==='victory')settle(next);else setBattle(next)}}>{b.finish?'Xem kết quả':'Câu tiếp theo'} <ArrowRight/></button></>:<><div className="ring-prompt">{q.visual&&<DeviceIllustration device={q.visual.device}/>}<h2>{q.prompt}</h2></div><div className="ring-answers">{q.options.map((o,i)=><button key={o.id} onClick={()=>choose(o.id)}><b>{'ABCD'[i]}</b>{o.label}</button>)}</div></>}</>}</div></div></section>
+ {feedback?<><h2>{feedback.correct?'Chính xác!':feedback.timedOut?'Hết giờ!':'Cùng xem lại nhé'}</h2><p aria-live="polite"><b>{q.options.find(o=>o.id===q.correctId)?.label}</b> · {feedback.explanation}</p><small>{q.mediaTitle} · Bài {q.lesson}</small><button className="ring-primary" disabled={busy} onClick={()=>{const next=nextBattle(b);if(next.phase==='victory')settle(next);else setBattle(next)}}>{b.finish?'Xem kết quả':'Câu tiếp theo'} <ArrowRight/></button></>:<><div className="ring-prompt"><QuestionPhoto media={q.media}/><h2>{q.prompt}</h2></div><div className="ring-answers">{q.options.map((o,i)=><button key={o.id} onClick={()=>choose(o.id)}><b>{'ABCD'[i]}</b>{o.label}</button>)}</div></>}</>}</div></div></section>
 }

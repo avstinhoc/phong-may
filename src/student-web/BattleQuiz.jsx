@@ -1,5 +1,6 @@
 import React,{useEffect,useState} from 'react';
-import {BookOpen,Clock3,Swords,ArrowUpRight,RefreshCw,ShieldCheck} from 'lucide-react';
+import {Clock3,ArrowUpRight,RefreshCw} from 'lucide-react';
+import {QuestionPhoto} from './QuestionPhoto.jsx';
 import './battleQuiz.css';
 
 const LABELS=['A','B','C','D'];
@@ -11,7 +12,7 @@ const validChoices=choices=>Array.isArray(choices)&&choices.length===4
  * Presentation-only classroom quiz. Only passes an existing answer string
  * to the parent Supabase RPC; never infers the correct answer or changes HP.
  */
-export default function BattleQuiz({turn,prompt,choices,time,disabled=false,stage,wave,onAnswer,onRefresh}){
+export default function BattleQuiz({turn,prompt,media,choices,time,disabled=false,stage,wave,onAnswer,onRefresh}){
  const [selected,setSelected]=useState(null);
  const valid=validChoices(choices);
  useEffect(()=>setSelected(null),[turn]);
@@ -38,22 +39,18 @@ export default function BattleQuiz({turn,prompt,choices,time,disabled=false,stag
    window.addEventListener('keydown',onKey);
    return()=>window.removeEventListener('keydown',onKey);
  },[turn,choices,disabled,selected,onAnswer,valid]);
- const seconds=Math.max(0,Math.min(20,Number(time)||0));
+ const seconds=Math.max(0,Math.min(30,Number(time)||0));
  return <div className="battle-question-shell">
    <div className="battle-quiz-heading">
-     <div className="battle-quiz-kicker"><span className="battle-quiz-icon"><BookOpen size={18}/></span>
-       <div><small>THỬ THÁCH KIẾN THỨC</small><strong>Bài {stage} · Ải {wave}</strong></div>
-     </div>
      <div className={'battle-quiz-timer'+(seconds<=5?' is-urgent':'')}
        aria-label={'Còn '+seconds+' giây trả lời'}><Clock3 size={19}/><b>{seconds}</b><span>giây</span></div>
    </div>
    <div className="battle-quiz-time-track" role="progressbar"
-     aria-label="Thời gian còn lại" aria-valuemin={0} aria-valuemax={20} aria-valuenow={seconds}>
-     <div style={{width:seconds*5+'%'}}/>
+     aria-label="Thời gian còn lại" aria-valuemin={0} aria-valuemax={30} aria-valuenow={seconds}>
+     <div style={{width:seconds/30*100+'%'}}/>
    </div>
    <div className="battle-quiz-prompt">
-     <div className="battle-quiz-eyebrow"><Swords size={16}/> TRẢ LỜI ĐÚNG ĐỂ TẤN CÔNG</div>
-     <h2>{prompt}</h2>
+     <h2>{prompt}</h2><QuestionPhoto media={media}/>
    </div>
    {valid?
      <div className="battle-quiz-answers" role="group" aria-label="Bốn phương án trả lời">
@@ -68,8 +65,5 @@ export default function BattleQuiz({turn,prompt,choices,time,disabled=false,stag
        <p>Câu hỏi chưa đồng bộ đủ 4 đáp án. Không tính lượt trả lời này.</p>
        <button type="button" onClick={onRefresh}><RefreshCw size={16}/> Kiểm tra lại dữ liệu</button>
      </div>}
-   <div className="battle-quiz-help"><ShieldCheck size={16}/>
-     <span>Chọn đáp án A–D hoặc nhấn phím 1–4. Đúng: tung đòn · Sai: mất 1 tim.</span>
-   </div>
  </div>;
 }
