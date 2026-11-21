@@ -15,6 +15,7 @@ export default function BattleQuiz({turn,prompt,choices,time,disabled=false,stag
  const [selected,setSelected]=useState(null);
  const valid=validChoices(choices);
  useEffect(()=>setSelected(null),[turn]);
+ useEffect(()=>{if(!disabled)setSelected(null)},[disabled]);
  const submit=choice=>{
    if(disabled||selected!==null||!valid||!turn)return;
    setSelected(choice);
