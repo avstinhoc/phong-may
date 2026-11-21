@@ -48,7 +48,7 @@ const nav = [
   ["students", "Đăng ký & duyệt", Users],
   ["roster", "Danh sách học sinh", ClipboardList],
   ["computers", "Phòng máy", Monitor],
-  ["desktop_controls", "Máy học sinh & PIN", KeyRound],
+  ["desktop_controls", "Quản lý Student Desktop", KeyRound],
   ["attendance", "Lịch dạy giáo viên", CalendarDays],
   ["rollcall", "Điểm danh học sinh", UserCheck],
   ["records", "Điểm, lỗi & thưởng", ClipboardList],
@@ -243,7 +243,7 @@ function App() {
         <nav className="nav-scroll" aria-label="Menu chính">
           {[["GIẢNG DẠY", ["dashboard", "attendance", "rollcall", "roster", "records", "student_rewards", "evaluation"]],
             ["PHÒNG MÁY", ["computers", "students", "settings", "leaderboard", "cleaning"]],
-            ["QLPM DESKTOP", ["desktop_controls"]],
+            ["ỨNG DỤNG HỌC SINH", ["desktop_controls"]],
             ["QUẢN LÝ", ["workplaces", "schools", "finance", "reports", "accounts"]]].map(([group, ids]) => <React.Fragment key={group}>
             <div className="nav-label">{group}</div>
             <ChevronRight size={17} className="profile-chevron"/>
