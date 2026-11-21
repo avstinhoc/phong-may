@@ -708,6 +708,8 @@ function Students({ profile, refresh, reload, ping, navigate }) {
   const [approvedClassFilter,setApprovedClassFilter]=useState("");
   const [nameEditing,setNameEditing]=useState(null);
   const [nameBusy,setNameBusy]=useState(false);
+  const [pinEditing,setPinEditing]=useState(null);
+  const [pinBusy,setPinBusy]=useState(false);
   const [form, setForm] = useState({
     full_name: "", class_name: "", school_name: profile.school_name || "",
     student_code: "", phone: "", date_of_birth:"", status: "active"
@@ -785,6 +787,33 @@ function Students({ profile, refresh, reload, ping, navigate }) {
     const { error } = await supabase.from("students").update({status:"inactive"}).eq("id", s.id).eq("school_id",profile.school_id).select("id").single();
     if (error) ping(error.message);
     else { ping("Đã xóa hồ sơ"); reload(); }
+  }
+
+  async function resetStudentPin(e) {
+    e.preventDefault();
+    if (!pinEditing || pinBusy) return;
+    if (!/^\\d{6}$/.test(pinEditing.pin) || /^(.)\\1{5}$/.test(pinEditing.pin)) {
+      ping("PIN mới phải có 6 chữ số và không được lặp lại một số duy nhất."); return;
+    }
+    if (pinEditing.pin!==pinEditing.confirm) {
+      ping("Hai lần nhập PIN mới chưa trùng nhau."); return;
+    }
+    if (!window.confirm("Đặt lại PIN cho "+pinEditing.name+"? PIN cũ và toàn bộ phiên đăng nhập trước đó sẽ hết hiệu lực.")) return;
+    setPinBusy(true);
+    try {
+      const {data,error}=await supabase.rpc("qlpm_teacher_student_web_reset_pin",{
+        p_student_id:pinEditing.id,p_new_pin:pinEditing.pin
+      });
+      if(error) throw error;
+      if(data!==true)throw Error("Máy chủ chưa xác nhận thay đổi PIN.");
+      setPinEditing(null);
+      ping("Đã đặt lại PIN. Hãy giao PIN mới trực tiếp cho học sinh.");
+      reload();
+    } catch(err) {
+      ping("Không đổi được PIN: "+(err?.message||String(err)));
+    } finally {
+      setPinBusy(false);
+    }
   }
 
   async function approveRegistration(r) {
@@ -968,7 +997,14 @@ function Students({ profile, refresh, reload, ping, navigate }) {
                 <td>{s.class_name || "—"}</td>
                 <td>{s.school_name || "—"}</td>
                 <td>{webForStudent(s.id)?.username||"—"}</td>
-                <td>{webForStudent(s.id)?"Đã tạo (ẩn)":"—"}</td>
+                <td>
+                  {webForStudent(s.id)?<>
+                    <small>Đã đặt · Ẩn bảo mật</small>
+                    <button type="button" className="mini-btn"
+                      onClick={()=>setPinEditing({id:s.id,name:s.full_name,pin:"",confirm:""})}
+                      title="Không thể xem PIN cũ, chỉ đặt lại PIN mới">Đặt lại PIN</button>
+                  </>:"—"}
+                </td>
                 <td className="actions">
                   {s.status === "pending" && <button className="mini-btn success" onClick={() => approve(s)}>Duyệt</button>}
                   <button className="mini-btn" onClick={()=>setNameEditing({id:s.id,full_name:s.full_name})}>Sửa tên</button>
@@ -981,6 +1017,26 @@ function Students({ profile, refresh, reload, ping, navigate }) {
         {!filtered.length && <Empty text={busy ? "Đang tải..." : "Chưa có học sinh."} />}
       </div>
     </div>
+
+    {pinEditing&&<Modal title={"Đặt lại PIN Student Web · "+pinEditing.name} onClose={()=>!pinBusy&&setPinEditing(null)}>
+      <form className="form-stack" onSubmit={resetStudentPin}>
+        <p className="muted">Không thể xem lại PIN học sinh đã tự đặt. Giáo viên chủ lớp có thể tạo mã mới và giao riêng cho học sinh.</p>
+        <label>PIN mới (6 số)
+          <input type="password" inputMode="numeric" autoComplete="new-password" required
+            value={pinEditing.pin} maxLength={6} pattern="[0-9]{6}"
+            onChange={e=>setPinEditing(v=>({...v,pin:e.target.value.replace(/\\D/g,"").slice(0,6)}))}/>
+        </label>
+        <label>Nhập lại PIN mới
+          <input type="password" inputMode="numeric" autoComplete="new-password" required
+            value={pinEditing.confirm} maxLength={6} pattern="[0-9]{6}"
+            onChange={e=>setPinEditing(v=>({...v,confirm:e.target.value.replace(/\\D/g,"").slice(0,6)}))}/>
+        </label>
+        <p className="muted">Đặt lại sẽ vô hiệu hóa mã PIN cũ và các phiên đăng nhập trước. Chỉ giao mã mới trực tiếp cho học sinh, không đưa lên bảng xếp hạng hoặc file Excel.</p>
+        <button type="submit" className="btn primary full" disabled={pinBusy||pinEditing.pin.length!==6||pinEditing.confirm!==pinEditing.pin}>
+          {pinBusy?"Đang cập nhật...":"Xác nhận đặt lại PIN"}
+        </button>
+      </form>
+    </Modal>}
 
     {nameEditing&&<Modal title="Sửa họ và tên học sinh" onClose={()=>setNameEditing(null)}>
        <form className="form-stack" onSubmit={saveName}>
