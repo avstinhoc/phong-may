@@ -1,11 +1,11 @@
 import React,{useEffect,useState} from 'react';
 import {
  Monitor, BookOpen, ClipboardList, Gamepad2, GraduationCap, Star, Trophy,
- LockKeyhole, Settings2, Wifi, WifiOff, ArrowLeft, ChevronRight,
+ LockKeyhole, Settings2, Wifi, WifiOff, ArrowLeft, ChevronRight, MessageCircle, Bell,
  CalendarDays, ShieldCheck, Info, Laptop, School, HelpCircle, MoonStar, UserRound
 } from 'lucide-react';
 import StudentOnboarding from './StudentOnboarding.jsx';
-const Lessons=React.lazy(()=>import('./Lessons.jsx'));
+const StudentClassroom=React.lazy(()=>import('./StudentClassroom.jsx'));
 const Practice=React.lazy(()=>import('./Practice.jsx'));
 const Campaign=React.lazy(()=>import('./Campaign.jsx'));
 const StudentLeaderboard=React.lazy(()=>import('./StudentLeaderboard.jsx'));
@@ -15,7 +15,7 @@ import './studentExtras.css';
 
 const navigation=[
  {id:'home',title:'Trang chủ',icon:Monitor},
- {id:'lessons',title:'Bài giảng',icon:BookOpen},
+ {id:'classroom',title:'Lớp học tương tác',icon:MessageCircle},
  {id:'questions',title:'Câu hỏi',icon:ClipboardList},
  {id:'games',title:'Trò chơi',icon:Gamepad2},
  {id:'leaderboard',title:'BXH toàn trường',icon:Trophy},
@@ -34,9 +34,9 @@ function StudentHome({onNavigate,online,session}){
    <div className="student-hero-copy">
     <span className="student-eyebrow">QLPM STUDENT · IC3 GLOBAL STANDARD 6</span>
     <h1>Học công nghệ,<br/><span>khám phá thế giới số!</span></h1>
-    <p>Cùng học bài giảng, luyện câu hỏi và chinh phục thử thách. Kiến thức đúng mới giúp em chiến thắng!</p>
+    <p>Kết nối giáo viên, nhận bài tập, luyện câu hỏi và chinh phục thử thách. Kiến thức đúng mới giúp em chiến thắng!</p>
     <div className="student-hero-actions">
-     <button type="button" className="student-cta primary" onClick={()=>onNavigate('lessons')}><BookOpen size={19}/> Mở bài giảng</button>
+     <button type="button" className="student-cta primary" onClick={()=>onNavigate('classroom')}><MessageCircle size={19}/> Lớp học tương tác</button>
      <button type="button" className="student-cta secondary" onClick={()=>onNavigate('games')}><Gamepad2 size={19}/> Vào trò chơi</button>
     </div>
    </div>
@@ -51,11 +51,11 @@ function StudentHome({onNavigate,online,session}){
   </section>
   <div className="student-section-title"><h2>Hôm nay em muốn làm gì?</h2><p>Chọn một hoạt động để bắt đầu</p></div>
   <section className="student-feature-grid">
-   <button type="button" className="student-feature-card lecture" onClick={()=>onNavigate('lessons')}>
-    <span className="student-feature-icon"><BookOpen size={32}/></span>
-    <strong>Bài giảng</strong>
-    <p>Xem tài liệu IC3 Level 1 theo dạng slide của giáo viên.</p>
-    <span className="student-card-action">Khám phá 22 bài <ChevronRight size={17}/></span>
+   <button type="button" className="student-feature-card lecture" onClick={()=>onNavigate('classroom')}>
+    <span className="student-feature-icon"><MessageCircle size={32}/></span>
+    <strong>Lớp học tương tác</strong>
+    <p>Nhận bài tập từ giáo viên, xem thông báo và nhắn tin riêng.</p>
+    <span className="student-card-action">Mở lớp của em <ChevronRight size={17}/></span>
    </button>
    <button type="button" className="student-feature-card practice" onClick={()=>onNavigate('questions')}>
     <span className="student-feature-icon"><ClipboardList size={32}/></span>
@@ -78,10 +78,10 @@ function StudentHome({onNavigate,online,session}){
    </article>
    <article className="student-small-panel">
     <div className="student-small-icon"><ShieldCheck size={22}/></div>
-    <div><h3>Quyền riêng tư của học sinh</h3><p>Vào tài khoản bằng mã PIN tự tạo khi đăng ký để lưu điểm và trang bị của riêng em.</p></div>
+    <div><h3>Quyền riêng tư của học sinh</h3><p>Vào tài khoản bằng mã PIN tự tạo khi đăng ký để lưu điểm và tiến độ học tập của riêng em.</p></div>
    </article>
   </section>
-  {!online&&<p className="student-notice offline"><WifiOff size={18}/> Bài giảng Drive và game có dữ liệu trực tuyến cần kết nối Internet.</p>}
+  {!online&&<p className="student-notice offline"><WifiOff size={18}/> Tin nhắn, bài tập và trò chơi cần kết nối Internet.</p>}
  </>;
 }
 function StudentAccount({session,onLogout}){
@@ -136,6 +136,9 @@ export default function StudentWeb(){
  const [session,setSession]=useState(null);
  const [lastCode,setLastCode]=useState('');
  const [syncWarning,setSyncWarning]=useState('');
+ const [classroomUnread,setClassroomUnread]=useState(0);
+ const [classroomToast,setClassroomToast]=useState('');
+ const prevUnread=React.useRef(null);
  useEffect(()=>{
   const goOnline=()=>setOnline(true),goOffline=()=>setOnline(false);
   window.addEventListener('online',goOnline);window.addEventListener('offline',goOffline);
@@ -155,7 +158,7 @@ export default function StudentWeb(){
   if(!token||!supabase)return;
   supabase.rpc('qlpm_student_web_whoami',{p_session_token:token}).then(({data,error})=>{
    if(!active)return;
-   if(error||!data){sessionStorage.removeItem('qlpm.student.web.session');setSession(null);setPage('account');return;}
+   if(error||!data){sessionStorage.removeItem('qlpm.student.web.session');setSession(null);setPage('account');setClassroomUnread(0);setClassroomToast('');prevUnread.current=null;return;}
    setSession({...data,token,student_name:data.name,name:data.name});setLastCode(data.class_code||'');setPage('home');
   }).catch(()=>{});
   return()=>{active=false;};
@@ -187,6 +190,23 @@ export default function StudentWeb(){
   window.addEventListener('focus',update);
   return()=>{document.removeEventListener('visibilitychange',update);window.removeEventListener('focus',update)};
  },[session?.token]);
+ useEffect(()=>{
+  if(!session?.token||!supabase){setClassroomUnread(0);prevUnread.current=null;return;}
+  let alive=true;
+  const check=async()=>{
+   if(document.hidden)return;
+   const {data,error}=await supabase.rpc('qlpm_classroom_student_feed',{p_session_token:session.token});
+   if(error||!alive)return;
+   const unread=Number(data?.unread||0);
+   if(prevUnread.current!==null&&unread>prevUnread.current){
+    setClassroomToast('🔔 Có tin nhắn mới từ giáo viên!');
+   }
+   prevUnread.current=unread;setClassroomUnread(unread);
+  };
+  void check();
+  const id=setInterval(check,18000);
+  return()=>{alive=false;clearInterval(id)};
+ },[session?.token]);
  const current=navigation.find(x=>x.id===page)||navigation[0];
  const navigate=next=>{setPage(session?next:'account');window.scrollTo({top:0,behavior:'auto'});};
  async function acceptLogin(data){
@@ -200,17 +220,18 @@ export default function StudentWeb(){
  }
  async function logout(){
   const token=session?.token;
-  sessionStorage.removeItem('qlpm.student.web.session');setSession(null);setPage('account');
+  sessionStorage.removeItem('qlpm.student.web.session');setSession(null);setPage('account');setClassroomUnread(0);setClassroomToast('');prevUnread.current=null;
   if(token&&supabase)try{await supabase.rpc('qlpm_student_desktop_logout',{p_session_token:token});}catch{}
  }
- const embedded=page==='lessons'||page==='questions';
+ const embedded=page==='questions';
  return <div className="student-desktop-root">
   <aside className="student-desktop-sidebar">
    <div className="student-logo"><span><GraduationCap size={29}/></span><div><strong>QLPM Student</strong><small>Phòng máy thông minh</small></div></div>
    <div className="student-side-label">{session?'HỌC TẬP & KHÁM PHÁ':'ĐĂNG NHẬP ĐỂ BẮT ĐẦU'}</div>
    <nav aria-label="Menu QLPM Student">{session?navigation.map(x=><button key={x.id} type="button" className={page===x.id?'current':''} onClick={()=>navigate(x.id)}>
-      <x.icon size={20}/><span>{x.title}</span>{['lessons','questions','games'].includes(x.id)&&<span className="student-side-marker"/>}
-     </button>):<p style={{padding:12,fontSize:13,color:'#bdd5df'}}>Đăng nhập để mở bài giảng, câu hỏi và trò chơi.</p>}</nav>
+      <x.icon size={20}/><span>{x.title}</span>{x.id==='classroom'&&classroomUnread>0?<strong className="student-classroom-badge">{classroomUnread>99?'99+':classroomUnread}</strong>:
+       ['questions','games'].includes(x.id)&&<span className="student-side-marker"/>}
+     </button>):<p style={{padding:12,fontSize:13,color:'#bdd5df'}}>Đăng nhập để nhận bài tập, thông báo và nhắn tin với giáo viên.</p>}</nav>
    <div className="student-side-spacer"/>
    <div className="student-sidebar-connection"><StatusPill online={online}/></div>
    <button type="button" className="student-profile-sidebar" onClick={()=>navigate('account')}><UserRound size={18}/>{session?.name||'Đăng nhập'}</button>
@@ -218,12 +239,13 @@ export default function StudentWeb(){
    <div className="student-sidebar-footer"><Info size={15}/> QLPM Student · Web</div>
   </aside>
   <div className="student-desktop-body">
+   {classroomToast&&page!=='classroom'&&<button className="student-classroom-toast" onClick={()=>{navigate('classroom');setClassroomToast('')}} role="status"><Bell size={19}/>{classroomToast} · Bấm để xem</button>}
    <main className={'student-desktop-content '+(embedded||page==='games'?'learning-active':'')}>
     {page==='account'&&(session?<StudentAccount session={session} onLogout={logout}/>:
       <StudentOnboarding onLogin={acceptLogin} defaultCode={lastCode}/>)}
     {session&&page==='home'&&<StudentHome onNavigate={navigate} online={online} session={session}/>}
     <React.Suspense fallback={<p className="student-load-status" role="status">Đang mở nội dung học tập...</p>}>
-     {session&&page==='lessons'&&<Lessons/>}
+     {session&&page==='classroom'&&<StudentClassroom session={session} onUnread={setClassroomUnread}/>}
      {session&&page==='questions'&&<Practice key={session.token} session={session}/>}
      {session&&page==='games'&&<Campaign key={session.token} session={session}/>}
      {session&&page==='leaderboard'&&<StudentLeaderboard classCode={lastCode}/>} 
