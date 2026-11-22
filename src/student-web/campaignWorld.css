@@ -174,3 +174,17 @@
 @keyframes cw-aura{to{opacity:.48;transform:translateY(-7px) scale(1.06)}}
 @media(max-width:1080px){.cw-combat{display:flex;flex-direction:column}.cw-battle-field{height:clamp(310px,44dvh,540px)}.cw-combat .cw-fight-question{margin-top:8px}}
 @media(prefers-reduced-motion:reduce){.cw-character-aura,.cw-combat-fx{animation:none}}
+
+/* 22 open worlds and seven re-playable encounter pins. */
+.cw-world-card:not(.locked) .cw-world-card-copy em{color:#087e73}
+.cw-world-card .cw-world-image:after{content:'';position:absolute;inset:0;pointer-events:none;background:linear-gradient(0deg,#0d394518,transparent 50%)}
+.cw-world-card:focus-visible,.cw-map-pin:focus-visible{outline:3px solid #ffcc69;outline-offset:3px}
+.cw-game .cw-world-card:hover:enabled{transform:translateY(-4px);box-shadow:0 12px 27px #14677424}
+.cw-world-card-copy em{display:flex;align-items:center;font-size:12px;gap:5px}
+.cw-world-progress strong{font-size:clamp(20px,2vw,27px)}
+.cw-risk-note{padding:12px 14px;margin:0;border-radius:12px;border:1px solid #f4d3aa;background:#fff8e7;color:#886044!important;font-size:12px!important;line-height:1.5!important}
+.cw-game .cw-map-pin.finished{background:linear-gradient(135deg,#dcfff3,#79e7c7);border-color:#16a582;box-shadow:0 3px 0 #227863,0 0 0 4px #d6faea}
+.cw-game .cw-map-pin.active{z-index:3}
+.cw-game .cw-world-card.selected{border-color:#15b69c!important}
+.cw-wave-row.chosen{outline:3px solid #efcb71;outline-offset:1px}
+@media(max-width:650px){.cw-risk-note{font-size:11px!important}.cw-map-pin{touch-action:manipulation}}

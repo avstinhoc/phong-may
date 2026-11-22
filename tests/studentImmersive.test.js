@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {WORLD_MAPS,WAVES_PER_WORLD,worldAt,waveAt,GEAR_CATALOG} from '../src/student-web/worldMap.js';
+import {WORLD_MAPS,WAVES_PER_WORLD,worldAt,waveAt} from '../src/student-web/worldMap.js';
 
 const read=path=>readFileSync(new URL('../'+path,import.meta.url),'utf8');
 test('Săn Sao has exactly 22 distinct maps and 154 uniquely named enemies',()=>{
@@ -17,13 +17,6 @@ test('Săn Sao has exactly 22 distinct maps and 154 uniquely named enemies',()=>
   assert.equal(world.background,'/ic3-scenes/map-'+i+'.webp');
   assert.equal(world.waves[6].tier,'Trùm cuối');
   assert.equal(waveAt(i,7).name,world.waves[6].name);
- }
-});
-test('Equipment unlocks follow the server progression rules and documented damage',()=>{
- assert.equal(GEAR_CATALOG.length,6);
- for(const item of GEAR_CATALOG){
-  assert.equal(item.unlock,item.id*3);
-  assert.equal(item.damage,160+18*item.id);
  }
 });
 test('Lecture displays original 22 slide decks large with fullscreen and keyboard navigation',()=>{
@@ -46,7 +39,11 @@ test('One core campaign, removes two unfinished mini games and uses server-valid
  assert.match(src,/WORLD_MAPS.map/);
  assert.match(src,/WAVES_PER_WORLD/);
  assert.match(src,/ic3_arcade_turn/);
- assert.match(src,/cw-gear-inventory/);
+ assert.match(src,/CostumeGallery/);
+ assert.match(src,/enterEncounter/);
+ assert.match(src,/call\('leave'/);
+ assert.match(src,/map_progress/);
+ assert.doesNotMatch(src,/GEAR_CATALOG|cw-gear-inventory|Trang bị<\/button>/);
  assert.match(src,/requestFullscreen/);
  assert.doesNotMatch(src,/FishingGame|HardwareBuilder/);
  assert.match(backend,/add column if not exists wave /i);
@@ -59,4 +56,27 @@ test('One core campaign, removes two unfinished mini games and uses server-valid
  assert.match(style,/\.cw-battle-field/);
  assert.match(style,/\.cw-world-map/);
  assert.match(style,/\.cw-gear-item/);
+});
+
+test('32 visual-only hero outfits and clickable pins are served by 22 open islands',()=>{
+ const hero=read('src/learning-arcade/PixelArt.jsx');
+ const gallery=read('src/student-web/CostumeGallery.jsx');
+ const canvas=read('src/learning-arcade/tabletop.js');
+ const sql=read('supabase/migrations/20261123020000_ic3_arcade_open_islands_cosmetics.sql');
+ assert.match(hero,/HERO_FASHION_COLLECTION/);
+ assert.match(hero,/aster-astronaut/);
+ assert.match(hero,/nova-dragon/);
+ assert.match(gallery,/HERO_SKINS\.map|matching\.map/);
+ assert.match(gallery,/onSelect\(s\.idx\)/);
+ for(const style of ['astronaut','samurai','pirate','mechanic','witch','paladin',
+  'ninja','druid','cyber','dragon','frost','bard'])
+   assert.match(canvas,new RegExp("style==='"+style+"'"));
+ assert.match(sql,/p_action='enter'/);
+ assert.match(sql,/p_action='leave'/);
+ assert.match(sql,/pl\.score:=greatest\(0,pl\.score-200\)/);
+ assert.match(sql,/pl\.score:=0/);
+ assert.match(sql,/ic3_arcade_map_progress/);
+ assert.match(sql,/ic3_arcade_score_awards/);
+ assert.match(sql,/p_item NOT BETWEEN 0 AND 31/);
+ assert.match(sql,/pl\.wave_hp:=greatest\(0,pl\.wave_hp-160\)/);
 });
