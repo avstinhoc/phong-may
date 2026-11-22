@@ -11,7 +11,6 @@ import { SchoolPortal } from "./SchoolPortal";
 import { TeacherSchoolLeaderboard } from "./TeacherSchoolLeaderboard";
 import StudentWebManagement from "./StudentWebManagement";
 import TeacherClassroom from "./TeacherClassroom";
-import {disableClassroomWebPush} from "./classroom/pushNotifications.js";
 import { StudentRewardManagement } from "./StudentRewardManagement";
 import { StudentPicker } from "./StudentPicker";
 import { RecordCorrectionEditor } from "./RecordCorrectionEditor";
@@ -99,11 +98,6 @@ function App() {
      const saved=sessionStorage.getItem('qlpm.page');return nav.some(x=>x[0]===saved)?saved:'dashboard';}
     catch{return 'dashboard';}
   });
-  useEffect(()=>{
-    const open=event=>{if(event.data?.type==='qlpm-open-classroom')setPage('classroom');};
-    navigator.serviceWorker?.addEventListener('message',open);
-    return()=>navigator.serviceWorker?.removeEventListener('message',open);
-  },[]);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState("");
   const [authMode, setAuthMode] = useState("login");
@@ -216,7 +210,6 @@ function App() {
   };
   const reload = () => {setRefresh(v => v + 1);setManualRefresh(v => v + 1);};
   const signOut = async () => {
-    try{await disableClassroomWebPush()}catch{}
     await supabase.auth.signOut();
     try{sessionStorage.removeItem('qlpm.page');sessionStorage.removeItem('qlpm.schoolId');}catch{}
     setProfile(null);

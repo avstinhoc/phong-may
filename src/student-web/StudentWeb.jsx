@@ -12,7 +12,6 @@ const StudentLeaderboard=React.lazy(()=>import('./StudentLeaderboard.jsx'));
 import './studentDesktop.css';
 import {supabase} from '../lib/supabase';
 import './studentExtras.css';
-import {disableClassroomWebPush} from '../classroom/pushNotifications.js';
 
 const navigation=[
  {id:'home',title:'Trang chủ',icon:Monitor},
@@ -215,13 +214,6 @@ export default function StudentWeb(){
   const id=setInterval(check,18000);
   return()=>{alive=false;clearInterval(id)};
  },[session?.token]);
- useEffect(()=>{
-  const open=event=>{if(event.data?.type==='qlpm-open-classroom'){
-   setPage(session?.token?'classroom':'account');
-  }};
-  navigator.serviceWorker?.addEventListener('message',open);
-  return()=>navigator.serviceWorker?.removeEventListener('message',open);
- },[session?.token]);
  const current=navigation.find(x=>x.id===page)||navigation[0];
  const navigate=next=>{if(next==='classroom')setClassroomToast('');setPage(session?next:'account');window.scrollTo({top:0,behavior:'auto'});};
  async function acceptLogin(data){
@@ -235,7 +227,6 @@ export default function StudentWeb(){
  }
  async function logout(){
   const token=session?.token;
-  try{await disableClassroomWebPush(token)}catch{}
   sessionStorage.removeItem('qlpm.student.web.session');setSession(null);setPage('account');setClassroomUnread(0);setClassroomToast('');prevUnread.current=null;prevPost.current=null;
   if(token&&supabase)try{await supabase.rpc('qlpm_student_desktop_logout',{p_session_token:token});}catch{}
  }
