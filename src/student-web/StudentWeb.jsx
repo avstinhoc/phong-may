@@ -208,7 +208,7 @@ export default function StudentWeb(){
   return()=>{alive=false;clearInterval(id)};
  },[session?.token]);
  const current=navigation.find(x=>x.id===page)||navigation[0];
- const navigate=next=>{setPage(session?next:'account');window.scrollTo({top:0,behavior:'auto'});};
+ const navigate=next=>{if(next==='classroom')setClassroomToast('');setPage(session?next:'account');window.scrollTo({top:0,behavior:'auto'});};
  async function acceptLogin(data){
   if(!data?.session_token)return;
   const token=data.session_token;
