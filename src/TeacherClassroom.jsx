@@ -4,6 +4,7 @@ import {supabase} from './lib/supabase.js';
 import {classroomDate,classroomRelative,classroomBlankQuiz,filterClassroomStudents} from './classroom/classroomUtils.js';
 import {CLASSROOM_FILE_ACCEPT,checkClassroomAttachment,clipboardClassroomFile,classroomUpload,ClassroomAttachment,ClassroomDraftAttachment} from './classroom/classroomAttachments.jsx';
 import './classroom/classroom.css';
+import PushPermission from './classroom/PushPermission.jsx';
 
 const blank=()=>({kind:'announcement',title:'',body:'',due_at:'',due_minutes:'',questions:[classroomBlankQuiz()]});
 export default function TeacherClassroom({profile}){
@@ -126,8 +127,11 @@ export default function TeacherClassroom({profile}){
     <h1><GraduationCap size={30}/> Lớp học tương tác</h1>
     <p>Giao bài trắc nghiệm, chấm tự luận, gửi thông báo và nhắn tin riêng với học sinh.</p>
    </div>
-   <button type="button" className="classroom-refresh" onClick={()=>refresh()} disabled={busy}>
-    <RefreshCw size={18}/> Làm mới</button>
+   <div className="classroom-header-actions">
+    <PushPermission/>
+    <button type="button" className="classroom-refresh" onClick={()=>refresh()} disabled={busy}>
+     <RefreshCw size={18}/> Làm mới</button>
+   </div>
   </header>
   <div className="classroom-class-selector">
    <label>Đang quản lý lớp
