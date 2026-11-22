@@ -13,7 +13,7 @@ test('154 waves selectable; replay, retreat, death and star awards are server-co
   "create table student_records(student_id uuid,school_id uuid,record_type text,title text,points int,note text,record_date date);",
   "create view ic3_star_wallets as select student_id,school_id,sum(greatest(points,0)) earned,sum(points) available from student_records group by student_id,school_id;",
   "create function qlpm_student_desktop_whoami(t text) returns jsonb language sql as $$select case when t='valid' then jsonb_build_object('student_id','__SID__','school_id','__SCHOOL__') end$$;"
- ].join('\\n').replaceAll('__SID__',sid).replaceAll('__SCHOOL__',school);
+ ].join(' ').replaceAll('__SID__',sid).replaceAll('__SCHOOL__',school);
  try{
   await db.exec(init);
   await db.exec(read('supabase/migrations/20261121210000_ic3_arcade.sql'));
