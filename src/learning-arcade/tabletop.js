@@ -109,6 +109,128 @@ function hero(m,skin,t,wind,hit,recoil,index,look){
    }
    ball(gem,[.095,.12,.095],crest,7);
  }
+ // Each costume changes actual geometry, helmet, cape and silhouette — not hue alone.
+ const style=look?.style||'knight';
+ const up=(pos,x,y,z)=>plus(pos,[x,y,z]);
+ const gem=(pos,color=crest)=>ball(pos,[.095,.115,.080],color,7);
+ const feather=(pos,side=1,color=crest)=>m.face([
+   up(pos,0,0,0),up(pos,.10,.27,side*.08),up(pos,-.04,.55,side*.11),
+   up(pos,-.12,.17,side*.13)],color);
+ if(style==='astronaut'){
+   // Enclosed glass visor with a square oxygen backpack, side antenna.
+   ball(up(head,0,.04,.15),[.33,.215,.22],'#8fe0ee');
+   ball(up(head,.10,.08,.33),[.18,.13,.025],'#ddffff');
+   m.face([up(ch,-.38,.16,-.28),up(ch,-.05,.17,-.48),
+    up(ch,-.04,-.19,-.48),up(ch,-.38,-.19,-.28)],metal);
+   tube(up(head,-.29,.18,-.15),up(head,-.42,.60,-.15),.026,.017,metal);
+   gem(up(head,-.42,.61,-.15));
+ } else if(style==='samurai'){
+   // Wide kabuto crest, two dramatic horns, long tassels.
+   for(const side of [-1,1]){
+    m.face([up(head,-.28,.20,side*.10),up(head,-.20,.55,side*.31),
+     up(head,.13,.64,side*.35),up(head,.20,.21,side*.08)],metal);
+    tube(up(head,-.12,.52,side*.25),up(head,.14,.90,side*.55),.095,.012,crest,6);
+    tube(up(ch,-.33,.09,side*.21),up(ch,-.41,-.63,side*.34),.045,.019,crest,5);
+   }
+ } else if(style==='pirate'){
+   // Three-point hat, ornamental side cape and brass spyglass.
+   m.face([up(head,-.36,.29,-.25),up(head,-.05,.66,-.32),
+    up(head,.38,.35,-.16),up(head,.20,.34,.34),up(head,-.40,.32,.34)],metal);
+   tube(up(ch,-.32,.15,-.23),up(ch,-.51,-.60,-.27),.20,.05,c,6);
+   tube(up(hand,.04,.06,.08),up(hand,.43,.17,.07),.062,.058,crest,6);
+ } else if(style==='mechanic'){
+   // Dual goggles, cog shoulder and tool-filled backpack.
+   for(const side of [-1,1]){
+    tube(up(head,.13,.16,side*.15),up(head,.23,.17,side*.15),.12,.105,metal,8);
+    gem(up(head,.25,.17,side*.15),'#c4f8ff');
+    for(let j=0;j<5;j++){let a=j*TAU/5;
+     tube(up(ch,-.24,.1,side*.26),up(ch,-.24+.16*cos(a),.1+.14*sin(a),side*.34),.045,.018,crest,5);
+    }
+   }
+   tube(up(ch,-.32,-.10,-.24),up(ch,-.39,-.44,-.28),.20,.15,metal,6);
+ } else if(style==='witch'){
+   // Tall pointed wizard hat with asymmetric spiral ribbons.
+   m.face([up(head,-.40,.18,-.21),up(head,.38,.18,-.21),
+     up(head,.25,.18,.42),up(head,-.43,.18,.42)],metal);
+   m.face([up(head,-.24,.26,-.16),up(head,.23,.26,-.16),
+     up(head,-.13,1.11,.05)],c);
+   tube(up(head,-.22,.34,.18),up(head,.16,.34,.18),.038,.038,crest,5);
+ } else if(style==='paladin'){
+   // Extra-tall shield and floating plated halo.
+   for(let j=0;j<8;j++){let a=j*TAU/8;
+    gem(up(head,.19*cos(a),.73+.14*sin(a),.10),j%2?metal:crest);
+   }
+   for(const side of [-1,1])m.face([up(ch,-.15,.25,side*.2),
+      up(ch,-.04,.48,side*.51),up(ch,.20,.33,side*.46),up(ch,.10,.06,side*.21)],metal);
+ } else if(style==='ninja'){
+   // Wrapped hood, masked face and crossed short blades.
+   ball(up(head,.18,-.09,.24),[.22,.10,.125],metal);
+   for(const side of [-1,1]){
+     tube(up(ch,-.36,.19,side*.21),up(ch,-.67,-.22,side*.34),.065,.015,c,5);
+     tube(up(hand,-.08,.05,side*.06),up(hand,.22,.36,side*.19),.047,.007,'#e3faff',5);
+   }
+ } else if(style==='druid'){
+   // Branch antlers, asymmetrical leafy cloak and luminous spores.
+   for(const side of [-1,1]){
+    const a=up(head,-.07,.20,side*.23),b=up(head,-.20,.76,side*.57);
+    tube(a,b,.070,.023,metal,5);
+    tube(up(head,-.16,.49,side*.40),up(head,.12,.72,side*.75),.044,.008,crest,5);
+    m.face([up(ch,-.26,.15,side*.19),up(ch,-.67,-.35,side*.38),
+     up(ch,-.31,-.50,side*.44)],c);
+   }
+   gem(up(ch,.15,.11,.34));
+ } else if(style==='cyber'){
+   // LED visor, floating antenna fins and heavy mechanical pack.
+   ball(up(head,.19,.05,.27),[.19,.065,.045],crest);
+   for(const side of [-1,1]){
+    m.face([up(head,-.21,.24,side*.22),up(head,-.31,.61,side*.47),
+       up(head,.07,.52,side*.35)],metal);
+    tube(up(ch,-.18,.12,side*.30),up(ch,-.55,-.27,side*.48),.14,.07,metal,6);
+   }
+   for(let j=0;j<3;j++)gem(up(ch,-.41,.16-j*.15,-.33),j%2?crest:'#8acfe6');
+ } else if(style==='dragon'){
+   // Horned dragon mask, scale-like shoulder fins and a hooked tail.
+   for(const side of [-1,1]){
+    tube(up(head,-.13,.28,side*.24),up(head,-.33,.76,side*.44),.15,.005,crest,6);
+    for(let j=0;j<3;j++)m.face([up(ch,-.26,.20-j*.17,side*.25),
+       up(ch,-.46,.28-j*.17,side*.47),up(ch,-.21,.12-j*.17,side*.43)],metal);
+   }
+   tube(up(ch,-.30,-.33,-.27),up(ch,-.72,-.70,-.41),.14,.05,metal,6);
+ } else if(style==='frost'){
+   // Crystalline crown, ice shoulder prisms and snow-orb sceptre.
+   for(let j=-2;j<=2;j++){
+    let x=j*.11;
+    m.face([up(head,x-.08,.32,.22),up(head,x+.07,.32,.22),
+      up(head,x,.67+(.23-.07*Math.abs(j)),.18)],j%2?crest:metal);
+   }
+   for(const side of [-1,1])m.face([up(ch,-.12,.16,side*.25),
+     up(ch,-.32,.58,side*.47),up(ch,.10,.29,side*.33)],crest);
+   gem(up(tip,.05,.05,.0),'#e5ffff');
+ } else if(style==='bard'){
+   // Tall feather and side lute-like resonator (not another sword).
+   feather(up(head,-.19,.23,-.24),-1,crest);
+   ball(up(ch,-.21,-.23,.32),[.20,.26,.10],metal);
+   tube(up(ch,-.22,-.13,.34),up(ch,.23,.46,.38),.04,.031,crest,6);
+ } else if(style==='sky'){
+   // Glider wings extending behind shoulders.
+   for(const side of [-1,1])m.face([up(ch,-.18,.21,side*.17),
+     up(ch,-.50,.46,side*.68),up(ch,-.85,.13,side*1.05),
+     up(ch,-.37,-.15,side*.24)],metal);
+ } else if(style==='royal'){
+   // Large flowing twin-tabard cape and peaked royal crown.
+   for(const side of [-1,1])m.face([up(ch,-.24,.19,side*.15),
+     up(ch,-.67,-.46,side*.42),up(ch,-.23,-.69,side*.34)],c);
+   for(let j=-2;j<=2;j++)tube(up(head,j*.12,.31,.05),
+     up(head,j*.12,.56+.13*(2-Math.abs(j)),.05),.059,.012,crest,5);
+ } else if(style==='aquatic'){
+   // Two broad fins and a pearlescent sea crown.
+   for(const side of [-1,1])m.face([up(ch,-.03,.20,side*.23),
+     up(ch,-.36,.57,side*.64),up(ch,-.39,.01,side*.36)],crest);
+   for(let j=0;j<3;j++)gem(up(head,-.20+j*.18,.47,.22),'#c9ffff');
+ } else {
+   // Knight helmet ridge and geometric crest.
+   tube(up(head,-.1,.32,0),up(head,-.04,.73,0),.075,.01,crest,5);
+ }
  return world(tip);
 }
 function creature(m,i,t,wind,hit,recoil,palette=i,wave=1,look){
