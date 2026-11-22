@@ -139,6 +139,7 @@ export default function StudentWeb(){
  const [classroomUnread,setClassroomUnread]=useState(0);
  const [classroomToast,setClassroomToast]=useState('');
  const prevUnread=React.useRef(null);
+ const prevPost=React.useRef(null);
  useEffect(()=>{
   const goOnline=()=>setOnline(true),goOffline=()=>setOnline(false);
   window.addEventListener('online',goOnline);window.addEventListener('offline',goOffline);
@@ -158,7 +159,7 @@ export default function StudentWeb(){
   if(!token||!supabase)return;
   supabase.rpc('qlpm_student_web_whoami',{p_session_token:token}).then(({data,error})=>{
    if(!active)return;
-   if(error||!data){sessionStorage.removeItem('qlpm.student.web.session');setSession(null);setPage('account');setClassroomUnread(0);setClassroomToast('');prevUnread.current=null;return;}
+   if(error||!data){sessionStorage.removeItem('qlpm.student.web.session');setSession(null);setPage('account');setClassroomUnread(0);setClassroomToast('');prevUnread.current=null;prevPost.current=null;return;}
    setSession({...data,token,student_name:data.name,name:data.name});setLastCode(data.class_code||'');setPage('home');
   }).catch(()=>{});
   return()=>{active=false;};
@@ -191,7 +192,7 @@ export default function StudentWeb(){
   return()=>{document.removeEventListener('visibilitychange',update);window.removeEventListener('focus',update)};
  },[session?.token]);
  useEffect(()=>{
-  if(!session?.token||!supabase){setClassroomUnread(0);prevUnread.current=null;return;}
+  if(!session?.token||!supabase){setClassroomUnread(0);prevUnread.current=null;prevPost.current=null;return;}
   let alive=true;
   const check=async()=>{
    if(document.hidden)return;
@@ -202,6 +203,11 @@ export default function StudentWeb(){
     setClassroomToast('🔔 Có tin nhắn mới từ giáo viên!');
    }
    prevUnread.current=unread;setClassroomUnread(unread);
+   const latestPost=data?.posts?.[0];
+   if(prevPost.current!==null&&latestPost?.id&&latestPost.id!==prevPost.current){
+     setClassroomToast('Có bài tập hoặc thông báo mới từ giáo viên!');
+   }
+   prevPost.current=latestPost?.id||null;
   };
   void check();
   const id=setInterval(check,18000);
@@ -220,7 +226,7 @@ export default function StudentWeb(){
  }
  async function logout(){
   const token=session?.token;
-  sessionStorage.removeItem('qlpm.student.web.session');setSession(null);setPage('account');setClassroomUnread(0);setClassroomToast('');prevUnread.current=null;
+  sessionStorage.removeItem('qlpm.student.web.session');setSession(null);setPage('account');setClassroomUnread(0);setClassroomToast('');prevUnread.current=null;prevPost.current=null;
   if(token&&supabase)try{await supabase.rpc('qlpm_student_desktop_logout',{p_session_token:token});}catch{}
  }
  const embedded=page==='questions';
