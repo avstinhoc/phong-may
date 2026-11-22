@@ -224,7 +224,7 @@ export default function StudentWeb(){
     {session&&page==='home'&&<StudentHome onNavigate={navigate} online={online} session={session}/>}
     <React.Suspense fallback={<p className="student-load-status" role="status">Đang mở nội dung học tập...</p>}>
      {session&&page==='lessons'&&<Lessons/>}
-     {session&&page==='questions'&&<Practice session={session}/>}
+     {session&&page==='questions'&&<Practice key={session.token} session={session}/>}
      {session&&page==='games'&&<Campaign key={session.token} session={session}/>}
      {session&&page==='leaderboard'&&<StudentLeaderboard classCode={lastCode}/>} 
     </React.Suspense>

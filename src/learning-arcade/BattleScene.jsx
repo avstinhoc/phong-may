@@ -86,7 +86,7 @@ export function BattleScene({battle,monster,skinId,muted,setMuted,lowMotion,setL
   <div className="ic3-stage-status">
    <span>✅ Đúng: {battle.correct}</span><span>📘 Cần ôn: {battle.wrong}</span>
    <span>✨ Liên tiếp: {battle.streak}</span>
-   <span>Không giới hạn thời gian</span>
+   <span>30 giây mỗi câu</span>
   </div>
  </section>;
 }

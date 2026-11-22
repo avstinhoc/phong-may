@@ -2,15 +2,14 @@ import React,{useEffect,useMemo,useState} from 'react';
 import {BookOpen,Gamepad2,Monitor,RefreshCw,ExternalLink,Save,Trash2,Plus,Image,ShieldCheck} from 'lucide-react';
 import {supabase} from './lib/supabase';
 import {LEVEL_1_LESSONS} from './learning/curriculum.js';
-import baseQuestions from './learning/practiceBank.json';
-import {PRACTICE_EXPANSIONS} from './student-web/practiceExpansions.js';
+import baseQuestions from './learning/quizCatalog.json';
 import {WORLD_MAPS,WAVES_PER_WORLD} from './student-web/worldMap.js';
 import './StudentWebManagement.css';
 
-const blank=()=>({id:null,lesson:1,title:'',q:'',choices:['','','',''],solution:'',why:'',image_path:'',alt:'',published:false});
+const blank=()=>({id:null,lesson:1,concept_key:'',title:'',q:'',choices:['','','',''],solution:'',why:'',image_path:'',alt:'',published:false});
 const deviceLabels={assigned:'Đã gán PC',approved:'Yêu cầu đã duyệt',requested:'PC mong muốn',unlinked:'Chưa có PC'};
 const titles=LEVEL_1_LESSONS.map(l=>l.title||'Bài '+l.number);
-const countBase=n=>[...baseQuestions,...PRACTICE_EXPANSIONS].filter(q=>q.lesson===n).length;
+const countBase=n=>baseQuestions.filter(q=>q.lesson===n).length;
 
 export default function StudentWebManagement({profile,onNavigate}){
  const schoolId=profile?.school_id;
@@ -48,12 +47,12 @@ export default function StudentWebManagement({profile,onNavigate}){
  async function saveQuestion(e){
   e.preventDefault();if(!schoolId)return;
   const choices=draft.choices.map(x=>x.trim()).filter(Boolean);
-  if(choices.length!==4||new Set(choices).size!==4||!choices.includes(draft.solution)){
+  if(choices.length!==4||new Set(choices.map(c=>c.normalize('NFC').toLocaleLowerCase('vi').trim())).size!==4||!choices.includes(draft.solution)){
    setError('Mỗi câu cần đúng 4 đáp án A–D khác nhau và phải chỉ rõ đáp án đúng.');return;
   }
   setBusy(true);setError('');setMessage('');
   const row={school_id:schoolId,lesson:Number(draft.lesson),title:draft.title.trim(),
-   q:draft.q.trim(),choices,solution:draft.solution,why:draft.why.trim(),
+   concept_key:draft.concept_key?.trim()||null,q:draft.q.trim(),choices,solution:draft.solution,why:draft.why.trim(),
    image_path:null,alt:'',published:!!draft.published,updated_at:new Date().toISOString()};
   try{
    const result=draft.id?
@@ -75,7 +74,7 @@ export default function StudentWebManagement({profile,onNavigate}){
   }catch(e){setError(e.message||String(e));}finally{setBusy(false)}
  }
  function edit(row){
-  setDraft({id:row.id,lesson:row.lesson,title:row.title,q:row.q,choices:[...row.choices.slice(0,4),...Array(Math.max(0,4-row.choices.length)).fill('')],
+  setDraft({id:row.id,lesson:row.lesson,concept_key:row.concept_key||'',title:row.title,q:row.q,choices:[...row.choices.slice(0,4),...Array(Math.max(0,4-row.choices.length)).fill('')],
    solution:row.solution,why:row.why,image_path:row.image_path||'',alt:row.alt||'',published:row.published});
   setTab('questions');document.getElementById('swm-editor')?.scrollIntoView({behavior:'smooth',block:'start'});
  }
@@ -97,7 +96,7 @@ export default function StudentWebManagement({profile,onNavigate}){
    <div className="swm-kpis">
     <article><Monitor/><strong>{devices.length}</strong><span>Tài khoản Student Web trong trường</span></article>
     <article><ShieldCheck/><strong>{withPC}</strong><span>Học sinh có PC liên kết</span></article>
-    <article><BookOpen/><strong>{baseQuestions.length+PRACTICE_EXPANSIONS.length+published}</strong><span>Câu hỏi hiện có + đã xuất bản</span></article>
+    <article><BookOpen/><strong>{baseQuestions.length+published}</strong><span>Câu hỏi hiện có + đã xuất bản</span></article>
     <article><Gamepad2/><strong>{WORLD_MAPS.length*WAVES_PER_WORLD}</strong><span>Ải chiến dịch trên 22 bản đồ</span></article>
    </div>
    <div className="swm-action-grid">
@@ -123,13 +122,13 @@ export default function StudentWebManagement({profile,onNavigate}){
   </>}
   {tab==='questions'&&<>
    <div className="swm-section-head"><div><h2>Ngân hàng câu hỏi & hình ảnh</h2>
-    <p>{baseQuestions.length+PRACTICE_EXPANSIONS.length} câu hỏi nền, {published} câu bổ sung đã xuất bản, {questions.length-published} bản nháp của trường.</p></div>
+    <p>{baseQuestions.length} câu hỏi nền, {published} câu bổ sung đã xuất bản, {questions.length-published} bản nháp của trường.</p></div>
     <button onClick={()=>setDraft(blank())}><Plus size={16}/> Tạo câu hỏi mới</button></div>
    <div className="swm-counts">{LEVEL_1_LESSONS.map(l=><span key={l.number}>Bài {l.number}: <b>{numberOfVisible(l.number)}</b> câu</span>)}</div>
    <form id="swm-editor" className="swm-editor" onSubmit={saveQuestion}>
     <h3>{draft.id?'Sửa câu hỏi':'Thêm câu hỏi ôn tập'}</h3>
     <div className="swm-form-grid">
-     <label>Bài học<select value={draft.lesson} onChange={e=>setDraft(v=>({...v,lesson:Number(e.target.value)}))}>{LEVEL_1_LESSONS.map(l=><option value={l.number} key={l.number}>Bài {l.number}: {l.title||'Ôn tập'}</option>)}</select></label>
+     <label>Bài học<select value={draft.lesson} onChange={e=>setDraft(v=>({...v,lesson:Number(e.target.value),concept_key:''}))}>{LEVEL_1_LESSONS.map(l=><option value={l.number} key={l.number}>Bài {l.number}: {l.title||'Ôn tập'}</option>)}</select></label>
      <label>Tiêu đề<input value={draft.title} required minLength={3} maxLength={160} onChange={e=>setDraft(v=>({...v,title:e.target.value}))}/></label>
      <label className="wide">Nội dung câu hỏi<textarea rows={3} value={draft.q} required minLength={8} onChange={e=>setDraft(v=>({...v,q:e.target.value}))}/></label>
      {draft.choices.map((c,i)=><label key={i}>Phương án {String.fromCharCode(65+i)}
@@ -138,8 +137,13 @@ export default function StudentWebManagement({profile,onNavigate}){
       <option value="">-- Chọn đáp án --</option>
       {draft.choices.filter(Boolean).map((c,i)=><option key={i} value={c}>{c}</option>)}
      </select></label>
-     <label>Giải thích<textarea rows={2} value={draft.why} onChange={e=>setDraft(v=>({...v,why:e.target.value}))}/></label>
-     <p className="wide">Hình câu hỏi hiện chỉ dùng biểu tượng thiết bị vẽ sẵn trong hệ thống. Đã vô hiệu hóa ảnh bên ngoài để bảo vệ học sinh.</p>
+     <label>Giải thích<textarea rows={2} value={draft.why} required={draft.published} onChange={e=>setDraft(v=>({...v,why:e.target.value}))}/></label>
+     <label className="wide">Nội dung đã kiểm tra tương đương
+      <select value={draft.concept_key} onChange={e=>setDraft(v=>({...v,concept_key:e.target.value}))}>
+       <option value="">Câu hỏi kiểm tra nội dung mới</option>
+       {baseQuestions.filter(q=>q.lesson===Number(draft.lesson)).map(q=><option key={q.id} value={q.concept}>{q.prompt}</option>)}
+       {questions.filter(q=>q.lesson===Number(draft.lesson)&&q.id!==draft.id&&!q.concept_key).map(q=><option key={q.id} value={'school-'+q.id}>{q.q}</option>)}
+      </select></label>
     </div>
     <label className="swm-checkbox"><input type="checkbox" checked={draft.published} onChange={e=>setDraft(v=>({...v,published:e.target.checked}))}/>
       Xuất bản cho học sinh trường này (câu nháp không hiển thị)</label>

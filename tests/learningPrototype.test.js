@@ -154,7 +154,7 @@ test('pixel-art redesign includes twelve original selectable skins and screensho
  assert.ok(picker.includes('role="dialog"')&&picker.includes('aria-modal="true"'));
  assert.ok(scene.includes('PixelHero skinId={skinId}')&&scene.includes('PixelMonster round={monster.round}'));
  assert.ok(scene.includes('role="progressbar"'));
- assert.ok(fish.includes("lessonQuestions('lv1-11')"));
+ assert.ok(fish.includes("previewDeck('lv1-11'"));
  assert.ok(fish.includes('feedback')&&fish.includes('setHearts'));
  assert.ok(app.includes('HeroPicker')&&app.includes('FishingGame')&&app.includes('BattleScene'));
  assert.ok(!app.includes('function HeroArt('),'Emoji-only hero placeholder must be removed');
