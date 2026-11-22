@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {WORLD_MAPS,WAVES_PER_WORLD,worldAt,waveAt} from '../src/student-web/worldMap.js';
+import {WORLD_MAPS,WAVES_PER_WORLD,worldAt,waveAt,waveUnlocked} from '../src/student-web/worldMap.js';
 
 const read=path=>readFileSync(new URL('../'+path,import.meta.url),'utf8');
 test('Săn Sao has exactly 22 distinct maps and 154 uniquely named enemies',()=>{
@@ -79,4 +79,26 @@ test('32 visual-only hero outfits and clickable pins are served by 22 open islan
  assert.match(sql,/ic3_arcade_score_awards/);
  assert.match(sql,/p_item NOT BETWEEN 0 AND 31/);
  assert.match(sql,/pl\.wave_hp:=greatest\(0,pl\.wave_hp-160\)/);
+});
+
+test('Each island initially unlocks only wave 1 and advances one encounter after victory',()=>{
+ assert.equal(waveUnlocked([],1),true);
+ for(let w=2;w<=7;w++)assert.equal(waveUnlocked([],w),false);
+ assert.equal(waveUnlocked([1],2),true);
+ assert.equal(waveUnlocked([1],3),false);
+ assert.equal(waveUnlocked([1,2,3],4),true);
+ assert.equal(waveUnlocked([1,2,3],5),false);
+ assert.equal(waveUnlocked([1,2,3,4,5,6],7),true);
+ assert.equal(waveUnlocked([1,2,3,4,5,6,7],7),true);
+ assert.equal(waveUnlocked([7],7),true); // previously conquered wave remains replayable
+ assert.equal(waveUnlocked([],7,true),true); // active legacy encounter can resume
+ assert.equal(waveUnlocked([],0),false);
+ assert.equal(waveUnlocked([],8),false);
+ const app=read('src/student-web/Campaign.jsx');
+ const migration=read('supabase/migrations/20261123030000_ic3_arcade_sequential_wave_unlock.sql');
+ assert.match(app,/disabled=\{!unlocked\}/);
+ assert.match(app,/waveUnlocked\(completedFor\(mapId\),w,active\)/);
+ assert.match(app,/Hoàn thành ải/);
+ assert.match(migration,/encounter-1=ANY\(mp\.completed_waves\)/);
+ assert.match(migration,/RAISE EXCEPTION 'Ải % chưa mở/);
 });
