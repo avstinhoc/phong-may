@@ -62,6 +62,8 @@ export default function Campaign({session}){
  const [fx,setFx]=useState(null);
  const fxSequence=useRef(0);
  const gate=useRef(false),alive=useRef(true),end=useRef(0),root=useRef(null),mapSection=useRef(null);
+ const inBattleRef=useRef(false);
+ inBattleRef.current=!!data?.in_battle;
 
  async function call(action,extra={},nextView=null){
   if(gate.current||!supabase)return;
@@ -93,7 +95,19 @@ export default function Campaign({session}){
    gate.current=false;if(alive.current)setBusy(false);
   }
  }
- useEffect(()=>{alive.current=true;void call('status');return()=>{alive.current=false}},[session.token]);
+ useEffect(()=>{alive.current=true;void call('status');return()=>{
+   alive.current=false;
+   // Sidebar navigation can unmount this screen without using the internal back button.
+   // Best-effort server leave; server action is idempotent and never charges twice.
+   if(inBattleRef.current&&supabase){
+    void supabase.rpc('ic3_arcade_turn',{p_session_token:session.token,p_action:'leave'});
+   }
+  }},[session.token]);
+ useEffect(()=>{
+  const warn=e=>{if(!inBattleRef.current)return;e.preventDefault();e.returnValue='';};
+  window.addEventListener('beforeunload',warn);
+  return()=>window.removeEventListener('beforeunload',warn);
+ },[]);
  useEffect(()=>{
   if(!data?.turn||view!=='battle'||error)return;
   const tick=()=>{
