@@ -8,7 +8,9 @@ test('Student Web gets a dedicated lazy route, never needs Windows/Tauri',()=>{
  assert.match(main,/React\.lazy/);
  assert.doesNotMatch(main,/import App from/);
  const student=read('src/student-web/StudentWeb.jsx');
- assert.match(student,/React\.lazy\(\(\)=>import\('\.\/Lessons\.jsx'\)\)/);
+ assert.match(student,/React\.lazy\(\(\)=>import\('\.\/StudentClassroom\.jsx'\)\)/);
+ assert.doesNotMatch(student,/React\.lazy\(\(\)=>import\('\.\/Lessons\.jsx'\)\)/);
+ assert.match(student,/Lớp học tương tác/);
  assert.ok(JSON.parse(vercel).rewrites.some(x=>x.source==='/student-web'));
  assert.match(auth,/qlpm_student_web_login/);
  assert.match(auth,/qlpm_student_web_register/);
