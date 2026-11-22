@@ -38,6 +38,9 @@ test('154 waves selectable; replay, retreat, death and star awards are server-co
   assert.equal(turn.in_battle,true);
   let result;
   for(let i=0;i<9;i++){
+   // A short isolated fixture bank can be exhausted; server intentionally
+   // returns set_complete without changing HP until the next request.
+   if(!turn.turn)turn=await rpc('next');
    result=await rpc('answer',turn.turn,await solution(turn.prompt));
    if(result.outcome==='victory')break;
    turn=await rpc('next');
