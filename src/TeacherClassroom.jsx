@@ -4,7 +4,7 @@ import {supabase} from './lib/supabase.js';
 import {classroomDate,classroomRelative,classroomBlankQuiz,filterClassroomStudents} from './classroom/classroomUtils.js';
 import {CLASSROOM_FILE_ACCEPT,checkClassroomAttachment,clipboardClassroomFile,classroomUpload,ClassroomAttachment,ClassroomDraftAttachment} from './classroom/classroomAttachments.jsx';
 import './classroom/classroom.css';
-import PushPermission from './classroom/PushPermission.jsx';
+import ChatHistory from './classroom/ChatHistory.jsx';
 
 const blank=()=>({kind:'announcement',title:'',body:'',due_at:'',due_minutes:'',questions:[classroomBlankQuiz()]});
 export default function TeacherClassroom({profile}){
@@ -128,7 +128,6 @@ export default function TeacherClassroom({profile}){
     <p>Giao bài trắc nghiệm, chấm tự luận, gửi thông báo và nhắn tin riêng với học sinh.</p>
    </div>
    <div className="classroom-header-actions">
-    <PushPermission/>
     <button type="button" className="classroom-refresh" onClick={()=>refresh()} disabled={busy}>
      <RefreshCw size={18}/> Làm mới</button>
    </div>
@@ -278,7 +277,7 @@ export default function TeacherClassroom({profile}){
     <div className="classroom-chat-title"><MessageCircle size={18}/>
       <strong>{students.find(s=>s.id===studentId)?.name||'Chọn học sinh để trao đổi'}</strong>
       <span>Cuộc trò chuyện riêng tư</span></div>
-    <div className="classroom-messages">
+    <ChatHistory key={studentId} latestId={chat.at(-1)?.id}>
      {chat.length===0&&<p className="classroom-empty">Chưa có tin nhắn nào.</p>}
      {chat.map(m=><div key={m.id} className={'classroom-bubble '+(m.sender_kind==='teacher'?'mine':'theirs')}>
       <small>{m.sender_kind==='teacher'?'Giáo viên':m.student_name} · {classroomDate(m.created_at)}</small>
@@ -286,7 +285,7 @@ export default function TeacherClassroom({profile}){
       {m.image_data&&<a href={m.image_data} target="_blank" rel="noopener noreferrer"><img src={m.image_data} alt="Ảnh do người gửi lựa chọn" loading="lazy"/></a>}
       {m.file_name&&<ClassroomAttachment message={m}/>}
      </div>)}
-    </div>
+    </ChatHistory>
     <form onSubmit={send} className="classroom-compose"
      onDragOver={e=>{if(e.dataTransfer.types.includes('Files'))e.preventDefault()}}
      onDrop={dropFile}>

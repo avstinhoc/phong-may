@@ -64,27 +64,11 @@ test('Web Push creates scoped events without exposing private subscriptions',asy
  }finally{await db.close()}
 });
 
-test('Web Push requires opt-in, service-worker click routing and server-only webhook',()=>{
- const edge=read('supabase/functions/qlpm-push/index.ts');
- const hook=read('src/classroom/pushNotifications.js');
- const worker=read('public/qlpm-push-sw.js');
- const control=read('src/classroom/PushPermission.jsx');
- assert.match(hook,/Notification.requestPermission\(\)/);
- assert.match(hook,/userVisibleOnly:true/);
- assert.match(hook,/applicationServerKey:/);
- assert.match(hook,/x-student-session/);
- assert.match(worker,/addEventListener\('push'/);
- assert.match(worker,/showNotification/);
- assert.match(worker,/notificationclick/);
- assert.doesNotMatch(worker,/addEventListener\('fetch'/);
- assert.match(control,/onClick=\{toggle\}/);
- assert.match(edge,/admin\.auth\.getUser\(token\)/);
- assert.match(edge,/qlpm_student_desktop_whoami/);
- assert.match(edge,/req\.headers\.get\("x-qlpm-push-dispatch"\)!==settings\.dispatch_secret/);
- assert.match(edge,/webpush\.sendNotification/);
- assert.doesNotMatch(edge,/message\.body|event\.body|title:.*full_name/);
- assert.match(migration,/REVOKE ALL ON public\.qlpm_push_subscriptions, public\.qlpm_push_events FROM PUBLIC,anon,authenticated/);
- assert.match(migration,/vault\.decrypted_secrets/);
- assert.match(read('src/TeacherClassroom.jsx'),/PushPermission/);
- assert.match(read('src/student-web/StudentClassroom.jsx'),/PushPermission studentToken/);
+test('Classroom uses in-page notifications only',()=>{
+ for(const page of ['src/TeacherClassroom.jsx','src/student-web/StudentClassroom.jsx']){
+  assert.match(read(page),/<ChatHistory/);
+  assert.doesNotMatch(read(page),/PushPermission|requestPermission/);
+  assert.match(read(page),/classroom-unread/);
+ }
+ assert.doesNotMatch(read('public/qlpm-push-sw.js'),/showNotification/);
 });

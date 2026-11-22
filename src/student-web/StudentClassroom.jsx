@@ -4,7 +4,7 @@ import {supabase} from '../lib/supabase.js';
 import {classroomDate,classroomRelative} from '../classroom/classroomUtils.js';
 import {CLASSROOM_FILE_ACCEPT,checkClassroomAttachment,clipboardClassroomFile,classroomUpload,ClassroomAttachment,ClassroomDraftAttachment} from '../classroom/classroomAttachments.jsx';
 import '../classroom/classroom.css';
-import PushPermission from '../classroom/PushPermission.jsx';
+import ChatHistory from '../classroom/ChatHistory.jsx';
 
 const TABS=[['assignments','Bài tập',ClipboardList],['announcements','Thông báo',Bell],['messages','Tin nhắn',MessageCircle]];
 export default function StudentClassroom({session,onUnread}){
@@ -12,7 +12,7 @@ export default function StudentClassroom({session,onUnread}){
  const [loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
  const [draftAnswers,setDraftAnswers]=useState({}),[essays,setEssays]=useState({});
  const [body,setBody]=useState(''),[attachment,setAttachment]=useState(null);
- const seen=useRef(null),end=useRef(null);
+ const seen=useRef(undefined);
  const refresh=useCallback(async(quiet=false)=>{
   if(!supabase||!session?.token)return;
   try{
@@ -21,7 +21,7 @@ export default function StudentClassroom({session,onUnread}){
    if(e)throw e;
    setFeed(data);onUnread?.(Number(data?.unread||0));
    const last=data?.messages?.at(-1);
-   if(seen.current!==null&&last?.id!==seen.current&&last?.sender_kind==='teacher'){
+   if(seen.current!==undefined&&last?.id!==seen.current&&last?.sender_kind==='teacher'){
     setNotice('Bạn có tin nhắn mới từ giáo viên!');
    }
    seen.current=last?.id||null;
@@ -92,7 +92,6 @@ export default function StudentClassroom({session,onUnread}){
     <p>Nhận bài tập, theo dõi thông báo, nộp bài và nhắn tin trực tiếp với giáo viên.</p>
    </div>
    <div className="classroom-header-actions">
-     <PushPermission studentToken={session.token}/>
      <button type="button" onClick={()=>refresh()} aria-label="Cập nhật" className="classroom-refresh"><RefreshCw size={18}/> Làm mới</button>
    </div>
   </header>
@@ -149,7 +148,7 @@ export default function StudentClassroom({session,onUnread}){
    <div className="classroom-chat-title"><MessageCircle size={18}/>
     <strong>Trao đổi với {feed?.teacher_name||'giáo viên'}</strong>
     <span>Chỉ giáo viên và em xem được nội dung</span></div>
-   <div className="classroom-messages" aria-label="Lịch sử trò chuyện">
+   <ChatHistory latestId={feed?.messages?.at(-1)?.id}>
     {!feed?.messages?.length&&<p className="classroom-empty">Chưa có tin nhắn. Em có thể hỏi bài hoặc gửi hình bài làm.</p>}
     {(feed?.messages||[]).map(m=><div key={m.id} className={'classroom-bubble '+(m.sender_kind==='student'?'mine':'theirs')}>
      <small>{m.sender_kind==='student'?'Em':'Giáo viên'} · {classroomDate(m.created_at)}</small>
@@ -158,8 +157,7 @@ export default function StudentClassroom({session,onUnread}){
       <img src={m.image_data} alt="Ảnh đính kèm do người gửi chọn" loading="lazy"/></a>}
      {m.file_name&&<ClassroomAttachment message={m} studentToken={session.token}/>}
     </div>)}
-    <div ref={end}/>
-   </div>
+   </ChatHistory>
    <form className="classroom-compose" onSubmit={send}
     onDragOver={e=>{if(e.dataTransfer.types.includes('Files'))e.preventDefault()}} onDrop={onDrop}>
     <ClassroomDraftAttachment file={attachment} onRemove={()=>setAttachment(null)}/>

@@ -131,15 +131,3 @@
 @media(max-width:640px){.classroom-due-grid{grid-template-columns:1fr}}
 
 .classroom-header-actions{display:flex;align-items:center;flex-wrap:wrap;gap:9px;justify-content:flex-end}
-.classroom-push-area{display:flex;flex-direction:column;align-items:flex-end;gap:5px;min-width:0;max-width:min(100%,320px)}
-.classroom-push-button{display:flex;align-items:center;justify-content:center;gap:8px;border-radius:12px;
- background:#ebfff7;color:#05645f;border:1px solid #84e1c3;padding:12px 15px;
- font-weight:850;font-size:13px;cursor:pointer;white-space:nowrap}
-.classroom-push-button:hover:enabled{background:#d5f8e9}
-.classroom-push-button[aria-pressed=true]{background:#fff5e7;color:#844f19;border-color:#f0ca8b}
-.classroom-push-button:disabled{opacity:.6;cursor:not-allowed}
-.classroom-push-area small{font-size:11px;line-height:1.35;color:#ccece5;text-align:right}
-.classroom-push-area .classroom-push-error{color:#ffe6c8}
-.classroom-push-area .classroom-push-success{color:#dcffec}
-@media(max-width:650px){.classroom-header-actions{width:100%;justify-content:stretch}
- .classroom-push-area{flex:1;max-width:none;align-items:stretch}.classroom-push-button{width:100%}}
