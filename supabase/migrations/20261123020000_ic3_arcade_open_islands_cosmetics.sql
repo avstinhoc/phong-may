@@ -63,7 +63,7 @@ DECLARE
  ordered jsonb; wallet jsonb; map_progress jsonb;
  bonus integer:=0; outcome text; feedback text;
  zone integer; encounter integer; previous_score integer; penalty integer:=0;
- threshold integer; earned_award integer;
+ milestone_points integer; earned_award integer;
  completed integer[]; already_complete boolean;
 BEGIN
  IF sid IS NULL OR school IS NULL THEN
@@ -137,12 +137,12 @@ BEGIN
    outcome:='correct';pl.score:=pl.score+10;
    -- Fashion is visual-only. Existing former gear has no advantage.
    pl.wave_hp:=greatest(0,pl.wave_hp-160);
-   threshold:=pl.score;
-   bonus:=case threshold when 400 then 1 when 800 then 1
+   milestone_points:=pl.score;
+   bonus:=case milestone_points when 400 then 1 when 800 then 1
      when 1600 then 2 when 4200 then 2 else 0 end;
    IF bonus>0 THEN
     INSERT INTO public.ic3_arcade_score_awards(student_id,threshold)
-    VALUES(sid,threshold) ON CONFLICT DO NOTHING
+    VALUES(sid,milestone_points) ON CONFLICT DO NOTHING
     RETURNING threshold INTO earned_award;
     IF earned_award IS NULL THEN
      bonus:=0;
