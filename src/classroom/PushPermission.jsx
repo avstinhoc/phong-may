@@ -13,7 +13,7 @@ export default function PushPermission({studentToken=null}){
  useEffect(()=>{
   let alive=true;
   if(supported){
-   isWebPushSubscribed().then(value=>{if(alive)setEnabled(value)})
+   isWebPushSubscribed(studentToken).then(value=>{if(alive)setEnabled(value)})
     .catch(()=>{});
   }
   return()=>{alive=false};
