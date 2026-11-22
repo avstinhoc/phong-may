@@ -182,6 +182,22 @@ Deno.serve(async req=>{
   const p256dh=data?.subscription?.keys?.p256dh,auth=data?.subscription?.keys?.auth;
   if(!validKey(p256dh,60,180)||!validKey(auth,16,100))
    return response(400,{error:"Khóa đăng ký thông báo không hợp lệ"},origin);
+  // Keep free-plan usage predictable; an account cannot register unlimited
+  // push endpoints and fan out notifications to hundreds of virtual devices.
+  const maxDevices=identity.kind==="student"?3:5;
+  let deviceQuery=admin.from("qlpm_push_subscriptions")
+   .select("id,endpoint,touched_at").eq("owner_kind",identity.kind)
+   .order("touched_at",{ascending:false});
+  deviceQuery=identity.kind==="student"
+   ?deviceQuery.eq("student_id",identity.id)
+   :deviceQuery.eq("teacher_id",identity.id);
+  const {data:devices,error:deviceError}=await deviceQuery.limit(20);
+  if(deviceError)return response(503,{error:"Không kiểm tra được danh sách thiết bị"},origin);
+  if(!(devices||[]).some((device:any)=>device.endpoint===endpoint)){
+   for(const stale of (devices||[]).slice(maxDevices-1)){
+    await admin.from("qlpm_push_subscriptions").delete().eq("id",stale.id);
+   }
+  }
   const record={
    endpoint,p256dh,auth_secret:auth,
    owner_kind:identity.kind,
