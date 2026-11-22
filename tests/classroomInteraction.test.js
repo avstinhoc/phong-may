@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 import {PGlite} from '@electric-sql/pglite';
 const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
 const sql=read('supabase/migrations/20261123041000_classroom_interaction.sql');
+const extension=read('supabase/migrations/20261123052000_classroom_unread_private_files.sql');
 const teacher='00000000-0000-0000-0000-000000000101',school='00000000-0000-0000-0000-000000000201';
 const cls='00000000-0000-0000-0000-000000000301',other='00000000-0000-0000-0000-000000000302';
 const student='00000000-0000-0000-0000-000000000401';
@@ -13,7 +14,8 @@ test('private classroom: teacher assignment, student submission, grading and ima
  try{
   const init=[
    'create role anon;create role authenticated;',
-   'create schema auth;',
+   'create schema auth; create schema storage;',
+   'create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);',
    "create function auth.uid() returns uuid language sql stable as $$select '"+teacher+"'::uuid$$;",
    'create table public.schools(id uuid primary key);',
    'create table public.profiles(id uuid primary key,full_name text);',
@@ -29,6 +31,7 @@ test('private classroom: teacher assignment, student submission, grading and ima
   ].join('\n');
   await db.exec(init);
   await db.exec(sql);
+  await db.exec(extension);
   const ta=async(action,payload={},c=cls)=>(await db.query(
     'select public.qlpm_classroom_teacher_action($1,$2,$3,$4) as result',
     [school,c,action,JSON.stringify(payload)])).rows[0].result;
@@ -63,6 +66,17 @@ test('private classroom: teacher assignment, student submission, grading and ima
   await sa('send_message',{body:'Em gửi ảnh ạ',image_data:img});
   assert.equal((await tf()).unread,1);
   assert.equal((await tf()).messages[0].image_data,img);
+  // Two physically different 6.2 classes can belong to the same school/teacher.
+  // The class with unread messages must appear first on initial page load.
+  const duplicate='00000000-0000-0000-0000-000000000303';
+  await db.query('insert into public.classes(id,school_id,created_by,class_name) values($1,$2,$3,$4)',
+    [duplicate,school,teacher,'6.2']);
+  const defaultFeed=await db.query('select public.qlpm_classroom_teacher_feed($1,NULL) as result',[school]);
+  assert.equal(defaultFeed.rows[0].result.selected_class,cls);
+  const active=defaultFeed.rows[0].result.classes;
+  assert.equal(active[0].unread,1);
+  assert.equal(active[0].students,1);
+  assert.equal(active.filter(c=>c.name==='6.2').length,2);
   await ta('read_messages',{student_id:student});
   assert.equal((await tf()).unread,0);
   await ta('send_message',{student_id:student,body:'Cô nhận được'});
@@ -72,6 +86,17 @@ test('private classroom: teacher assignment, student submission, grading and ima
   await assert.rejects(sa('send_message',{image_data:'https://bad.example/img'}));
   await assert.rejects(ta('create_post',{kind:'announcement',title:'Chặn',body:'Không'},other));
   await assert.rejects(sa('send_message',{body:'Không có phiên'},'invalid'));
+  // Documents remain in a private Storage bucket and metadata rows only.
+  const privateBucket=(await db.query("select public from storage.buckets where id='qlpm-classroom-private'")).rows[0];
+  assert.equal(privateBucket.public,false);
+  const path=cls+'/'+student+'/00000000-0000-4000-8000-000000000403.pdf';
+  const saved=await db.query(
+    'insert into public.qlpm_classroom_messages(school_id,class_id,student_id,teacher_id,sender_kind,file_path,file_name,file_type,file_size) values($1,$2,$3,$4,$5,$6,$7,$8,$9) returning id',
+    [school,cls,student,teacher,'student',path,'bai-tap.pdf','application/pdf',1024]
+  );
+  assert.ok(saved.rows[0].id);
+  assert.equal((await tf()).messages.at(-1).file_name,'bai-tap.pdf');
+  assert.equal((await sf()).messages.at(-1).file_size,1024);
   const tables=(await db.query("select relname,relrowsecurity from pg_class where relname like 'qlpm_classroom_%'")).rows;
   assert.equal(['qlpm_classroom_posts','qlpm_classroom_submissions','qlpm_classroom_messages'].every(
     name=>tables.find(t=>t.relname===name)?.relrowsecurity),true);
@@ -83,8 +108,28 @@ test('Student no longer has Bài giảng navigation; teacher menu and notificati
  assert.doesNotMatch(student,/id:'lessons',title:'Bài giảng'/);
  assert.match(teacher,/page === "classroom"/);
  assert.match(teacher,/qlpm_classroom_teacher_unread/);
- assert.match(read('src/student-web/StudentClassroom.jsx'),/compressClassroomImage/);
+ assert.match(read('src/student-web/StudentClassroom.jsx'),/clipboardClassroomFile/);
+ assert.match(read('src/student-web/StudentClassroom.jsx'),/classroomUpload/);
+ assert.match(read('src/TeacherClassroom.jsx'),/classroom-other-threads/);
  assert.match(read('src/TeacherClassroom.jsx'),/create_post/);
  assert.match(sql,/REVOKE ALL ON public.qlpm_classroom_posts,public.qlpm_classroom_submissions,public.qlpm_classroom_messages/);
  assert.doesNotMatch(sql,/GRANT SELECT ON public.qlpm_classroom_/i);
+});
+
+test('classroom files: JWT/student-session authentication, private signatures and safe MIME types',()=>{
+ const edge=read('supabase/functions/classroom-attachments/index.ts');
+ const files=read('src/classroom/classroomAttachments.jsx');
+ assert.match(edge,/admin\.auth\.getUser\(token\)/);
+ assert.match(edge,/qlpm_student_desktop_whoami/);
+ assert.match(edge,/m\.student_id===identity\.id/);
+ assert.match(edge,/c\.created_by===identity\.id/);
+ assert.match(edge,/createSignedUrl\(m\.file_path,180/);
+ assert.match(edge,/from\(BUCKET\)/);
+ assert.match(edge,/typeAllowed\(file,extension\)/);
+ assert.match(edge,/file\.size>LIMIT/);
+ assert.doesNotMatch(edge,/getPublicUrl\(/);
+ assert.match(files,/clipboardData/);
+ assert.match(files,/onChange|classroomUpload/);
+ assert.match(files,/\\.pdf/);
+ assert.match(extension,/private','qlpm-classroom-private'/);
 });
