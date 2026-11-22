@@ -5,7 +5,7 @@ import {classroomDate,classroomRelative,classroomBlankQuiz,filterClassroomStuden
 import {CLASSROOM_FILE_ACCEPT,checkClassroomAttachment,clipboardClassroomFile,classroomUpload,ClassroomAttachment,ClassroomDraftAttachment} from './classroom/classroomAttachments.jsx';
 import './classroom/classroom.css';
 
-const blank=()=>({kind:'announcement',title:'',body:'',due_at:'',questions:[classroomBlankQuiz()]});
+const blank=()=>({kind:'announcement',title:'',body:'',due_at:'',due_minutes:'',questions:[classroomBlankQuiz()]});
 export default function TeacherClassroom({profile}){
  const schoolId=profile?.school_id;
  const [feed,setFeed]=useState(null),[classId,setClassId]=useState('');
@@ -61,6 +61,18 @@ export default function TeacherClassroom({profile}){
   e.preventDefault();
   const payload={...draft,body:draft.body.trim(),title:draft.title.trim()};
   if(!payload.title){setError('Hãy nhập tiêu đề');return}
+  if(draft.kind!=='announcement'){
+   const minutes=payload.due_minutes;
+   if(minutes!==''&&(!/^[0-9]+$/.test(minutes)||Number(minutes)<1||Number(minutes)>10080)){
+    setError('Hãy nhập số phút nguyên từ 1 đến 10080 (tối đa 7 ngày).');return;
+   }
+   if(minutes!==''&&payload.due_at){
+    setError('Chỉ chọn ngày giờ Việt Nam hoặc số phút sau khi giao bài.');return;
+   }
+   if(payload.due_at&&new Date(payload.due_at+':00+07:00').getTime()<=Date.now()){
+    setError('Hạn nộp theo giờ Việt Nam phải ở trong tương lai.');return;
+   }
+  }
   if(draft.kind==='quiz'){
    for(const question of draft.questions){
     if(!question.prompt.trim()||question.choices.some(s=>!s.trim())||
@@ -154,8 +166,33 @@ export default function TeacherClassroom({profile}){
       placeholder="VD: Bài tập nhận biết thiết bị nhập"/></label>
     <label>Nội dung / Hướng dẫn<textarea rows={3} maxLength={2500} value={draft.body}
      onChange={e=>setDraft(v=>({...v,body:e.target.value}))} placeholder="Nội dung gửi tới cả lớp..."/></label>
-    {draft.kind!=='announcement'&&<label>Hạn nộp (để trống nếu không giới hạn)
-     <input type="datetime-local" value={draft.due_at} onChange={e=>setDraft(v=>({...v,due_at:e.target.value}))}/></label>}
+    {draft.kind!=='announcement'&&<div className="classroom-due-settings">
+     <div className="classroom-due-grid">
+      <label>Hạn nộp · Giờ Việt Nam (GMT+7)
+       <input type="datetime-local" lang="vi-VN" value={draft.due_at}
+        disabled={draft.due_minutes!==''}
+        onChange={e=>setDraft(v=>({...v,due_at:e.target.value,due_minutes:''}))}/>
+      </label>
+      <label>Hoặc số phút kể từ lúc giao bài
+       <div className="classroom-minute-field">
+        <Clock size={18}/>
+        <input type="number" inputMode="numeric" min="1" max="10080" step="1" placeholder="Ví dụ: 20"
+         value={draft.due_minutes} disabled={!!draft.due_at}
+         onChange={e=>setDraft(v=>({...v,due_minutes:e.target.value,due_at:''}))}/>
+        <span>phút</span>
+       </div>
+      </label>
+     </div>
+     <div className="classroom-due-help">
+      <span>{draft.due_minutes!==''?
+       'Hạn nộp tự tính từ thời điểm bấm Giao bài trên máy chủ.':
+       draft.due_at?'Ngày giờ được hiểu theo Việt Nam (GMT+7), không theo múi giờ máy.':
+       'Để trống cả hai nếu không muốn giới hạn thời gian.'}</span>
+      {(draft.due_at||draft.due_minutes!=='')&&
+       <button type="button" onClick={()=>setDraft(v=>({...v,due_at:'',due_minutes:''}))}>
+        Bỏ giới hạn</button>}
+     </div>
+    </div>}
     {draft.kind==='quiz'&&<div className="classroom-quiz-builder">
      {draft.questions.map((q,i)=><fieldset key={i}><legend>Câu hỏi {i+1}</legend>
       <label>Nội dung câu hỏi<input maxLength={550} value={q.prompt} placeholder="Nhập câu hỏi..."
