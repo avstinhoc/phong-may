@@ -112,3 +112,20 @@
 .classroom-contact-no-results{font-size:12px;color:#65848c;padding:12px 8px;line-height:1.5}
 @media(max-width:980px){.classroom-contact-toolbar{width:100%}.classroom-contact-toolbar h3{flex:0 0 auto}
 .classroom-contact-search{flex:1;max-width:300px}}
+
+/* Local Vietnam deadline or server-based minute offset; never two deadlines at once. */
+.classroom-due-settings{display:flex;flex-direction:column;gap:8px}
+.classroom-due-grid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:12px}
+.classroom-due-grid label{display:flex;flex-direction:column;gap:7px;min-width:0}
+.classroom-due-grid input:disabled{background:#f0f4f6!important;color:#8194a0!important;cursor:not-allowed}
+.classroom-minute-field{display:flex;align-items:center;gap:7px;padding:0 10px;border:1px solid #b8d3d5;
+ border-radius:10px;background:#fbfdfd;color:#407383;min-height:45px}
+.classroom .classroom-minute-field input{border:0;outline:none;min-width:0;flex:1;
+ background:transparent;padding:10px 0;box-shadow:none;font-weight:700}
+.classroom .classroom-minute-field input:focus{outline:0;box-shadow:none}
+.classroom-minute-field span{font-size:12px;font-weight:800;color:#517b85;white-space:nowrap}
+.classroom-due-help{display:flex;align-items:start;justify-content:space-between;gap:9px;
+ font-size:12px;color:#547e88;line-height:1.5}
+.classroom-due-help button{border:0;background:none;padding:0;color:#0c807b;font-weight:750;
+ cursor:pointer;white-space:nowrap;text-decoration:underline}
+@media(max-width:640px){.classroom-due-grid{grid-template-columns:1fr}}
