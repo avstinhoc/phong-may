@@ -131,5 +131,5 @@ test('classroom files: JWT/student-session authentication, private signatures an
  assert.match(files,/clipboardData/);
  assert.match(files,/onChange|classroomUpload/);
  assert.match(files,/\\.pdf/);
- assert.match(extension,/private','qlpm-classroom-private'/);
+ assert.match(extension,/VALUES\('qlpm-classroom-private','qlpm-classroom-private',false/);
 });
