@@ -6,8 +6,8 @@ const stateLabel={available:'Sẵn sàng',occupied:'Đang sử dụng',broken:'H
 const typeLabel={point:'Điểm',reward:'Thưởng',violation:'Vi phạm'};
 const date=s=>s?s.split('-').reverse().join('/'):'';
 const seatKey=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('vi').trim().replace(/\s+/g,' ');
-export function StudentPortal(){
-  const [code,setCode]=useState(()=>new URLSearchParams(window.location.search).get('code')||'');
+export function StudentPortal({initialCode='',classOnly=false}){
+  const [code,setCode]=useState(()=>initialCode||new URLSearchParams(window.location.search).get('code')||'');
   const [seat,setSeat]=useState('');
   const [desiredPc,setDesiredPc]=useState('');
   const [requestResult,setRequestResult]=useState('');
@@ -99,8 +99,8 @@ export function StudentPortal(){
     occupied:machines.reduce((n,m)=>n+Number(m.occupied||0),0),
     waiting:machines.reduce((n,m)=>n+(m.cleaning||[]).filter(x=>x.status!=='done').length,0)
   }),[payload]);
-  return <div className="student-portal">
-    <header className="portal-header">
+  return <div className={"student-portal"+(classOnly?" student-portal--class-only":"")}>
+    {!classOnly&&<header className="portal-header">
       {payload?.logo?<img className="portal-logo" src={payload.logo} alt="Logo trường"/>:<div className="brand-mark">IC3</div>}
       <div><b>IC3 GS6 · Lớp học của chúng mình</b><small>Máy tính • Lịch dạy • Vệ sinh • Điểm & phần thưởng</small></div>
       {payload&&<form className="portal-header-seat-search" onSubmit={locateSeat} role="search" aria-label="Tìm vị trí máy">
@@ -113,9 +113,9 @@ export function StudentPortal(){
       </form>}
       {payload&&<a className="portal-school-board-link" href={'/school?code='+encodeURIComponent(code)}>🏆 BXH toàn trường</a>}
 
-    </header>
+    </header>}
     <main className="portal-content">
-      <section className="portal-hero">
+      {!classOnly&&<section className="portal-hero">
         <div><span className="portal-eyebrow">CỔNG THÔNG TIN HỌC SINH</span>
           <h1>{payload?`Xin chào lớp ${payload.class_name}! ✨`:'Chào mừng đến với lớp IC3 GS6! ✨'}</h1>
           <p>{payload?`Trường ${payload.school} · Cùng xem lớp mình hôm nay có gì mới nhé.`:'Nhập mã lớp giáo viên cấp để xem máy tính, bạn cùng lớp và lịch vệ sinh.'}</p>
@@ -129,8 +129,15 @@ export function StudentPortal(){
           </a>
         </div>
         <div className="portal-hero-art" aria-hidden="true">💻<span>🌟</span></div>
-      </section>
-      {!payload&&<section className="panel portal-search portal-search-compact">
+      </section>}
+      {classOnly&&payload&&<form className="panel portal-class-search" role="search" aria-label="Tìm máy tính trong lớp" onSubmit={locateSeat}>
+        <label>Tìm máy tính <input type="search" required value={seat} onChange={e=>setSeat(e.target.value)}
+          placeholder="Nhập PC01, PC02..." aria-label="Mã máy cần tìm"/></label>
+        <button type="submit" disabled={busy}>🔎 Tìm máy</button>
+        {seatMessage&&<output role="status">{seatMessage}</output>}
+      </form>}
+      {classOnly&&!payload&&(busy?<p>Đang tải bảng xếp hạng và sơ đồ máy lớp…</p>:<p role="alert" className="notice-box">{error||'Chưa tìm thấy lớp của em.'}</p>)}
+      {!classOnly&&!payload&&<section className="panel portal-search portal-search-compact">
         <div className="portal-search-heading">
           <div><h3>📍 Mở lớp học</h3><p className="muted">Nhập mã lớp được giáo viên cấp để bắt đầu.</p></div>
           {busy&&<span className="portal-search-spinner">Đang tải dữ liệu…</span>}
@@ -141,7 +148,7 @@ export function StudentPortal(){
         </form>
         {error&&<p role="alert" className="notice-box">{error}</p>}
       </section>}
-      {payload&&<section className="panel portal-private-panel">
+      {!classOnly&&payload&&<section className="panel portal-private-panel">
         {payload&&<details className="portal-private-lookup">
           <summary><span>🔐 Tra cứu kết quả cá nhân</span><small>Chỉ mở khi có mã xem điểm riêng</small></summary>
           <form className="portal-form portal-form--private" onSubmit={e=>{e.preventDefault();load();}}>
@@ -155,12 +162,12 @@ export function StudentPortal(){
         {error&&<p role="alert" className="notice-box">{error}</p>}
       </section>}
       {payload&&<>
-        <div className="portal-metrics portal-overview">
+        {!classOnly&&<div className="portal-metrics portal-overview">
           <div><small>Máy trong trường</small><b>{counts.total}</b><span>🖥️</span></div>
           <div><small>Máy sẵn sàng</small><b>{counts.available}</b><span>✅</span></div>
           <div><small>Máy cần sửa</small><b>{counts.broken}</b><span>🛠️</span></div>
           <div><small>Vị trí lớp mình</small><b>{counts.occupied}</b><span>👨‍🎓</span></div>
-        </div>
+        </div>}
         <section className="panel portal-star-leaderboard portal-star-showcase" aria-label="Top 5 học sinh có nhiều sao nhất lớp">
           <div className="portal-rank-heading">
             <div><span className="portal-rank-eyebrow">🌟 BẢNG VÀNG LỚP MÌNH</span>
@@ -222,6 +229,7 @@ export function StudentPortal(){
             </article>;})}
           </div>
         </section>
+        {!classOnly&&<>
         <section className="panel">
           <div className="portal-section-title"><div><h2>📅 Lịch học sắp tới</h2><p className="muted">Ngày học, giờ vào lớp và số tiết của lớp mình.</p></div></div>
           <div className="table-wrap"><table><thead><tr><th>Ngày học</th><th>Giờ học</th><th>Số tiết</th></tr></thead><tbody>
@@ -250,14 +258,15 @@ export function StudentPortal(){
             {(student.attendance||[]).map((r,i)=><p key={i}>{date(r.session_date)}: {r.status==='absent'?'Vắng':r.status==='late'?'Đi trễ':r.status==='excused'?'Có phép':'Có mặt'}</p>)}
           </section>
         </>}
+        </>}
       </>}
-      <div className="portal-floating-actions" role="group" aria-label="Điều hướng trang lớp">
+      {!classOnly&&<div className="portal-floating-actions" role="group" aria-label="Điều hướng trang lớp">
         <button className="portal-float-action" type="button" aria-label="Tải lại dữ liệu lớp" title="Tải lại dữ liệu lớp"
           disabled={busy} onClick={()=>load()}>{busy?'…':'↻'}</button>
         <button className="portal-float-action" type="button" aria-label="Về đầu trang" title="Về đầu trang"
           onClick={()=>window.scrollTo({top:0,behavior:'smooth'})}>↑</button>
-      </div>
-      <footer className="portal-footer">IC3 GS6 · Học Tin học thật vui 🌟</footer>
+      </div>}
+      {!classOnly&&<footer className="portal-footer">IC3 GS6 · Học Tin học thật vui 🌟</footer>}
     </main>
   </div>;
 }

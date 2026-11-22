@@ -30,7 +30,7 @@ test('school cards have only one student portal action, no code, register or cop
  assert.match(card,/Vào trang lớp/);
  assert.match(card,/school-class-open--solo/);
  assert.doesNotMatch(card,/Sao chép|class-code|Đăng ký vào lớp|registerLink|onCopy|<button/);
- assert.match(school,/\{initialCode='',embedded=false\}/);
+ assert.match(school,/\{initialCode='',embedded=false,rankingsOnly=false\}/);
  assert.match(school,/if\(!embedded\)window\.history\.replaceState/);
  assert.match(school,/<a className="school-nav-rank"/);
  assert.ok(school.includes("grades.map(grade=><a"));

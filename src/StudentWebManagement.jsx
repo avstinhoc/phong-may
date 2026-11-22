@@ -1,5 +1,5 @@
 import React,{useEffect,useMemo,useState} from 'react';
-import {BookOpen,Gamepad2,Monitor,RefreshCw,ExternalLink,Save,Trash2,Plus,Image,ShieldCheck} from 'lucide-react';
+import {BookOpen,Gamepad2,Monitor,RefreshCw,ExternalLink,Save,Trash2,Plus,Image,ShieldCheck,UserRound,Check,X} from 'lucide-react';
 import {supabase} from './lib/supabase';
 import {LEVEL_1_LESSONS} from './learning/curriculum.js';
 import baseQuestions from './learning/quizCatalog.json';
@@ -15,6 +15,8 @@ export default function StudentWebManagement({profile,onNavigate}){
  const schoolId=profile?.school_id;
  const [tab,setTab]=useState('overview');
  const [devices,setDevices]=useState([]);
+ const [profileRequests,setProfileRequests]=useState([]);
+ const [reviewing,setReviewing]=useState(null);
  const [questions,setQuestions]=useState([]);
  const [draft,setDraft]=useState(blank);
  const [busy,setBusy]=useState(false);
@@ -26,14 +28,17 @@ export default function StudentWebManagement({profile,onNavigate}){
   if(!schoolId)return;
   setBusy(true);setError('');
   try{
-   const [devicesResult,questionResult]=await Promise.all([
+   const [devicesResult,questionResult,profilesResult]=await Promise.all([
     supabase.rpc('qlpm_teacher_student_web_devices',{p_school_id:schoolId}),
-    supabase.from('student_web_practice_questions').select('*').eq('school_id',schoolId).order('created_at',{ascending:false})
+    supabase.from('student_web_practice_questions').select('*').eq('school_id',schoolId).order('created_at',{ascending:false}),
+    supabase.rpc('qlpm_teacher_student_profile_requests',{p_school_id:schoolId})
    ]);
    if(devicesResult.error)throw devicesResult.error;
    if(questionResult.error)throw questionResult.error;
+   // Keep the existing teacher screens usable while the additive SQL migration is pending.
    setDevices(Array.isArray(devicesResult.data)?devicesResult.data:[]);
    setQuestions(Array.isArray(questionResult.data)?questionResult.data:[]);
+   setProfileRequests(Array.isArray(profilesResult.data)?profilesResult.data:[]);
   }catch(e){setError('Không tải được thông tin Student Web: '+(e.message||e));}
   finally{setBusy(false)}
  }
@@ -78,7 +83,21 @@ export default function StudentWebManagement({profile,onNavigate}){
    solution:row.solution,why:row.why,image_path:row.image_path||'',alt:row.alt||'',published:row.published});
   setTab('questions');document.getElementById('swm-editor')?.scrollIntoView({behavior:'smooth',block:'start'});
  }
- const tabs=[['overview','Tổng quan'],['devices','Tài khoản & PC'],['questions','Câu hỏi & hình ảnh'],['games','Trò chơi & bản đồ']];
+ async function reviewProfile(request,approve){
+  if(approve&&!window.confirm('Duyệt thay đổi họ tên, lớp, ngày sinh, giới tính và ảnh đại diện của '+request.student_name+'?'))return;
+  setReviewing(request.id);setError('');setMessage('');
+  try{
+   const {data,error:err}=await supabase.rpc('qlpm_teacher_review_student_profile',{
+    p_request_id:request.id,p_approve:approve
+   });
+   if(err)throw err;if(!data?.ok)throw Error('Không thể xử lý yêu cầu.');
+   setMessage(approve?'Đã duyệt hồ sơ học sinh.':'Đã từ chối yêu cầu cập nhật.');
+   await refreshData();
+  }catch(e){setError(e.message||String(e));}finally{setReviewing(null);}
+ }
+ const tabs=[['overview','Tổng quan'],['devices','Tài khoản & PC'],
+ ['profiles','Duyệt hồ sơ'+(profileRequests.length?' ('+profileRequests.length+')':'')],
+ ['questions','Câu hỏi & hình ảnh'],['games','Trò chơi & bản đồ']];
  return <section className="swm">
   <header className="swm-hero"><div>
    <small>PHƯN NGHỊCH · QUẢN LÝ HỌC SINH</small>
@@ -100,6 +119,7 @@ export default function StudentWebManagement({profile,onNavigate}){
     <article><Gamepad2/><strong>{WORLD_MAPS.length*WAVES_PER_WORLD}</strong><span>Ải chiến dịch trên 22 bản đồ</span></article>
    </div>
    <div className="swm-action-grid">
+    <button onClick={()=>setTab('profiles')}><UserRound/><strong>Duyệt hồ sơ học sinh</strong><span>{profileRequests.length} yêu cầu cập nhật đang chờ</span></button>
     <button onClick={()=>setTab('devices')}><Monitor/><strong>Kiểm tra PC và tài khoản</strong><span>{pendingPC} yêu cầu PC chưa được gán</span></button>
     <button onClick={()=>setTab('questions')}><BookOpen/><strong>Thêm câu hỏi bằng hình</strong><span>Biên tập, xem trước và xuất bản theo trường</span></button>
     <button onClick={()=>setTab('games')}><Gamepad2/><strong>Kiểm tra 22 bản đồ</strong><span>Xem tiến trình ải, bộ câu hỏi và trạng thái</span></button>
@@ -120,6 +140,31 @@ export default function StudentWebManagement({profile,onNavigate}){
    <p className="swm-info">Trạng thái này được lấy trực tiếp từ bảng gán PC và yêu cầu ghép đã duyệt. Nếu giáo viên vừa gán PC, học sinh chỉ cần chuyển tab rồi quay lại để đồng bộ.</p>
    <button onClick={()=>onNavigate('students')}>Đăng ký & duyệt tài khoản học sinh</button>
   </>}
+  {tab==='profiles'&&<section className="swm-profile-requests">
+    <div className="swm-section-head"><div><h2>Hồ sơ học sinh chờ duyệt</h2>
+      <p>Học sinh tự gửi ảnh đại diện, họ tên, lớp, ngày sinh và giới tính. Chỉ cập nhật dữ liệu thật sau khi giáo viên duyệt.</p></div>
+      <button disabled={busy||!!reviewing} onClick={refreshData}><RefreshCw size={16}/> Làm mới</button>
+    </div>
+    {!profileRequests.length&&<p className="swm-info">Chưa có yêu cầu thay đổi thông tin học sinh.</p>}
+    <div className="swm-profile-grid">{profileRequests.map(r=><article key={r.id} className="swm-profile-card">
+      <div className="swm-profile-pair">
+       {r.avatar_data?<img src={r.avatar_data} alt="Ảnh đại diện đang chờ duyệt"/>:<UserRound size={32}/>}
+       <div><strong>{r.student_name}</strong><small>Lớp hiện tại: {r.class_name}</small>
+        <small>Yêu cầu lúc {new Date(r.submitted_at).toLocaleString('vi-VN')}</small></div>
+      </div>
+      <div className="swm-profile-diff">
+       <span><b>Họ tên mới</b> {r.full_name}</span>
+       <span><b>Lớp mới</b> {r.new_class_name}</span>
+       <span><b>Ngày sinh</b> {r.date_of_birth?new Date(r.date_of_birth+'T00:00:00').toLocaleDateString('vi-VN'):'Chưa cập nhật'}</span>
+       <span><b>Giới tính</b> {r.gender||'Chưa cập nhật'}</span>
+      </div>
+      {!r.reviewable&&<p className="swm-info">Yêu cầu chuyển sang lớp khác giáo viên phụ trách cần quản trị viên duyệt.</p>}
+      <div className="swm-profile-actions">
+       <button disabled={!!reviewing||!r.reviewable} onClick={()=>reviewProfile(r,true)}><Check size={16}/> Duyệt</button>
+       <button disabled={!!reviewing||!r.reviewable} onClick={()=>reviewProfile(r,false)}><X size={16}/> Từ chối</button>
+      </div>
+     </article>)}</div>
+  </section>}
   {tab==='questions'&&<>
    <div className="swm-section-head"><div><h2>Ngân hàng câu hỏi & hình ảnh</h2>
     <p>{baseQuestions.length} câu hỏi nền, {published} câu bổ sung đã xuất bản, {questions.length-published} bản nháp của trường.</p></div>

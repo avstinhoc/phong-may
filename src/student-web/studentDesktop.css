@@ -117,3 +117,14 @@
  .student-profile-sidebar{padding:7px;justify-content:center;font-size:0;min-height:44px}
  .student-profile-sidebar svg{flex-shrink:0}
 }
+
+/* The bottom sidebar shortcut now owns account, device and PIN settings. */
+.student-profile-sidebar{align-items:center;gap:11px}
+.student-profile-sidebar span{display:grid;gap:3px;min-width:0}
+.student-profile-sidebar strong{font-size:13px;line-height:1.2}
+.student-profile-sidebar small{font-size:11px;color:#c4e2ee;overflow:hidden;text-overflow:ellipsis}
+.student-profile-sidebar.current{border-color:#8cf4d6;background:#217f90;box-shadow:inset 3px 0 #a5ffde}
+@media(max-width:800px){
+ .student-profile-sidebar span{display:none}
+ .student-profile-sidebar{margin:0;min-width:45px;width:45px;justify-content:center}
+}
