@@ -11,7 +11,7 @@ const Campaign=React.lazy(()=>import('./Campaign.jsx'));
 const SchoolPortal=React.lazy(()=>import('../SchoolPortal.jsx').then(m=>({default:m.SchoolPortal})));
 const StudentPortal=React.lazy(()=>import('../StudentPortal.jsx').then(m=>({default:m.StudentPortal})));
 const StudentProfile=React.lazy(()=>import('./StudentProfile.jsx'));
-const StudentCompetitionProfile=React.lazy(()=>import('./StudentCompetitionProfile.jsx'));
+import StudentCompetitionProfile from './StudentCompetitionProfile.jsx';
 import './studentDesktop.css';
 import {supabase} from '../lib/supabase';
 import './studentExtras.css';
