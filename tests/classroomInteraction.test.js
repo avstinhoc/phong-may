@@ -5,6 +5,7 @@ import {PGlite} from '@electric-sql/pglite';
 const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
 const sql=read('supabase/migrations/20261123041000_classroom_interaction.sql');
 const extension=read('supabase/migrations/20261123052000_classroom_unread_private_files.sql');
+const grants=read('supabase/migrations/20261123060000_classroom_attachment_service_role_grants.sql');
 const teacher='00000000-0000-0000-0000-000000000101',school='00000000-0000-0000-0000-000000000201';
 const cls='00000000-0000-0000-0000-000000000301',other='00000000-0000-0000-0000-000000000302';
 const student='00000000-0000-0000-0000-000000000401';
@@ -13,7 +14,7 @@ test('private classroom: teacher assignment, student submission, grading and ima
  const db=new PGlite();
  try{
   const init=[
-   'create role anon;create role authenticated;',
+   'create role anon;create role authenticated;create role service_role;',
    'create schema auth; create schema storage;',
    'create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);',
    "create function auth.uid() returns uuid language sql stable as $$select '"+teacher+"'::uuid$$;",
@@ -32,6 +33,14 @@ test('private classroom: teacher assignment, student submission, grading and ima
   await db.exec(init);
   await db.exec(sql);
   await db.exec(extension);
+  await db.exec(grants);
+  const roles=(await db.query(`select
+   has_function_privilege('service_role','public.qlpm_student_desktop_whoami(text)','EXECUTE') whoami,
+   has_table_privilege('service_role','public.students','SELECT') students,
+   has_table_privilege('service_role','public.classes','SELECT') classes,
+   has_table_privilege('service_role','public.qlpm_classroom_messages','SELECT,INSERT') messages,
+   has_table_privilege('anon','public.qlpm_classroom_messages','SELECT') anonymous_direct_read`)).rows[0];
+  assert.deepEqual(roles,{whoami:true,students:true,classes:true,messages:true,anonymous_direct_read:false});
   const ta=async(action,payload={},c=cls)=>(await db.query(
     'select public.qlpm_classroom_teacher_action($1,$2,$3,$4) as result',
     [school,c,action,JSON.stringify(payload)])).rows[0].result;
@@ -128,6 +137,9 @@ test('classroom files: JWT/student-session authentication, private signatures an
  assert.match(edge,/typeAllowed\(file,extension\)/);
  assert.match(edge,/file\.size>LIMIT/);
  assert.doesNotMatch(edge,/getPublicUrl\(/);
+ assert.match(edge,/if\(e\)\{[\s\S]*?return respond\(503,\{error:/);
+ assert.match(grants,/GRANT EXECUTE ON FUNCTION public\.qlpm_student_desktop_whoami\(text\)/);
+ assert.doesNotMatch(grants,/TO (anon|authenticated)/);
  assert.match(files,/clipboardData/);
  assert.match(files,/onChange|classroomUpload/);
  assert.match(files,/\.pdf/);

@@ -69,9 +69,18 @@ Deno.serve(async req=>{
   if(studentToken){
    if(studentToken.length>2048)return respond(401,{error:"Phiên học sinh không hợp lệ"},origin);
    const {data:who,error:e}=await admin.rpc("qlpm_student_desktop_whoami",{p_session_token:studentToken});
-   if(e||!who?.student_id)return respond(401,{error:"Phiên học sinh đã hết hạn"},origin);
-   const {data:student}=await admin.from("students").select("id,school_id,class_id,status")
+   if(e){
+    // A missing RPC GRANT is a server configuration problem, NOT an expired PIN session.
+    console.error("classroom session RPC failed",e.code||"unknown");
+    return respond(503,{error:"Máy chủ không xác minh được phiên học sinh. Vui lòng thử lại hoặc liên hệ quản trị."},origin);
+   }
+   if(!who?.student_id)return respond(401,{error:"Phiên học sinh đã hết hạn. Vui lòng đăng nhập lại."},origin);
+   const {data:student,error:studentError}=await admin.from("students").select("id,school_id,class_id,status")
      .eq("id",who.student_id).single();
+   if(studentError&&studentError.code==="42501"){
+    console.error("classroom student metadata permission denied");
+    return respond(503,{error:"Dịch vụ đang thiếu quyền kiểm tra tài khoản học sinh."},origin);
+   }
    if(!student||student.status!=="active"||student.school_id!==who.school_id||!student.class_id)
     return respond(403,{error:"Học sinh không còn thuộc lớp học hợp lệ"},origin);
    identity={kind:"student",id:student.id,classId:student.class_id,schoolId:student.school_id};
