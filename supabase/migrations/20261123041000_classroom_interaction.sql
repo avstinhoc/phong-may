@@ -303,3 +303,16 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION public.qlpm_classroom_student_action(text,text,jsonb) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.qlpm_classroom_student_action(text,text,jsonb) TO anon,authenticated;
+
+-- Lightweight unread counter for the teacher navigation badge and toast.
+CREATE OR REPLACE FUNCTION public.qlpm_classroom_teacher_unread(p_school_id uuid)
+RETURNS integer LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path TO '' AS $$
+BEGIN
+ IF auth.uid() IS NULL OR NOT public.can_access_school(p_school_id) THEN RETURN 0; END IF;
+ RETURN (SELECT count(*)::integer FROM public.qlpm_classroom_messages m
+  JOIN public.classes c ON c.id=m.class_id AND c.school_id=p_school_id
+  WHERE m.school_id=p_school_id AND m.sender_kind='student' AND m.read_at IS NULL
+    AND (c.created_by=auth.uid() OR public.is_admin()));
+END $$;
+REVOKE ALL ON FUNCTION public.qlpm_classroom_teacher_unread(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.qlpm_classroom_teacher_unread(uuid) TO authenticated;
