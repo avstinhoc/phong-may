@@ -5,7 +5,7 @@ import './studentProfile.css';
 
 const EMPTY={name:'',class_id:'',date_of_birth:'',gender:'',avatar_data:null};
 async function tinyAvatar(file){
- if(!file.type.startsWith('image/'))throw Error('Hãy chọn ảnh JPG, PNG hoặc WebP.');
+ if(!['image/jpeg','image/png','image/webp'].includes(file.type))throw Error('Hãy chọn ảnh JPG, PNG hoặc WebP.');
  if(file.size>5*1024*1024)throw Error('Ảnh cần nhỏ hơn 5 MB.');
  const src=URL.createObjectURL(file);
  try{
