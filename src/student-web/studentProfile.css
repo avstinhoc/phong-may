@@ -1,0 +1,49 @@
+.student-competition-profile{padding:23px 26px;border:1px solid #c5ecdf;border-radius:22px;background:linear-gradient(105deg,#eefff7,#f8fbff);color:#16495b}
+.student-competition-heading{display:flex;align-items:center;gap:17px;margin-bottom:24px}
+.student-competition-initial{width:64px;height:64px;border-radius:16px;display:grid;place-items:center;background:linear-gradient(140deg,#0f958f,#16819f);color:#fff;font-size:29px;font-weight:950}
+.student-competition-heading small,.qlpm-profile-heading small{color:#008b8a;font-weight:900;letter-spacing:.19em}
+.student-competition-heading h1,.qlpm-profile-heading h1{margin:5px 0 2px;color:#123c50;font-size:clamp(24px,2.5vw,33px)}
+.student-competition-heading p,.qlpm-profile-heading p{margin:0;color:#6b8a99}
+.student-competition-tiles{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:13px}
+.student-competition-tiles article{padding:18px 15px;background:white;border:1px solid #d1e4e7;border-radius:16px;min-width:0}
+.student-competition-tiles h2{font-size:13px;display:flex;align-items:center;gap:7px;margin:0 0 6px;color:#54798a}
+.student-competition-tiles h2 svg{color:#c68e0f}
+.student-competition-tiles article strong{display:block;font-size:29px;color:#0c5968;font-variant-numeric:tabular-nums}
+.student-competition-tiles article>span{font-size:12px;color:#7293a1}
+.qlpm-student-profile{max-width:1280px;margin:auto;color:#244b5e}
+.qlpm-profile-heading{display:flex;align-items:center;gap:17px;margin-bottom:23px}
+.qlpm-profile-avatar{width:84px;height:84px;flex:0 0 84px;border-radius:20px;background:#138f96;color:#fff;display:grid;place-items:center;overflow:hidden;font-size:36px;font-weight:900}
+.qlpm-profile-avatar img{width:100%;height:100%;object-fit:cover}
+.qlpm-profile-refresh{margin-left:auto;display:flex;align-items:center;gap:7px;border:1px solid #d5e7eb;border-radius:12px;background:#fff;color:#176e85;padding:10px}
+.qlpm-profile-columns{display:grid;grid-template-columns:1.2fr 1fr;gap:18px}
+.qlpm-profile-stack{display:flex;flex-direction:column;gap:18px}
+.qlpm-profile-panel{background:#fff;border:1px solid #d4e5eb;border-radius:18px;padding:22px;box-shadow:0 6px 22px #163f4b0a}
+.qlpm-profile-panel h2{font-size:20px;color:#194f67;margin:0 0 8px;display:flex;align-items:center;gap:9px}
+.qlpm-profile-panel p{color:#66818e;font-size:13px;line-height:1.6}
+.qlpm-profile-form{display:grid;gap:14px;margin-top:16px}
+.qlpm-profile-form>label,.qlpm-profile-photo-label{display:grid;gap:7px;color:#345e72;font-size:13px;font-weight:800}
+.qlpm-profile-form input,.qlpm-profile-form select{width:100%;min-height:44px;border:1px solid #bfcfd8;border-radius:10px;padding:9px 11px;color:#1d4859;background:#fff;font:inherit}
+.qlpm-profile-form input:disabled,.qlpm-profile-form select:disabled{background:#f3f6f7}
+.qlpm-profile-form button,.qlpm-profile-logout{display:flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:11px;min-height:44px;background:#0d8b94;color:#fff;font-weight:850;padding:10px 15px}
+.qlpm-profile-form button:disabled{cursor:not-allowed;opacity:.5}
+.qlpm-profile-photo-actions{position:relative;border:1px dashed #87b5bd;border-radius:10px;padding:13px;color:#147483;background:#effbfb;overflow:hidden}
+.qlpm-profile-photo-actions>span{display:flex;align-items:center;gap:8px}
+.qlpm-profile-photo-actions input{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer}
+.qlpm-profile-pc{display:block;font-size:23px;color:#067c91}
+.qlpm-profile-logout{background:#f0f6f8;border:1px solid #c7dbe2;color:#305e70}
+.qlpm-profile-alert{padding:13px 15px;border-radius:12px;font-size:13px;margin:11px 0}
+.qlpm-profile-alert.error{background:#fff1eb;color:#a34b33}
+.qlpm-profile-alert.success,.qlpm-profile-pending{background:#e6f8f0;color:#187e5c}
+.qlpm-profile-pending{padding:12px;border-radius:12px;display:flex;align-items:center;gap:9px;font-size:13px}
+.student-portal--class-only{background:transparent;min-height:0}
+.student-portal--class-only .portal-content{max-width:none;padding:0;background:transparent}
+.student-portal--class-only .portal-class-search{display:flex;flex-wrap:wrap;align-items:end;gap:12px;margin-bottom:16px}
+.student-portal--class-only .portal-class-search label{display:grid;gap:7px;flex:1 1 220px;font-weight:750}
+.student-portal--class-only .portal-class-search input{padding:10px 12px;border:1px solid #bcd2d8;border-radius:10px;min-height:42px;min-width:0}
+.student-portal--class-only .portal-class-search button{border:0;border-radius:10px;background:#178e90;color:#fff;padding:12px 17px;font-weight:800}
+.student-portal--class-only .portal-class-search output{flex:1 0 100%;color:#2e7182}
+.school-public-page--rankings{background:transparent;min-height:0}
+.school-public-page--rankings .school-public-main{max-width:none;padding:0}
+@media(max-width:1000px){.student-competition-tiles{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:850px){.qlpm-profile-columns{grid-template-columns:1fr}}
+@media(max-width:560px){.student-competition-profile{padding:17px}.student-competition-heading{gap:10px}.student-competition-initial{width:55px;height:55px}.student-competition-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}.student-competition-tiles article{padding:12px}.student-competition-tiles article strong{font-size:24px}.qlpm-profile-heading{flex-wrap:wrap}.qlpm-profile-refresh{margin-left:0}.qlpm-profile-avatar{width:65px;height:65px;flex-basis:65px}}
