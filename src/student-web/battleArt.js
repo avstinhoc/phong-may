@@ -63,6 +63,8 @@ export function heroArt(skin,gear=0){
  const level=Math.max(0,Math.min(5,Number(gear)||0));
  return {
   classId:skin.classId||'warrior',
+  style:skin.artStyle||'knight',
+  costumeId:skin.id,
   ...HERO_ART_CLASSES[skin.classId||'warrior'],
   armor:skin.outfit,
   luminous:skin.trim,
