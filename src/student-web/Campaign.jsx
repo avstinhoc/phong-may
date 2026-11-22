@@ -1,5 +1,5 @@
 import React,{useEffect,useRef,useState} from 'react';
-import {ArrowLeft,ArrowRight,CheckCircle2,Crown,Heart,Map as MapIcon,Maximize2,Minimize2,Shield,Shirt,Star,Swords} from 'lucide-react';
+import {ArrowLeft,ArrowRight,CheckCircle2,Crown,Heart,LockKeyhole,Map as MapIcon,Maximize2,Minimize2,Shield,Shirt,Star,Swords} from 'lucide-react';
 import {supabase} from '../lib/supabase';
 import {HERO_SKINS} from '../learning-arcade/PixelArt.jsx';
 import CostumeGallery from './CostumeGallery.jsx';
@@ -9,7 +9,7 @@ import BattleQuiz from './BattleQuiz.jsx';
 import {monsterArt,heroArt} from './battleArt.js';
 import {battleTheme,battleBackground} from './battleThemes.js';
 import {lessonTitle} from './Practice.jsx';
-import {WAVES_PER_WORLD,WORLD_MAPS,worldAt,waveAt} from './worldMap.js';
+import {WAVES_PER_WORLD,WORLD_MAPS,worldAt,waveAt,waveUnlocked} from './worldMap.js';
 import './campaignWorld.css';
 import './battleFX.css';
 import './battleCharacter.css';
@@ -34,16 +34,18 @@ function WorldMap({worldId,completed=[],currentWorld,currentWave,inBattle,select
    {world.waves.map((entry,i)=>{
     const at=i+1,done=completed.includes(at),
      active=inBattle&&worldId===currentWorld&&at===currentWave;
+    const unlocked=waveUnlocked(completed,at,active);
     return <button type="button" key={entry.name} onClick={()=>select(at)}
-     className={'cw-map-pin pin-'+at+(done?' finished':active?' active':'')}
+     disabled={!unlocked}
+     className={'cw-map-pin pin-'+at+(done?' finished':active?' active':'')+(!unlocked?' locked':'')}
      style={{left:[10,23,37,51,65,79,90][i]+'%',top:[79,66,72,51,56,35,16][i]+'%'}}
-     aria-label={'Vào ải '+at+' '+entry.name+(done?' · chơi lại':' · chơi mới')}
-     title={'Nhấn để '+(done?'chơi lại':'vào')+' ải '+at+' · '+entry.name}>
-     {done?<CheckCircle2 size={19}/>:at===WAVES_PER_WORLD?<Crown size={18}/>:<Swords size={18}/>}
+     aria-label={'Ải '+at+' '+entry.name+(done?' · đã chinh phục, chơi lại':unlocked?' · đã mở':' · chưa mở, cần hoàn thành ải '+(at-1))}
+     title={unlocked?'Nhấn để '+(done?'chơi lại':'vào')+' ải '+at:'Khóa: hoàn thành ải '+(at-1)+' để mở'}>
+     {!unlocked?<LockKeyhole size={19}/>:done?<CheckCircle2 size={19}/>:at===WAVES_PER_WORLD?<Crown size={18}/>:<Swords size={18}/>}
      <span>{at}</span>
     </button>;
    })}
-   <span className="cw-world-map-caption"><MapIcon size={15}/> Bản đồ {String(world.id).padStart(2,'0')} / 22 · Nhấn ải để chơi</span>
+   <span className="cw-world-map-caption"><MapIcon size={15}/> Bản đồ {String(world.id).padStart(2,'0')} / 22 · Vượt ải để mở khóa</span>
   </div>
  </div>;
 }
@@ -136,6 +138,9 @@ export default function Campaign({session}){
  const next=()=>{setFx(null);if(data?.in_battle)void call(data?.turn?'status':'next',{},'battle');else setView('world')};
  const enterEncounter=async(mapId,waveNumber)=>{
   if(busy)return;
+  const finished=data?.map_progress?.[String(mapId)];
+  const resuming=!!data?.in_battle&&Number(data?.stage)===mapId&&Number(data?.wave)===waveNumber;
+  if(!waveUnlocked(finished,waveNumber,resuming))return;
   const different=data?.in_battle&&(Number(data.stage)!==mapId||Number(data.wave)!==waveNumber);
   if(different&&!window.confirm('Đang trong trận! Chuyển sang ải khác sẽ trừ tối đa 200 điểm chiến đấu (không trừ sao). Tiếp tục?'))return;
   setFx(null);
@@ -253,26 +258,30 @@ export default function Campaign({session}){
     <div className="cw-banner-boss" aria-hidden="true"><span>🐉</span><small>THỬ THÁCH CUỐI</small></div>
    </div>
    <ArenaTop><div><small>BẢN ĐỒ PHIÊU LƯU</small><h2>Khám phá từng ải</h2>
-    <p>Cả 22 bản đồ đều mở. Nhấn trực tiếp một ải trên bản đồ để chơi hoặc chơi lại bất cứ lúc nào.</p></div></ArenaTop>
+    <p>Cả 22 bản đồ đều mở. Mỗi bản đồ bắt đầu từ ải 1, thắng ải trước mới mở ải tiếp theo. Ải đã qua có thể chơi lại.</p></div></ArenaTop>
    <div className="cw-world-layout" ref={mapSection}><WorldMap worldId={mapId} completed={completedFor(mapId)}
       currentWorld={currentId} currentWave={wave} inBattle={!!data.in_battle} select={selected=>enterEncounter(mapId,selected)}/>
     <div className="cw-wave-panel"><div className="cw-world-progress">
-     <small>{completedFor(mapId).length===7?'HOÀN THÀNH · CÓ THỂ CHƠI LẠI':'BẢN ĐỒ ĐÃ MỞ · CHỌN BẤT KỲ ẢI'}</small>
+     <small>{completedFor(mapId).length===7?'HOÀN THÀNH · CÓ THỂ CHƠI LẠI':'BẢN ĐỒ ĐÃ MỞ · CHINH PHỤC THEO THỨ TỰ'}</small>
      <strong>{preview.title}</strong><span>{mapId} / 22</span></div>
      <div className="cw-wave-list">{preview.waves.map((m,i)=>{
       const w=i+1,done=completedFor(mapId).includes(w);
       const active=!!data.in_battle&&mapId===currentId&&w===wave;
+      const unlocked=waveUnlocked(completedFor(mapId),w,active);
       return <button type="button" key={m.name} onClick={()=>setSelectedWave(w)}
-       className={'cw-wave-row'+(active?' active':'')+(selectedWave===w?' chosen':'')}>
-       <span className="cw-wave-step">{done?<CheckCircle2 size={18}/>:w===WAVES_PER_WORLD?<Crown size={19}/>:w}</span>
-       <span><small>ẢI {w} · {m.tier}</small><strong>{m.name}</strong><em>{m.hint}</em></span>
-       {done?<CheckCircle2 color="#1cae99" size={20}/>:<Swords size={19}/>}
+       disabled={!unlocked}
+       aria-label={'Ải '+w+' '+m.name+(unlocked?' đã mở':' chưa mở')}
+       className={'cw-wave-row'+(active?' active':'')+(selectedWave===w?' chosen':'')+(!unlocked?' locked':'')}>
+       <span className="cw-wave-step">{!unlocked?<LockKeyhole size={18}/>:done?<CheckCircle2 size={18}/>:w===WAVES_PER_WORLD?<Crown size={19}/>:w}</span>
+       <span><small>ẢI {w} · {m.tier}</small><strong>{m.name}</strong>
+        <em>{!unlocked?'Hoàn thành ải '+(w-1)+' để mở':done?'Đã chinh phục · có thể chơi lại':m.hint}</em></span>
+       {!unlocked?<LockKeyhole size={18}/>:done?<CheckCircle2 color="#1cae99" size={20}/>:<Swords size={19}/>}
       </button>;
      })}</div>
      <div className="cw-wave-selected"><strong>Đang xem: {selectedEncounter.name}</strong>
       <small>{selectedEncounter.hint}</small></div>
-     <button type="button" className="cw-primary" disabled={busy||!!error} onClick={()=>enterEncounter(mapId,previewWave)}>
-      <Swords size={20}/> {busy?'Đang mở…':completedFor(mapId).includes(previewWave)?'Chơi lại ải '+previewWave:'Vào ải '+previewWave} <ArrowRight size={19}/></button>
+     <button type="button" className="cw-primary" disabled={busy||!!error||!waveUnlocked(completedFor(mapId),previewWave,!!data.in_battle&&mapId===currentId&&previewWave===wave)} onClick={()=>enterEncounter(mapId,previewWave)}>
+      <Swords size={20}/> {busy?'Đang mở…':!waveUnlocked(completedFor(mapId),previewWave,!!data.in_battle&&mapId===currentId&&previewWave===wave)?'Ải '+previewWave+' chưa mở':completedFor(mapId).includes(previewWave)?'Chơi lại ải '+previewWave:'Vào ải '+previewWave} <ArrowRight size={19}/></button>
      <p className="cw-risk-note">Rời trận: −200 điểm chiến đấu · Hết 3 tim: về 0 điểm · Không trừ sao hay thưởng giáo viên.</p>
     </div>
    </div>
