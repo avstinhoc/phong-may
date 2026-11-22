@@ -269,7 +269,7 @@ function App() {
             ["QUẢN LÝ", ["workplaces", "schools", "finance", "reports", "accounts"]]].map(([group, ids]) => <React.Fragment key={group}>
             <div className="nav-label">{group}</div>
             <ChevronRight size={17} className="profile-chevron"/>
-            {ids.map(id => nav.find(n => n[0] === id)).filter(([id]) => id!=="accounts" || profile.role === "admin").map(([id,label,Icon]) => <button key={id} className={`nav-item ${page === id ? "active" : ""}`} onClick={()=>{setPage(id);setMobileNav(false);}}><Icon size={18}/>{label}{id==="classroom"&&classroomUnread>0&&<span className="classroom-global-badge">{classroomUnread>99?"99+":classroomUnread}</span>}</button>)}
+            {ids.map(id => nav.find(n => n[0] === id)).filter(([id]) => id!=="accounts" || profile.role === "admin").map(([id,label,Icon]) => <button key={id} className={`nav-item ${page === id ? "active" : ""}`} onClick={()=>{setPage(id);setMobileNav(false);if(id==='classroom')setClassroomToast('');}}><Icon size={18}/>{label}{id==="classroom"&&classroomUnread>0&&<span className="classroom-global-badge">{classroomUnread>99?"99+":classroomUnread}</span>}</button>)}
           </React.Fragment>)}
         </nav>
         <div className="sidebar-bottom">
