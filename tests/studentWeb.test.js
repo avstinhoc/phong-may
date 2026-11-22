@@ -39,7 +39,8 @@ test('Student Web SQL restricts credentials; reused school leaderboard is author
  assert.match(sql,/extensions\.crypt\(p_pin/);
  assert.match(sql,/failed_attempts/);
  assert.match(sql,/qlpm_teacher_student_web_approve/);
- assert.match(web,/StudentLeaderboard/);
+ assert.match(web,/SchoolPortal initialCode=\{lastCode\} embedded rankingsOnly/);
+ assert.match(web,/StudentPortal initialCode=\{lastCode\} classOnly/);
  assert.doesNotMatch(web,/<iframe/);
  assert.doesNotMatch(web,/student-desktop-header/);
  assert.doesNotMatch(web,/DesktopLeaderboard/);
@@ -66,7 +67,7 @@ test('Approved old-style registrations synchronize uniquely and teacher may secu
 
 test('Student Web removes duplicate page shells and resolves school PC safely',()=>{
  const student=read('src/student-web/StudentWeb.jsx');
- const ranking=read('src/student-web/StudentLeaderboard.jsx');
+ const ranking=read('src/SchoolPortal.jsx');
  const sql=read('supabase/migrations/20261121230000_student_web_pc_resolution.sql');
  const teacher=read('src/StudentWebManagement.jsx');
  assert.match(student,/refreshStudent/);
@@ -74,6 +75,7 @@ test('Student Web removes duplicate page shells and resolves school PC safely',(
  assert.match(student,/StudentLeaderboard/);
  assert.doesNotMatch(student,/<iframe/);
  assert.match(ranking,/ic3_school_public_portal/);
+ assert.match(ranking,/rankingsOnly/);
  assert.match(sql,/computer_assignments/);
  assert.match(sql,/a\.active=true and a\.released_at is null/);
  assert.match(sql,/can_access_school/);
@@ -89,4 +91,26 @@ test('Practice expands source-backed questions and supports teacher-published vi
  assert.match(practice,/QuestionPhoto/);
  assert.match(sql,/enable row level security/);
  assert.match(sql,/published=true/);
+});
+
+test('Student Web has teacher-approved profile changes and self-service secure PIN',()=>{
+ const student=read('src/student-web/StudentWeb.jsx');
+ const profile=read('src/student-web/StudentProfile.jsx');
+ const teacher=read('src/StudentWebManagement.jsx');
+ const migration=read('supabase/migrations/20261123123000_student_profile_review_pin_competition.sql');
+ const hero=read('src/student-web/StudentCompetitionProfile.jsx');
+ assert.match(student,/BXH trường, khối/);
+ assert.match(student,/BXH lớp/);
+ assert.match(student,/StudentCompetitionProfile/);
+ assert.doesNotMatch(student,/title:'Thiết bị & cài đặt'/);
+ assert.match(profile,/qlpm_student_web_submit_profile/);
+ assert.match(profile,/qlpm_student_web_change_pin/);
+ assert.match(profile,/qlpm_student_desktop_request_pc/);
+ assert.match(teacher,/qlpm_teacher_review_student_profile/);
+ assert.match(teacher,/Duyệt hồ sơ/);
+ assert.match(migration,/enable row level security/);
+ assert.match(migration,/revoke all on public\.qlpm_student_profile_data/);
+ assert.match(migration,/extensions\.crypt\(p_new_pin/);
+ assert.match(migration,/revoked_at=now\(\)/);
+ assert.match(hero,/qlpm_student_web_competition/);
 });
