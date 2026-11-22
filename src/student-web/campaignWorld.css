@@ -188,3 +188,17 @@
 .cw-game .cw-world-card.selected{border-color:#15b69c!important}
 .cw-wave-row.chosen{outline:3px solid #efcb71;outline-offset:1px}
 @media(max-width:650px){.cw-risk-note{font-size:11px!important}.cw-map-pin{touch-action:manipulation}}
+
+/* Locked encounter: every map offers wave 1, later waves require prior victory. */
+.cw-game .cw-map-pin.locked,.cw-game .cw-map-pin.locked:disabled{
+ background:linear-gradient(150deg,#d2dbe1,#9ba9b4);border-color:#6d8090;
+ color:#405365;box-shadow:0 3px 0 #425360,0 8px 20px #0c283950;
+ opacity:.82;filter:saturate(.38);cursor:not-allowed;animation:none
+}
+.cw-game .cw-map-pin.locked:hover{transform:translate(-50%,-50%)}
+.cw-game .cw-wave-row.locked,.cw-game .cw-wave-row.locked:disabled{
+ background:#edf1f4;border-color:#d6dfe5;color:#708391;opacity:.85;
+ cursor:not-allowed;box-shadow:none
+}
+.cw-game .cw-wave-row.locked .cw-wave-step{background:#dce3e8;color:#637887}
+.cw-game .cw-wave-row.locked em{color:#8c6b45;font-weight:750}
