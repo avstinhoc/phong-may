@@ -145,3 +145,18 @@ test('classroom files: JWT/student-session authentication, private signatures an
  assert.match(files,/\.pdf/);
  assert.match(extension,/VALUES\('qlpm-classroom-private','qlpm-classroom-private',false/);
 });
+
+test('teacher classroom student search filters instantly by accented or unaccented names',async()=>{
+ const {classroomNameKey,filterClassroomStudents}=await import('../src/classroom/classroomUtils.js');
+ const students=[{id:'a',name:'Nguyễn Hoài An'},{id:'b',name:'Đức Phương'},{id:'c',name:'Trọng Nghĩa'}];
+ assert.equal(classroomNameKey('  ĐỨC   PHƯƠNG '),'duc phuong');
+ assert.deepEqual(filterClassroomStudents(students,'duc phuong').map(s=>s.id),['b']);
+ assert.deepEqual(filterClassroomStudents(students,'NGUYEN HOAI').map(s=>s.id),['a']);
+ assert.deepEqual(filterClassroomStudents(students,'Nghĩa').map(s=>s.id),['c']);
+ assert.equal(filterClassroomStudents(students,'không có').length,0);
+ assert.equal(filterClassroomStudents(students,'').length,3);
+ const teacher=read('src/TeacherClassroom.jsx');
+ assert.match(teacher,/classroom-contact-toolbar/);
+ assert.match(teacher,/visibleStudents\.map/);
+ assert.match(teacher,/type="search"/);
+});
