@@ -1,6 +1,6 @@
 import {namePairs} from './lib/namePairs';
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { supabase, configurationError, authMessage, isEmailSendLimit } from "./lib/supabase";
 import { SchoolManager, Accounts, TimetableImport } from "./Management";
 import { WorkplaceManager } from "./WorkplaceManager";
@@ -10,6 +10,7 @@ import { StudentPortal } from "./StudentPortal";
 import { SchoolPortal } from "./SchoolPortal";
 import { TeacherSchoolLeaderboard } from "./TeacherSchoolLeaderboard";
 import StudentWebManagement from "./StudentWebManagement";
+import TeacherClassroom from "./TeacherClassroom";
 import { StudentRewardManagement } from "./StudentRewardManagement";
 import { StudentPicker } from "./StudentPicker";
 import { RecordCorrectionEditor } from "./RecordCorrectionEditor";
@@ -38,7 +39,7 @@ import * as XLSX from "xlsx";
 import {
   LayoutDashboard, Users, Monitor, ClipboardList, CalendarDays, Wallet,
   Award, Sparkles, Settings, LogOut, Plus, Search, Download, RefreshCw,
-  CheckCircle2, Clock3, AlertTriangle, School, Menu, X, UserPlus,
+  CheckCircle2, Clock3, AlertTriangle, School, Menu, X, UserPlus, MessageCircle, Bell,
   ShieldCheck, Trash2, FileSpreadsheet, ClipboardCheck, FileText,
   ChevronLeft, ChevronRight, Printer, UserCheck, UserRound, Building2, Trophy, Star, KeyRound
 } from "lucide-react";
@@ -54,6 +55,7 @@ const nav = [
   ["student_rewards", "Quản lý sao & vi phạm", Star],
   ["leaderboard", "Bảng xếp hạng", Trophy],
   ["student_web", "Quản lý Student Web", Monitor],
+  ["classroom", "Lớp học tương tác", MessageCircle],
   ["cleaning", "Vệ sinh máy", ClipboardCheck],
   ["finance", "Chấm công & tiền công", Clock3],
   ["evaluation", "Đánh giá học sinh", Sparkles],
@@ -100,6 +102,26 @@ function App() {
   const [mobileNav, setMobileNav] = useState(false);
   const [manualRefresh,setManualRefresh]=useState(0);
   const [refresh, setRefresh] = useState(0);
+  const [classroomUnread,setClassroomUnread]=useState(0);
+  const [classroomToast,setClassroomToast]=useState('');
+  const classroomLast=useRef(null);
+  useEffect(()=>{
+    if(!session?.user||!schoolId||!supabase){setClassroomUnread(0);classroomLast.current=null;return;}
+    let live=true;
+    const check=async()=>{
+      if(document.hidden)return;
+      const {data,error}=await supabase.rpc('qlpm_classroom_teacher_unread',{p_school_id:schoolId});
+      if(error||!live)return;
+      const next=Number(data||0);
+      if(classroomLast.current!==null&&next>classroomLast.current){
+        setClassroomToast('Có tin nhắn mới từ học sinh!');
+      }
+      classroomLast.current=next;setClassroomUnread(next);
+    };
+    void check();
+    const timer=window.setInterval(check,18000);
+    return()=>{live=false;window.clearInterval(timer)}
+  },[session?.user?.id,schoolId]);
   useEffect(()=>{
     try{sessionStorage.setItem('qlpm.page',page);sessionStorage.setItem('qlpm.schoolId',schoolId);}catch{}
   },[page,schoolId]);
@@ -241,13 +263,13 @@ function App() {
            </select>
         </div>
         <nav className="nav-scroll" aria-label="Menu chính">
-          {[["GIẢNG DẠY", ["dashboard", "attendance", "rollcall", "roster", "records", "student_rewards", "evaluation"]],
+          {[["GIẢNG DẠY", ["dashboard", "attendance", "rollcall", "roster", "records", "student_rewards", "classroom", "evaluation"]],
             ["PHÒNG MÁY", ["computers", "students", "settings", "leaderboard", "cleaning"]],
             ["ỨNG DỤNG HỌC SINH", ["student_web"]],
             ["QUẢN LÝ", ["workplaces", "schools", "finance", "reports", "accounts"]]].map(([group, ids]) => <React.Fragment key={group}>
             <div className="nav-label">{group}</div>
             <ChevronRight size={17} className="profile-chevron"/>
-            {ids.map(id => nav.find(n => n[0] === id)).filter(([id]) => id!=="accounts" || profile.role === "admin").map(([id,label,Icon]) => <button key={id} className={`nav-item ${page === id ? "active" : ""}`} onClick={()=>{setPage(id);setMobileNav(false);}}><Icon size={18}/>{label}</button>)}
+            {ids.map(id => nav.find(n => n[0] === id)).filter(([id]) => id!=="accounts" || profile.role === "admin").map(([id,label,Icon]) => <button key={id} className={`nav-item ${page === id ? "active" : ""}`} onClick={()=>{setPage(id);setMobileNav(false);if(id==='classroom')setClassroomToast('');}}><Icon size={18}/>{label}{id==="classroom"&&classroomUnread>0&&<span className="classroom-global-badge">{classroomUnread>99?"99+":classroomUnread}</span>}</button>)}
           </React.Fragment>)}
         </nav>
         <div className="sidebar-bottom">
@@ -277,6 +299,9 @@ function App() {
         </header>
 
         {notice && <div className="toast"><CheckCircle2 size={17} />{notice}</div>}
+        {classroomToast&&page!=='classroom'&&<button className="classroom-global-toast"
+          onClick={()=>{setPage('classroom');setClassroomToast('')}}><Bell size={18}/>
+          {classroomToast} · Xem ngay</button>}
 
         <div className="content" key={(["workplaces","schools","settings","finance","reports","accounts","personal"].includes(page)?page:schoolId)+':'+page}>
           {page === "schools" && <SchoolManager
@@ -303,6 +328,7 @@ function App() {
           {page === "student_rewards" && isTeacher && <StudentRewardManagement profile={profile} refresh={refresh} onNavigate={setPage} />}
           {page === "leaderboard" && <TeacherSchoolLeaderboard profile={profile} refresh={refresh} onNavigate={setPage} />}
           {page === "student_web" && isTeacher && <StudentWebManagement profile={profile} onNavigate={setPage} />}
+          {page === "classroom" && isTeacher && <TeacherClassroom profile={profile} />}
           {page === "cleaning" && isTeacher && <Cleaning profile={profile} refresh={refresh} reload={reload} ping={ping} />}
           {page === "evaluation" && <StudentEvaluation profile={profile} refresh={refresh} reload={reload} ping={ping} />}
           </>}

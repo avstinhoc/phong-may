@@ -1451,3 +1451,6 @@
 .history-scroll .record-row strong{margin-left:0;flex:none}
 .history-scroll .record-row .record-correction-edit-button{flex:none}
 @media(max-width:620px){.record-filter-bar>.student-picker{width:100%;min-width:0;max-width:none}.record-filter-bar>.field-inline{flex:1 1 100%;max-width:none}.record-history-heading{align-items:flex-start}.history-scroll .record-row{flex-wrap:wrap}}
+
+.classroom-global-badge{margin-left:auto;border-radius:99px;background:#f0644d;color:#fff;font-size:11px;min-width:19px;height:19px;padding:0 5px;display:inline-grid;place-items:center;font-weight:950}
+.classroom-global-toast{position:fixed;top:85px;right:22px;z-index:999;display:flex;align-items:center;gap:9px;border:1px solid #5dcdb3;background:#edfff6;border-radius:13px;box-shadow:0 10px 27px #133e5140;color:#096c68;padding:14px 18px;cursor:pointer;font-size:14px;font-weight:900;max-width:calc(100vw - 34px)}
