@@ -197,7 +197,7 @@ export default function TeacherClassroom({profile}){
   {!loading&&tab==='messages'&&<div className="classroom-teacher-chat">
    <aside className="classroom-contacts"><h3><MessageCircle size={19}/> Học sinh trong lớp</h3>
     {students.map(st=><button key={st.id} type="button" className={studentId===st.id?'selected':''}
-      onClick={()=>setStudentId(st.id)}>{st.name}
+      onClick={()=>{setStudentId(st.id);setText('');setImage(null)}}>{st.name}
       {(feed.messages||[]).some(m=>m.student_id===st.id&&m.sender_kind==='student'&&!m.read_at)&&<strong>●</strong>}
      </button>)}
    </aside>
