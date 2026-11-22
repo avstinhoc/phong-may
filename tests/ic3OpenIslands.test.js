@@ -21,7 +21,7 @@ test('154 waves selectable; replay, retreat, death and star awards are server-co
    'alter table ic3_arcade_player add wave integer not null default 1,add wave_hp integer not null default 0,add settled_turn uuid,add settled_result jsonb;',
    'alter table ic3_arcade_questions add concept text,add media text,add media_title text;',
    'update ic3_arcade_questions set concept=id;',
-   "create function ic3_pick(sid uuid,school uuid,stage int,p_excluded text[],practice boolean) returns jsonb language sql as $$select to_jsonb(q) from ic3_arcade_questions q where q.lesson=stage and not (q.concept=any(p_excluded)) order by q.id limit 1$$;",
+   "create function ic3_pick(sid uuid,school uuid,stage int,p_excluded text[],practice boolean) returns jsonb language sql as $$select to_jsonb(q) from public.ic3_arcade_questions q where q.lesson=stage and not (q.concept=any(p_excluded)) order by q.id limit 1$$;",
    "insert into ic3_arcade_player(student_id,stage,cleared,wave,wave_hp) values('"+sid+"',3,2,4,0);"
   ].join('\n'));
   await db.exec(read('supabase/migrations/20261123020000_ic3_arcade_open_islands_cosmetics.sql'));
