@@ -25,11 +25,16 @@ async function callPush(body,studentToken){
  if(data?.error)throw Error(data.error);
  return data;
 }
-export async function isWebPushSubscribed(){
+export async function isWebPushSubscribed(studentToken=null){
  if(!webPushSupported()||Notification.permission!=='granted')return false;
  const registration=await navigator.serviceWorker.getRegistration('/');
  if(!registration)return false;
- return Boolean(await registration.pushManager.getSubscription());
+ const current=await registration.pushManager.getSubscription();
+ if(!current)return false;
+ try{
+  const result=await callPush({action:'status',endpoint:current.endpoint},studentToken);
+  return result?.enabled===true;
+ }catch{return false}
 }
 export async function enableClassroomWebPush(studentToken=null){
  if(!webPushSupported())throw Error(
