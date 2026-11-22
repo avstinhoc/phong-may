@@ -24,6 +24,39 @@ HERO_SKINS.push(...[
  ['legend-nyra','Nyra – Trượng Tinh Vân',8],['legend-bron','Bron – Búa Đồng Hồ',3]
 ].map(([id,name,base],i)=>({...HERO_SKINS[base],id,name,art:8+i})));
 HERO_SKINS.push(...['Nguyệt Ảnh','San Hô','Lôi Cổ','Nhật Lan'].map((name,i)=>({...HERO_SKINS[[2,9,3,0][i]],id:'astral-'+i,name,art:16+i,job:['Song đao','Hải pháp sư','Tay trống sấm','Thương sĩ'][i]})));
+// Twelve entirely new character silhouettes rather than palette-swapped copies.
+// All art is locally rendered by the Canvas hero renderer: no external assets.
+export const HERO_FASHION_COLLECTION=[
+ {id:'aster-astronaut',name:'Aster · Phi Hành Gia',classId:'warrior',job:'Phi hành gia',artStyle:'astronaut',
+   hair:'#374d69',trim:'#99f9f7',outfit:'#e1edf5',skin:'#e7b08c',hairStyle:3},
+ {id:'kaito-samurai',name:'Kaito · Kiếm Khách',classId:'warrior',job:'Samurai',artStyle:'samurai',
+   hair:'#252b36',trim:'#f6c76b',outfit:'#8a3950',skin:'#edbb99',hairStyle:1},
+ {id:'lyra-bard',name:'Lyra · Nhạc Công',classId:'archer',job:'Nhạc công',artStyle:'bard',
+   hair:'#db9d53',trim:'#ffdfa5',outfit:'#7050a5',skin:'#f3c6a6',hairStyle:5},
+ {id:'brass-tinkerer',name:'Brass · Kỹ Sư Cơ Khí',classId:'archer',job:'Kỹ sư cơ khí',artStyle:'mechanic',
+   hair:'#663d30',trim:'#ffd28a',outfit:'#73654d',skin:'#dca17c',hairStyle:7},
+ {id:'selene-witch',name:'Selene · Phù Thủy',classId:'mage',job:'Phù thủy',artStyle:'witch',
+   hair:'#543b84',trim:'#e2b3ff',outfit:'#513e92',skin:'#e5b59d',hairStyle:10},
+ {id:'solstice-paladin',name:'Solstice · Hộ Vệ',classId:'warrior',job:'Thánh kỵ sĩ',artStyle:'paladin',
+   hair:'#ecce96',trim:'#ffe999',outfit:'#c6d8e2',skin:'#e4bb9a',hairStyle:4},
+ {id:'ren-ninja',name:'Ren · Ảnh Nhẫn',classId:'archer',job:'Ninja',artStyle:'ninja',
+   hair:'#243442',trim:'#9edcf1',outfit:'#273752',skin:'#d8a181',hairStyle:6},
+ {id:'ori-druid',name:'Ori · Thần Rừng',classId:'mage',job:'Druid',artStyle:'druid',
+   hair:'#285e45',trim:'#b9f6a2',outfit:'#54886f',skin:'#c7a17a',hairStyle:2},
+ {id:'mira-pirate',name:'Mira · Thuyền Trưởng',classId:'warrior',job:'Hải tặc',artStyle:'pirate',
+   hair:'#5e3c35',trim:'#ffdaa0',outfit:'#36577c',skin:'#e0a98b',hairStyle:8},
+ {id:'volt-cyber',name:'Volt · Chiến Binh Số',classId:'archer',job:'Robot tương lai',artStyle:'cyber',
+   hair:'#203c54',trim:'#73fff0',outfit:'#2e6987',skin:'#d3b8a5',hairStyle:9},
+ {id:'nova-dragon',name:'Nova · Long Kỵ',classId:'warrior',job:'Kỵ sĩ rồng',artStyle:'dragon',
+   hair:'#9c4f39',trim:'#ffb578',outfit:'#a74347',skin:'#e8aa8a',hairStyle:11},
+ {id:'freya-frost',name:'Freya · Nữ Hoàng Băng',classId:'mage',job:'Pháp sư băng',artStyle:'frost',
+   hair:'#a2deea',trim:'#e2faff',outfit:'#5489b9',skin:'#f4c7b5',hairStyle:8}
+];
+HERO_SKINS.push(...HERO_FASHION_COLLECTION);
+const LEGACY_COSTUME_STYLES=['knight','royal','ninja','mechanic','druid','sky','bard','pirate',
+ 'witch','frost','cyber','royal','paladin','druid','witch','mechanic','ninja','aquatic',
+ 'bard','dragon'];
+HERO_SKINS.forEach((skin,i)=>{skin.artStyle||=(LEGACY_COSTUME_STYLES[i]||'knight')});
 export const DEFAULT_HERO_SKIN='warrior-aqua';
 export const skinById=id=>HERO_SKINS.find(s=>s.id===id)||HERO_SKINS[0];
 const D='#222c4d',P='#fff8e7';
