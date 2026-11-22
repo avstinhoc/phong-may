@@ -115,3 +115,17 @@ test('Student Web has teacher-approved profile changes and self-service secure P
  assert.match(migration,/revoked_at=now\(\)/);
  assert.match(hero,/qlpm_student_web_competition/);
 });
+
+
+test('Teacher-approved PC transfers retain historical seats and reject unavailable PCs',()=>{
+ const sql=read('supabase/migrations/20261123123500_student_pc_transfer_on_approval.sql');
+ assert.match(sql,/public\.qlpm_teacher_review_pc_request/);
+ assert.match(sql,/public\.can_access_school\(req\.school_id\)/);
+ assert.match(sql,/pc\.status in \('broken','maintenance'\)/);
+ assert.match(sql,/occupied>=pc\.capacity/);
+ assert.match(sql,/active=false,released_at=now\(\)/);
+ assert.match(sql,/computer_id<>pc\.id/);
+ assert.match(sql,/insert into public\.computer_assignments/);
+ assert.match(sql,/case when p_approve then 'approved' else 'rejected' end/);
+ assert.doesNotMatch(sql,/delete from public\.computer_assignments/i);
+});
