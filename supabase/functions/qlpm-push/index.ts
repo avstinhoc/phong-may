@@ -156,13 +156,22 @@ Deno.serve(async req=>{
    const {data:profile}=await admin.from("profiles").select("role,is_active")
     .eq("id",user.id).maybeSingle();
    if(!profile||profile.is_active===false||
-      !["teacher","admin","giaovien","giaovien","giáo viên"].includes(String(profile.role).toLowerCase()))
+      !["teacher","admin","staff"].includes(String(profile.role).toLowerCase()))
      return response(403,{error:"Tài khoản không có quyền giáo viên"},origin);
    identity={kind:"teacher",id:user.id};
   }
 
   const endpoint=String(data?.subscription?.endpoint||data?.endpoint||"");
   if(!safeEndpoint(endpoint))return response(400,{error:"Địa chỉ dịch vụ Push không hợp lệ"},origin);
+  if(action==="status"){
+   const {data:existing,error:e}=await admin.from("qlpm_push_subscriptions")
+    .select("owner_kind,student_id,teacher_id")
+    .eq("endpoint",endpoint).maybeSingle();
+   if(e)return response(503,{error:"Không đọc được trạng thái đăng ký"},origin);
+   const enabled=!!existing&&existing.owner_kind===identity.kind&&
+     (identity.kind==="student"?existing.student_id===identity.id:existing.teacher_id===identity.id);
+   return response(200,{enabled},origin);
+  }
   if(action==="unsubscribe"){
    const where=admin.from("qlpm_push_subscriptions").delete().eq("endpoint",endpoint);
    if(identity.kind==="student")await where.eq("owner_kind","student").eq("student_id",identity.id);
