@@ -1,7 +1,7 @@
 import React,{useCallback,useEffect,useState,useRef} from 'react';
-import {Bell,BookOpen,ClipboardList,MessageCircle,Send,Plus,Trash2,RefreshCw,Paperclip,X,CheckCircle2,AlertCircle,GraduationCap,Clock,FileText} from 'lucide-react';
+import {Bell,BookOpen,ClipboardList,MessageCircle,Send,Plus,Trash2,RefreshCw,Paperclip,X,CheckCircle2,AlertCircle,GraduationCap,Clock,FileText,Search} from 'lucide-react';
 import {supabase} from './lib/supabase.js';
-import {classroomDate,classroomRelative,classroomBlankQuiz} from './classroom/classroomUtils.js';
+import {classroomDate,classroomRelative,classroomBlankQuiz,filterClassroomStudents} from './classroom/classroomUtils.js';
 import {CLASSROOM_FILE_ACCEPT,checkClassroomAttachment,clipboardClassroomFile,classroomUpload,ClassroomAttachment,ClassroomDraftAttachment} from './classroom/classroomAttachments.jsx';
 import './classroom/classroom.css';
 
@@ -10,7 +10,7 @@ export default function TeacherClassroom({profile}){
  const schoolId=profile?.school_id;
  const [feed,setFeed]=useState(null),[classId,setClassId]=useState('');
  const [tab,setTab]=useState('posts'),[draft,setDraft]=useState(blank);
- const [studentId,setStudentId]=useState(''),[text,setText]=useState(''),[attachment,setAttachment]=useState(null);
+ const [studentId,setStudentId]=useState(''),[studentSearch,setStudentSearch]=useState(''),[text,setText]=useState(''),[attachment,setAttachment]=useState(null);
  const [grades,setGrades]=useState({}),[busy,setBusy]=useState(false),[loading,setLoading]=useState(true);
  const [error,setError]=useState(''),[notice,setNotice]=useState('');
  const init=useRef(false),lastUnread=useRef(0);
@@ -38,7 +38,7 @@ export default function TeacherClassroom({profile}){
  },[schoolId,classId,studentId]);
  useEffect(()=>{
   init.current=false;lastUnread.current=0;
-  setClassId('');setFeed(null);setStudentId('');
+  setClassId('');setFeed(null);setStudentId('');setStudentSearch('');
  },[schoolId]);
  useEffect(()=>{
   void refresh();
@@ -106,6 +106,7 @@ export default function TeacherClassroom({profile}){
  useEffect(()=>{if(tab==='messages'&&studentId)void readChat()},[tab,studentId,feed?.unread]);
  const posts=feed?.posts||[],submissions=feed?.submissions||[],students=feed?.students||[];
  const chat=(feed?.messages||[]).filter(m=>m.student_id===studentId);
+ const visibleStudents=filterClassroomStudents(students,studentSearch);
  const tabs=[['posts','Giao bài & thông báo',Bell],['submissions','Chấm bài',ClipboardList],['messages','Tin nhắn',MessageCircle]];
  return <section className="classroom classroom-teacher">
   <header className="classroom-header">
@@ -118,7 +119,7 @@ export default function TeacherClassroom({profile}){
   </header>
   <div className="classroom-class-selector">
    <label>Đang quản lý lớp
-    <select value={classId} onChange={e=>{setClassId(e.target.value);setStudentId('');setFeed(null);setDraft(blank());setNotice('')}}>
+    <select value={classId} onChange={e=>{setClassId(e.target.value);setStudentId('');setStudentSearch('');setFeed(null);setDraft(blank());setNotice('')}}>
      {(feed?.classes||[]).map(c=><option key={c.id} value={c.id}>{c.name} · {c.students||0} HS{Number(c.unread)>0?' · '+c.unread+' tin chưa đọc':''}</option>)}
     </select>
    </label>
@@ -128,7 +129,7 @@ export default function TeacherClassroom({profile}){
    <div className="classroom-other-threads">
     <strong>Có tin nhắn mới ở lớp khác:</strong>
     {(feed?.classes||[]).filter(c=>c.id!==classId&&Number(c.unread)>0).map(c=>
-     <button key={c.id} type="button" onClick={()=>{setClassId(c.id);setStudentId('');setTab('messages')}}>
+     <button key={c.id} type="button" onClick={()=>{setClassId(c.id);setStudentId('');setStudentSearch('');setTab('messages')}}>
       {c.name} ({c.students} học sinh) · {c.unread} tin chưa đọc
      </button>)}
    </div>}
@@ -216,8 +217,18 @@ export default function TeacherClassroom({profile}){
    })}
   </div>}
   {!loading&&tab==='messages'&&<div className="classroom-teacher-chat">
-   <aside className="classroom-contacts"><h3><MessageCircle size={19}/> Học sinh trong lớp</h3>
-    {students.map(st=><button key={st.id} type="button" className={studentId===st.id?'selected':''}
+   <aside className="classroom-contacts">
+    <div className="classroom-contact-toolbar">
+     <h3><MessageCircle size={19}/> Học sinh trong lớp</h3>
+     <label className="classroom-contact-search" htmlFor="classroom-student-search">
+      <Search size={15}/>
+      <input id="classroom-student-search" type="search" value={studentSearch}
+       onChange={e=>setStudentSearch(e.target.value)} placeholder="Tìm tên..."
+       autoComplete="off" aria-label="Tìm kiếm học sinh trong lớp"/>
+     </label>
+    </div>
+    {visibleStudents.length===0&&<p className="classroom-contact-no-results">Không tìm thấy học sinh phù hợp.</p>}
+    {visibleStudents.map(st=><button key={st.id} type="button" className={studentId===st.id?'selected':''}
       onClick={()=>{setStudentId(st.id);setText('');setAttachment(null)}}>{st.name}
       {Number(st.unread)>0&&<strong className="classroom-unread">{st.unread}</strong>}
      </button>)}

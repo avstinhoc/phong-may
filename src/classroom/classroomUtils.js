@@ -31,3 +31,12 @@ export async function compressClassroomImage(file){
  }finally{URL.revokeObjectURL(input)}
 }
 export const classroomBlankQuiz=()=>({prompt:'',choices:['','','',''],correct:0});
+
+/** Search student names with or without Vietnamese accents (including đ/Đ). */
+export const classroomNameKey=value=>String(value??'').normalize('NFD')
+ .replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').replace(/Đ/g,'D')
+ .toLocaleLowerCase('vi').trim().replace(/\s+/g,' ');
+export const filterClassroomStudents=(students,query)=>{
+ const term=classroomNameKey(query);
+ return term?students.filter(student=>classroomNameKey(student.name).includes(term)):students;
+};

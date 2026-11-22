@@ -99,3 +99,16 @@
 .classroom-draft-attachment button{border:0;background:#c74d41;color:#fff;width:28px;height:28px;flex:none;
  border-radius:8px;cursor:pointer;font-size:20px;line-height:1}
 .classroom-compose:has(.classroom-draft-attachment){outline:2px dashed #71cba7;outline-offset:-6px}
+
+/* Compact search integrated directly into the 'Học sinh trong lớp' heading. */
+.classroom-contact-toolbar{display:flex;align-items:center;gap:8px;padding:5px 2px 10px;min-width:0}
+.classroom-contact-toolbar h3{margin:0;padding:5px 0;flex:1 1 auto;min-width:0;white-space:nowrap;font-size:13px;letter-spacing:-.02em}
+.classroom-contact-search{display:flex!important;align-items:center;gap:5px;flex:0 1 116px;min-width:86px;
+ padding:0 7px;border:1px solid #c3dcdb;border-radius:10px;background:#f9fefd;color:#64868d}
+.classroom-contact-search:focus-within{border-color:#159f98;box-shadow:0 0 0 2px #16a79a33}
+.classroom .classroom-contact-search input[type=search]{border:0;outline:0;box-shadow:none;width:100%;min-width:0;
+ padding:8px 0;background:transparent;font-size:12px;font-weight:500}
+.classroom .classroom-contact-search input[type=search]:focus{outline:0;box-shadow:none}
+.classroom-contact-no-results{font-size:12px;color:#65848c;padding:12px 8px;line-height:1.5}
+@media(max-width:980px){.classroom-contact-toolbar{width:100%}.classroom-contact-toolbar h3{flex:0 0 auto}
+.classroom-contact-search{flex:1;max-width:300px}}
