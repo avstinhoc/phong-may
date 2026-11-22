@@ -79,7 +79,7 @@ function GradeClassSection({grade,rows,query=''}) {
    )}</div>:<p className="school-empty-classes">{query?'Không tìm thấy lớp phù hợp.':'Chưa có lớp khối '+grade+' tại trường này. Lớp sẽ xuất hiện khi giáo viên tạo mã.'}</p>}
  </section>;
 }
-export function SchoolPortal({initialCode='',embedded=false}){
+export function SchoolPortal({initialCode='',embedded=false,rankingsOnly=false}){
  const [code,setCode]=useState(()=>initialCode||new URLSearchParams(window.location.search).get('code')||'');
  const [data,setData]=useState(null);
  const [busy,setBusy]=useState(false),[error,setError]=useState('');
@@ -117,8 +117,8 @@ export function SchoolPortal({initialCode='',embedded=false}){
    if(grades.includes(grade))window.location.assign(gradeLink(grade,code)+'#school-classes');
    else window.location.assign(codeLink(matches[0].registration_code));
  }
- return <div className={'school-public-page '+(embedded?'school-public-page--embedded':'')}>
-   <header className="school-public-header">
+ return <div className={'school-public-page '+(embedded?'school-public-page--embedded ':'')+(rankingsOnly?'school-public-page--rankings':'')}>
+   {!rankingsOnly&&<header className="school-public-header">
      <a href={schoolLink(code)} className="school-public-brand"><span>IC3</span><b>IC3 GS6 <small>ĐẤU TRƯỜNG NGÔI SAO</small></b></a>
      <nav aria-label="Đi nhanh đến mục" className="school-public-nav">
        <a className="school-nav-rank" href={schoolLink(code)+'#school-standings'}>🏆 Toàn trường</a>
@@ -135,9 +135,9 @@ export function SchoolPortal({initialCode='',embedded=false}){
        </div>}
      </form>}
      <button className="school-header-refresh" type="button" onClick={()=>reload()} disabled={busy} title="Làm mới tất cả BXH và mã lớp">{busy?'Đang tải…':'↻ Làm mới'}</button>
-   </header>
+   </header>}
    <main className="school-public-main" id="school-top">
-     {!data&&<section className="school-join">
+     {!data&&!rankingsOnly&&<section className="school-join">
        <span>✨ CHÀO MỪNG TỚI IC3 GS6</span>
        <h1>Đấu trường ngôi sao của trường</h1>
        <p>Nhập mã của bất kỳ lớp nào trong trường để xem BXH chung, các khối và danh sách lớp.</p>
@@ -149,7 +149,7 @@ export function SchoolPortal({initialCode='',embedded=false}){
      {error&&<p className="school-public-error" role="alert">{error}</p>}
      {data&&<>
        {!selectedGrade&&<>
-         <section className="school-showcase">
+         {!rankingsOnly&&<section className="school-showcase">
            <div className="school-showcase-title">
              <span>🏅 HỘI THI ĐUA IC3 GS6 · NĂM HỌC</span>
              <h1>Ngôi sao của <em>{data.school_name}</em></h1>
@@ -161,7 +161,7 @@ export function SchoolPortal({initialCode='',embedded=false}){
              </div>
            </div>
            <div className="school-showcase-decoration" aria-hidden="true">🏆<span>✦</span></div>
-         </section>
+         </section>}
          <section id="school-standings" className="school-main-standings">
            <div className="school-standings-heading">
              <div><span>HALL OF FAME</span><h2>🏆 TOP 5 TOÀN TRƯỜNG</h2>
@@ -173,9 +173,9 @@ export function SchoolPortal({initialCode='',embedded=false}){
          </section>
          <div className="school-three-grades" aria-label="Bảng xếp hạng Top 10 theo các khối của trường">
            {grades.map(grade=><GradeLeaderboard key={grade} grade={grade}
-             items={data.grade_boards?.[grade]||data['top_'+grade]||[]} schoolCode={code}/>)}
+             items={data.grade_boards?.[grade]||data['top_'+grade]||[]} schoolCode={rankingsOnly?'':code}/>)}
          </div>
-         <section className="school-grade-launchers" aria-label="Chọn khối để xem Top 10 và các lớp">
+         {!rankingsOnly&&<section className="school-grade-launchers" aria-label="Chọn khối để xem Top 10 và các lớp">
            <div className="school-standings-heading"><div><span>{grades.length} ĐẤU TRƯỜNG THEO KHỐI</span><h2>✨ Chọn khối của bạn</h2>
              <p>Mỗi khối có bảng Top 10 riêng và danh sách lớp bên dưới. Chọn khối để khám phá nhé!</p></div></div>
            <div className="school-grade-launcher-grid">
@@ -185,9 +185,9 @@ export function SchoolPortal({initialCode='',embedded=false}){
                  <b>Khám phá Top 10 & các lớp <span aria-hidden="true">↗</span></b></span>
              </a>)}
            </div>
-         </section>
+         </section>}
        </>}
-       {selectedGrade&&<>
+       {!rankingsOnly&&selectedGrade&&<>
          <section className={'school-grade-detail-hero school-grade-detail-hero--'+selectedGrade}>
            <a href={schoolLink(code)} className="school-grade-back">← Về BXH toàn trường</a>
            <span className="school-grade-detail-overline">🏆 ĐẤU TRƯỜNG NGÔI SAO · {data.school_name}</span>
@@ -198,13 +198,13 @@ export function SchoolPortal({initialCode='',embedded=false}){
          <div className="school-grade-detail"><GradeLeaderboard grade={selectedGrade} items={data.grade_boards?.[selectedGrade]||data['top_'+selectedGrade]||[]}/></div>
          <GradeClassSection grade={selectedGrade} rows={gradeClassRows(classes,selectedGrade,search)} query={search}/>
        </>}
-       <footer className="school-public-footer">
+       {!rankingsOnly&&<footer className="school-public-footer">
          <span>IC3 GS6 · Phòng máy & thi đua</span>
          <small>BXH chỉ công bố tên, lớp và sao thưởng; không công khai điểm kiểm tra hay thông tin liên hệ. Dữ liệu của các trường khác nhau được tách riêng.</small>
-       </footer>
+       </footer>}
      </>}
    </main>
-   <button className="school-go-top" aria-label="Lên đầu trang" title="Lên đầu trang" type="button"
-     onClick={()=>window.scrollTo({top:0,behavior:'smooth'})}>↑</button>
+   {!rankingsOnly&&<button className="school-go-top" aria-label="Lên đầu trang" title="Lên đầu trang" type="button"
+     onClick={()=>window.scrollTo({top:0,behavior:'smooth'})}>↑</button>}
  </div>;
 }
