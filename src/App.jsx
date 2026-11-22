@@ -263,9 +263,9 @@ function App() {
            </select>
         </div>
         <nav className="nav-scroll" aria-label="Menu chính">
-          {[["GIẢNG DẠY", ["dashboard", "attendance", "rollcall", "roster", "records", "student_rewards", "classroom", "evaluation"]],
+          {[["GIẢNG DẠY", ["dashboard", "attendance", "rollcall", "roster", "records", "student_rewards", "evaluation"]],
             ["PHÒNG MÁY", ["computers", "students", "settings", "leaderboard", "cleaning"]],
-            ["ỨNG DỤNG HỌC SINH", ["student_web"]],
+            ["ỨNG DỤNG HỌC SINH", ["student_web", "classroom"]],
             ["QUẢN LÝ", ["workplaces", "schools", "finance", "reports", "accounts"]]].map(([group, ids]) => <React.Fragment key={group}>
             <div className="nav-label">{group}</div>
             <ChevronRight size={17} className="profile-chevron"/>
