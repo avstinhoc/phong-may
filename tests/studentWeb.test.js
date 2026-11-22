@@ -72,7 +72,8 @@ test('Student Web removes duplicate page shells and resolves school PC safely',(
  const teacher=read('src/StudentWebManagement.jsx');
  assert.match(student,/refreshStudent/);
  assert.match(student,/pc_requested/);
- assert.match(student,/StudentLeaderboard/);
+ assert.match(student,/SchoolPortal initialCode=\{lastCode\} embedded rankingsOnly/);
+ assert.match(student,/StudentPortal initialCode=\{lastCode\} classOnly/);
  assert.doesNotMatch(student,/<iframe/);
  assert.match(ranking,/ic3_school_public_portal/);
  assert.match(ranking,/rankingsOnly/);
