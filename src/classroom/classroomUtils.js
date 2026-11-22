@@ -1,11 +1,15 @@
 // Shared classroom presentation helpers. No remote image sources.
 // Images are explicitly chosen by the sender, resized locally and stored
 // in private server-controlled conversation records (never a public URL).
-export const classroomDate=value=>value?new Date(value).toLocaleString('vi-VN',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'—';
+// Always display assignment times in Asia/Ho_Chi_Minh, independently of browser TZ.
+export const classroomDate=value=>value?new Date(value).toLocaleString('vi-VN',{
+ timeZone:'Asia/Ho_Chi_Minh',hour12:false,day:'2-digit',month:'2-digit',
+ year:'numeric',hour:'2-digit',minute:'2-digit'
+}):'—';
 export const classroomRelative=value=>{
  if(!value)return 'Không giới hạn';
  const date=new Date(value),now=Date.now();
- return date.getTime()<now?'Đã hết hạn':'Hạn nộp: '+classroomDate(value);
+ return date.getTime()<now?'Đã hết hạn ('+classroomDate(value)+' GMT+7)':'Hạn nộp: '+classroomDate(value)+' GMT+7';
 };
 export async function compressClassroomImage(file){
  if(!file) return null;
