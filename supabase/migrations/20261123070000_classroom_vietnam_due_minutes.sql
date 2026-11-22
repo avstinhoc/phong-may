@@ -105,5 +105,4 @@ BEGIN
   RETURN jsonb_build_object('ok',true);
  ELSE RAISE EXCEPTION 'Thao tác giáo viên không hợp lệ';
  END IF;
-END $function$
-
+END $function$;
