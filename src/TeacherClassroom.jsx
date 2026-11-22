@@ -1,7 +1,8 @@
 import React,{useCallback,useEffect,useState,useRef} from 'react';
 import {Bell,BookOpen,ClipboardList,MessageCircle,Send,Plus,Trash2,RefreshCw,Paperclip,X,CheckCircle2,AlertCircle,GraduationCap,Clock,FileText} from 'lucide-react';
 import {supabase} from './lib/supabase.js';
-import {classroomDate,classroomRelative,compressClassroomImage,classroomBlankQuiz} from './classroom/classroomUtils.js';
+import {classroomDate,classroomRelative,classroomBlankQuiz} from './classroom/classroomUtils.js';
+import {CLASSROOM_FILE_ACCEPT,checkClassroomAttachment,clipboardClassroomFile,classroomUpload,ClassroomAttachment,ClassroomDraftAttachment} from './classroom/classroomAttachments.jsx';
 import './classroom/classroom.css';
 
 const blank=()=>({kind:'announcement',title:'',body:'',due_at:'',questions:[classroomBlankQuiz()]});
@@ -9,7 +10,7 @@ export default function TeacherClassroom({profile}){
  const schoolId=profile?.school_id;
  const [feed,setFeed]=useState(null),[classId,setClassId]=useState('');
  const [tab,setTab]=useState('posts'),[draft,setDraft]=useState(blank);
- const [studentId,setStudentId]=useState(''),[text,setText]=useState(''),[image,setImage]=useState(null);
+ const [studentId,setStudentId]=useState(''),[text,setText]=useState(''),[attachment,setAttachment]=useState(null);
  const [grades,setGrades]=useState({}),[busy,setBusy]=useState(false),[loading,setLoading]=useState(true);
  const [error,setError]=useState(''),[notice,setNotice]=useState('');
  const init=useRef(false),lastUnread=useRef(0);
@@ -22,7 +23,10 @@ export default function TeacherClassroom({profile}){
    });
    if(e)throw e;
    setFeed(data);
-   if(!classId&&data?.selected_class)setClassId(data.selected_class);
+   if(!classId&&data?.selected_class){
+    setClassId(data.selected_class);
+    if(Number(data.unread||0)>0)setTab('messages');
+   }
    if(lastUnread.current!==null&&Number(data?.unread||0)>lastUnread.current&&init.current){
     setNotice('Có tin nhắn mới của học sinh!');
    }
@@ -72,17 +76,26 @@ export default function TeacherClassroom({profile}){
    optionIndex===undefined?{...q,[field]:value}:
     {...q,choices:q.choices.map((c,k)=>k===optionIndex?value:c)}:q)}));
  }
- async function pickImage(e){
-  const file=e.target.files?.[0];e.target.value='';
+ function onAttachment(file){
   if(!file)return;
-  setBusy(true);
-  try{setImage(await compressClassroomImage(file));setError('')}catch(err){setError(err.message)}finally{setBusy(false)}
+  try{setAttachment(checkClassroomAttachment(file));setError('');}
+  catch(e){setError(e.message)}
  }
+ function pickFile(e){onAttachment(e.target.files?.[0]);e.target.value='';}
+ function pasteFile(e){const file=clipboardClassroomFile(e);if(file)onAttachment(file);}
+ function dropFile(e){e.preventDefault();onAttachment(e.dataTransfer.files?.[0]);}
  async function send(e){
   e.preventDefault();
-  if(!studentId||(!text.trim()&&!image))return;
-  if(await action('send_message',{student_id:studentId,body:text.trim(),image_data:image})){
-   setText('');setImage(null);
+  if(!studentId||(!text.trim()&&!attachment)||busy)return;
+  if(attachment){
+   setBusy(true);setError('');setNotice('');
+   try{
+    await classroomUpload({file:attachment,body:text.trim(),studentId});
+    setText('');setAttachment(null);
+    await refresh(true);
+   }catch(err){setError(err.message||'Không gửi được file')}finally{setBusy(false)}
+  }else if(await action('send_message',{student_id:studentId,body:text.trim()})){
+   setText('');
   }
  }
  async function readChat(){
@@ -106,11 +119,19 @@ export default function TeacherClassroom({profile}){
   <div className="classroom-class-selector">
    <label>Đang quản lý lớp
     <select value={classId} onChange={e=>{setClassId(e.target.value);setStudentId('');setFeed(null);setDraft(blank());setNotice('')}}>
-     {(feed?.classes||[]).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+     {(feed?.classes||[]).map(c=><option key={c.id} value={c.id}>{c.name} · {c.students||0} HS{Number(c.unread)>0?' · '+c.unread+' tin chưa đọc':''}</option>)}
     </select>
    </label>
    <span>{students.length} học sinh · {posts.length} bài đăng · {submissions.length} bài nộp</span>
   </div>
+  {(feed?.classes||[]).filter(c=>c.id!==classId&&Number(c.unread)>0).length>0&&
+   <div className="classroom-other-threads">
+    <strong>Có tin nhắn mới ở lớp khác:</strong>
+    {(feed?.classes||[]).filter(c=>c.id!==classId&&Number(c.unread)>0).map(c=>
+     <button key={c.id} type="button" onClick={()=>{setClassId(c.id);setStudentId('');setTab('messages')}}>
+      {c.name} ({c.students} học sinh) · {c.unread} tin chưa đọc
+     </button>)}
+   </div>}
   <nav className="classroom-tabs" aria-label="Chức năng giáo viên">
    {tabs.map(([id,label,Icon])=><button key={id} type="button" aria-pressed={tab===id}
     onClick={()=>setTab(id)}><Icon size={18}/>{label}
@@ -197,8 +218,8 @@ export default function TeacherClassroom({profile}){
   {!loading&&tab==='messages'&&<div className="classroom-teacher-chat">
    <aside className="classroom-contacts"><h3><MessageCircle size={19}/> Học sinh trong lớp</h3>
     {students.map(st=><button key={st.id} type="button" className={studentId===st.id?'selected':''}
-      onClick={()=>{setStudentId(st.id);setText('');setImage(null)}}>{st.name}
-      {(feed.messages||[]).some(m=>m.student_id===st.id&&m.sender_kind==='student'&&!m.read_at)&&<strong>●</strong>}
+      onClick={()=>{setStudentId(st.id);setText('');setAttachment(null)}}>{st.name}
+      {Number(st.unread)>0&&<strong className="classroom-unread">{st.unread}</strong>}
      </button>)}
    </aside>
    <div className="classroom-chat">
@@ -210,20 +231,21 @@ export default function TeacherClassroom({profile}){
      {chat.map(m=><div key={m.id} className={'classroom-bubble '+(m.sender_kind==='teacher'?'mine':'theirs')}>
       <small>{m.sender_kind==='teacher'?'Giáo viên':m.student_name} · {classroomDate(m.created_at)}</small>
       {m.body&&<p>{m.body}</p>}
-      {m.image_data&&<a href={m.image_data} target="_blank" rel="noopener noreferrer">
-       <img src={m.image_data} alt="Ảnh do người gửi lựa chọn" loading="lazy"/></a>}
+      {m.image_data&&<a href={m.image_data} target="_blank" rel="noopener noreferrer"><img src={m.image_data} alt="Ảnh do người gửi lựa chọn" loading="lazy"/></a>}
+      {m.file_name&&<ClassroomAttachment message={m}/>}
      </div>)}
     </div>
-    <form onSubmit={send} className="classroom-compose">
-     {image&&<div className="classroom-image-preview"><img src={image} alt="Ảnh chuẩn bị gửi"/>
-       <button type="button" onClick={()=>setImage(null)}><X size={18}/></button></div>}
-     <textarea rows={2} value={text} onChange={e=>setText(e.target.value)} maxLength={1500}
-       placeholder="Nhắn lời nhắc học tập hoặc gửi hình hướng dẫn cho học sinh..."/>
+    <form onSubmit={send} className="classroom-compose"
+     onDragOver={e=>{if(e.dataTransfer.types.includes('Files'))e.preventDefault()}}
+     onDrop={dropFile}>
+     <ClassroomDraftAttachment file={attachment} onRemove={()=>setAttachment(null)}/>
+     <textarea rows={2} value={text} onChange={e=>setText(e.target.value)} onPaste={pasteFile} maxLength={1500}
+       placeholder="Nhắn lời nhắc, Ctrl+V để dán ảnh hoặc kéo thả file vào đây..."/>
      <div className="classroom-compose-actions">
-      <label className="classroom-attach"><Paperclip size={19}/> Đính kèm ảnh
-       <input type="file" accept="image/jpeg,image/png,image/webp" onChange={pickImage}/></label>
-      <span>Học sinh nhận thông báo khi có tin nhắn mới.</span>
-      <button type="submit" className="classroom-primary" disabled={busy||!studentId||(!text.trim()&&!image)}>
+      <label className="classroom-attach"><Paperclip size={19}/> Ảnh / PDF / Word / Excel / PPT
+       <input type="file" accept={CLASSROOM_FILE_ACCEPT} onChange={pickFile}/></label>
+      <span>File tối đa 8 MB, riêng tư. Hỗ trợ Ctrl+V ảnh và kéo thả file.</span>
+      <button type="submit" className="classroom-primary" disabled={busy||!studentId||(!text.trim()&&!attachment)}>
        <Send size={18}/> Gửi</button>
      </div>
     </form>
