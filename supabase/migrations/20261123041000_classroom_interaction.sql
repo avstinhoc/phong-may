@@ -101,7 +101,7 @@ BEGIN
      m.created_at,m.read_at FROM public.qlpm_classroom_messages m
      JOIN public.students s ON s.id=m.student_id
      WHERE m.class_id=cl AND m.teacher_id=auth.uid()
-     ORDER BY m.created_at DESC LIMIT 120) x),'[]'::jsonb),
+     ORDER BY m.created_at DESC LIMIT 80) x),'[]'::jsonb),
  'unread', (SELECT count(*) FROM public.qlpm_classroom_messages m WHERE m.class_id=cl
    AND m.teacher_id=auth.uid() AND m.sender_kind='student' AND m.read_at IS NULL)
  );
@@ -127,7 +127,7 @@ BEGIN
   IF kind NOT IN ('announcement','quiz','essay') OR length(title) NOT BETWEEN 1 AND 160
     OR length(body_text)>2500 THEN RAISE EXCEPTION 'Nội dung bài đăng không hợp lệ'; END IF;
   IF nullif(p_payload->>'due_at','') IS NOT NULL THEN
-   due:=(p_payload->>'due_at')::timestamptz;
+   due:=(p_payload->>'due_at')::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh';
   END IF;
   IF kind='quiz' THEN
    items:=p_payload->'questions';
@@ -139,6 +139,7 @@ BEGIN
       OR trim(coalesce(item->>'prompt',''))='' OR length(item->>'prompt')>550
       OR EXISTS(SELECT 1 FROM jsonb_array_elements_text(item->'choices') x
         WHERE length(trim(x.value)) NOT BETWEEN 1 AND 250)
+      OR (SELECT count(DISTINCT lower(trim(x.value))) FROM jsonb_array_elements_text(item->'choices') x)<>4
       OR coalesce(item->>'correct','') !~ '^[0-3]$'
     THEN RAISE EXCEPTION 'Mỗi câu hỏi cần đúng 4 đáp án A–D'; END IF;
     sanitized:=sanitized||jsonb_build_array(jsonb_build_object(
