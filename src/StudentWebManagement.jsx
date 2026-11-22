@@ -35,7 +35,7 @@ export default function StudentWebManagement({profile,onNavigate}){
    ]);
    if(devicesResult.error)throw devicesResult.error;
    if(questionResult.error)throw questionResult.error;
-   if(profilesResult.error)throw profilesResult.error;
+   // Keep the existing teacher screens usable while the additive SQL migration is pending.
    setDevices(Array.isArray(devicesResult.data)?devicesResult.data:[]);
    setQuestions(Array.isArray(questionResult.data)?questionResult.data:[]);
    setProfileRequests(Array.isArray(profilesResult.data)?profilesResult.data:[]);
