@@ -25,6 +25,7 @@ test('154 waves selectable; replay, retreat, death and star awards are server-co
    "insert into ic3_arcade_player(student_id,stage,cleared,wave,wave_hp) values('"+sid+"',3,2,4,0);"
   ].join('\n'));
   await db.exec(read('supabase/migrations/20261123020000_ic3_arcade_open_islands_cosmetics.sql'));
+  await db.exec(read('supabase/migrations/20261123030000_ic3_arcade_sequential_wave_unlock.sql'));
   const rpc=async(action,turn=null,choice=null,item=null)=>
     (await db.query('select ic3_arcade_turn($1,$2,$3,$4,$5) res',['valid',action,turn,choice,item])).rows[0].res;
   const solution=async prompt=>(await db.query('select solution from ic3_arcade_questions where prompt=$1',[prompt])).rows[0].solution;
@@ -33,24 +34,33 @@ test('154 waves selectable; replay, retreat, death and star awards are server-co
   assert.deepEqual(initial.map_progress['1'],[1,2,3,4,5,6,7]);
   assert.deepEqual(initial.map_progress['3'],[1,2,3]);
 
-  let turn=await rpc('enter',null,null,2207);
-  assert.equal(turn.stage,22);assert.equal(turn.wave,7);
+  // 22 islands remain selectable; only wave 1 is initially unlocked.
+  await assert.rejects(rpc('enter',null,null,2202),/Ải 2 chưa mở/);
+  await assert.rejects(rpc('enter',null,null,2207),/Ải 7 chưa mở/);
+  let turn=await rpc('enter',null,null,2201);
+  assert.equal(turn.stage,22);assert.equal(turn.wave,1);
   assert.equal(turn.in_battle,true);
   let result;
-  for(let i=0;i<9;i++){
-   // A short isolated fixture bank can be exhausted; server intentionally
-   // returns set_complete without changing HP until the next request.
+  for(let i=0;i<10;i++){
    if(!turn.turn)turn=await rpc('next');
    result=await rpc('answer',turn.turn,await solution(turn.prompt));
-   if(result.outcome==='victory')break;
+   if(result.outcome==='wave_clear')break;
    turn=await rpc('next');
   }
-  assert.equal(result.outcome,'victory');
-  assert.deepEqual(result.map_progress['22'],[7]);
-  assert.equal(result.cleared,2);
-  assert.equal(result.in_battle,false);
-  
-  await rpc('enter',null,null,2207);
+  assert.equal(result.outcome,'wave_clear');
+  assert.deepEqual(result.map_progress['22'],[1]);
+  assert.equal(result.wave,2);assert.equal(result.in_battle,true);
+  // A denied skip cannot silently charge the 200-point retreat penalty.
+  const beforeSkip=result.score;
+  await assert.rejects(rpc('enter',null,null,2203),/Ải 3 chưa mở/);
+  assert.equal((await rpc('status')).score,beforeSkip);
+  const wave2=await rpc('enter',null,null,2202);
+  assert.equal(wave2.wave,2);assert.equal(wave2.penalty,0);
+  // Previously completed waves can be replayed.
+  await rpc('leave');
+  const replay=await rpc('enter',null,null,2201);
+  assert.equal(replay.wave,1);
+  await rpc('enter',null,null,2201);
   await db.query('update ic3_arcade_player set score=360 where student_id=$1',[sid]);
   const left=await rpc('leave');
   assert.equal(left.score,160);assert.equal(left.penalty,200);
@@ -70,7 +80,7 @@ test('154 waves selectable; replay, retreat, death and star awards are server-co
   const death=await rpc('answer',retry.turn);
   assert.equal(death.outcome,'defeat');assert.equal(death.score,0);
   assert.equal(death.in_battle,false);assert.equal(death.wave,3);
-  assert.deepEqual(death.map_progress['22'],[7]);
+  assert.deepEqual(death.map_progress['22'],[1]);
 
   let a=await rpc('enter',null,null,105);
   await db.query('update ic3_arcade_player set score=390 where student_id=$1',[sid]);

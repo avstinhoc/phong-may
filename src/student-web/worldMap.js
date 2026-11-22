@@ -1245,3 +1245,12 @@ export const GEAR_CATALOG=[
  {id:4,name:"Bùa Tinh Vân",icon:"🌌",grade:"Huyền thoại",unlock:12,description:"Tinh tú hội tụ trên mỗi đòn đánh.",damage:232},
  {id:5,name:"Ấn Cực Quang",icon:"✨",grade:"Thần thoại",unlock:15,description:"Đỉnh cao sức mạnh, nhận khi vượt 15 bản đồ.",damage:250}
 ];
+
+/** Only wave 1 starts unlocked. Winning a wave unlocks the next wave;
+ * cleared waves can be replayed. An ongoing legacy encounter may resume. */
+export function waveUnlocked(completed,wave,resuming=false){
+ const n=Number(wave),done=Array.isArray(completed)?completed:[];
+ return Number.isInteger(n)&&n>=1&&n<=WAVES_PER_WORLD&&(
+  n===1||done.includes(n)||done.includes(n-1)||resuming
+ );
+}
