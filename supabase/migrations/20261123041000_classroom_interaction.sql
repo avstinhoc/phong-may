@@ -100,10 +100,10 @@ BEGIN
    FROM (SELECT m.id,m.student_id,s.full_name AS student_name,m.sender_kind,m.body,m.image_data,
      m.created_at,m.read_at FROM public.qlpm_classroom_messages m
      JOIN public.students s ON s.id=m.student_id
-     WHERE m.class_id=cl AND m.teacher_id=auth.uid()
+     WHERE m.class_id=cl AND (m.teacher_id=auth.uid() OR public.is_admin())
      ORDER BY m.created_at DESC LIMIT 80) x),'[]'::jsonb),
  'unread', (SELECT count(*) FROM public.qlpm_classroom_messages m WHERE m.class_id=cl
-   AND m.teacher_id=auth.uid() AND m.sender_kind='student' AND m.read_at IS NULL)
+   AND (m.teacher_id=auth.uid() OR public.is_admin()) AND m.sender_kind='student' AND m.read_at IS NULL)
  );
 END $$;
 REVOKE ALL ON FUNCTION public.qlpm_classroom_teacher_feed(uuid,uuid) FROM PUBLIC;
@@ -187,7 +187,7 @@ BEGIN
  ELSIF p_action='read_messages' THEN
   v_student_id:=(p_payload->>'student_id')::uuid;
   UPDATE public.qlpm_classroom_messages SET read_at=now()
-  WHERE class_id=p_class_id AND teacher_id=auth.uid()
+  WHERE class_id=p_class_id AND (teacher_id=auth.uid() OR public.is_admin())
     AND student_id=v_student_id
     AND sender_kind='student' AND read_at IS NULL;
   RETURN jsonb_build_object('ok',true);
@@ -224,10 +224,10 @@ BEGIN
   'messages',coalesce((SELECT jsonb_agg(to_jsonb(x) ORDER BY x.created_at)
     FROM (SELECT m.id,m.body,m.image_data,m.sender_kind,m.created_at,m.read_at
      FROM public.qlpm_classroom_messages m WHERE m.student_id=sid
-     AND m.class_id=st.class_id AND m.teacher_id=tutor
+     AND m.class_id=st.class_id AND m.school_id=st.school_id
      ORDER BY m.created_at DESC LIMIT 100) x),'[]'::jsonb),
-  'unread',(SELECT count(*) FROM public.qlpm_classroom_messages m WHERE m.student_id=sid
-      AND m.teacher_id=tutor AND m.sender_kind='teacher' AND m.read_at IS NULL)
+  'unread',(SELECT count(*) FROM public.qlpm_classroom_messages m WHERE m.student_id=sid AND m.class_id=st.class_id
+      AND m.school_id=st.school_id AND m.sender_kind='teacher' AND m.read_at IS NULL)
  );
 END $$;
 REVOKE ALL ON FUNCTION public.qlpm_classroom_student_feed(text) FROM PUBLIC;
@@ -297,7 +297,8 @@ BEGIN
   RETURN jsonb_build_object('ok',true);
  ELSIF p_action='read_messages' THEN
   UPDATE public.qlpm_classroom_messages m SET read_at=now()
-   WHERE m.student_id=sid AND m.teacher_id=tutor AND m.sender_kind='teacher' AND m.read_at IS NULL;
+   WHERE m.student_id=sid AND m.class_id=st.class_id AND m.school_id=st.school_id
+     AND m.sender_kind='teacher' AND m.read_at IS NULL;
   RETURN jsonb_build_object('ok',true);
  ELSE RAISE EXCEPTION 'Thao tác học sinh không hợp lệ';
  END IF;
