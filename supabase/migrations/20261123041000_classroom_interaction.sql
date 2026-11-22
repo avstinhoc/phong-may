@@ -115,7 +115,7 @@ CREATE OR REPLACE FUNCTION public.qlpm_classroom_teacher_action(
 DECLARE
  kind text; title text; body_text text; due timestamptz;
  items jsonb; item jsonb; sanitized jsonb:='[]'::jsonb; keys jsonb:='[]'::jsonb;
- post_id uuid; student_id uuid; record_id uuid;
+ post_id uuid; v_student_id uuid; record_id uuid;
  score_value numeric; result jsonb; image_text text; question_count int;
 BEGIN
  IF NOT public.qlpm_classroom_teacher_allowed(p_school_id,p_class_id) THEN
@@ -170,8 +170,8 @@ BEGIN
   IF NOT FOUND THEN RAISE EXCEPTION 'Không tìm thấy bài tự luận'; END IF;
   RETURN jsonb_build_object('ok',true);
  ELSIF p_action='send_message' THEN
-  student_id:=(p_payload->>'student_id')::uuid;
-  IF NOT EXISTS(SELECT 1 FROM public.students s WHERE s.id=student_id
+  v_student_id:=(p_payload->>'student_id')::uuid;
+  IF NOT EXISTS(SELECT 1 FROM public.students s WHERE s.id=v_student_id
     AND s.school_id=p_school_id AND s.class_id=p_class_id AND s.status='active') THEN
    RAISE EXCEPTION 'Học sinh không thuộc lớp này'; END IF;
   body_text:=trim(coalesce(p_payload->>'body',''));
@@ -181,13 +181,13 @@ BEGIN
      OR image_text !~ '^data:image/jpeg;base64,[A-Za-z0-9+/=]+$'))
   THEN RAISE EXCEPTION 'Tin nhắn hoặc ảnh không hợp lệ'; END IF;
   INSERT INTO public.qlpm_classroom_messages(school_id,class_id,student_id,teacher_id,sender_kind,body,image_data)
-  VALUES(p_school_id,p_class_id,student_id,auth.uid(),'teacher',body_text,image_text);
+  VALUES(p_school_id,p_class_id,v_student_id,auth.uid(),'teacher',body_text,image_text);
   RETURN jsonb_build_object('ok',true);
  ELSIF p_action='read_messages' THEN
-  student_id:=(p_payload->>'student_id')::uuid;
+  v_student_id:=(p_payload->>'student_id')::uuid;
   UPDATE public.qlpm_classroom_messages SET read_at=now()
   WHERE class_id=p_class_id AND teacher_id=auth.uid()
-    AND student_id=public.qlpm_classroom_teacher_action.student_id
+    AND student_id=v_student_id
     AND sender_kind='student' AND read_at IS NULL;
   RETURN jsonb_build_object('ok',true);
  ELSE RAISE EXCEPTION 'Thao tác giáo viên không hợp lệ';
