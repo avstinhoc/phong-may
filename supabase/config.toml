@@ -3,3 +3,6 @@ verify_jwt = false  # Google callback is public; POSTs verify Supabase JWT in ha
 
 [functions.google-sheets-sync]
 verify_jwt = true
+
+[functions.classroom-attachments]
+verify_jwt = false # Handler verifies teacher JWT or student classroom session itself.
