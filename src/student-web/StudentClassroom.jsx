@@ -1,7 +1,8 @@
 import React,{useCallback,useEffect,useRef,useState} from 'react';
 import {Bell,BookOpen,MessageCircle,ClipboardList,Send,Image as ImageIcon,Clock,CheckCircle2,RefreshCw,Paperclip,X,AlertCircle} from 'lucide-react';
 import {supabase} from '../lib/supabase.js';
-import {compressClassroomImage,classroomDate,classroomRelative} from '../classroom/classroomUtils.js';
+import {classroomDate,classroomRelative} from '../classroom/classroomUtils.js';
+import {CLASSROOM_FILE_ACCEPT,checkClassroomAttachment,clipboardClassroomFile,classroomUpload,ClassroomAttachment,ClassroomDraftAttachment} from '../classroom/classroomAttachments.jsx';
 import '../classroom/classroom.css';
 
 const TABS=[['assignments','Bài tập',ClipboardList],['announcements','Thông báo',Bell],['messages','Tin nhắn',MessageCircle]];
@@ -9,7 +10,7 @@ export default function StudentClassroom({session,onUnread}){
  const [tab,setTab]=useState('assignments'),[feed,setFeed]=useState(null);
  const [loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
  const [draftAnswers,setDraftAnswers]=useState({}),[essays,setEssays]=useState({});
- const [body,setBody]=useState(''),[image,setImage]=useState(null);
+ const [body,setBody]=useState(''),[attachment,setAttachment]=useState(null);
  const seen=useRef(null),end=useRef(null);
  const refresh=useCallback(async(quiet=false)=>{
   if(!supabase||!session?.token)return;
@@ -48,16 +49,25 @@ export default function StudentClassroom({session,onUnread}){
   if(tab==='messages'&&feed?.unread>0)void action('read_messages',{});
   // Called only when opening the messages panel or unread count changes.
  },[tab,feed?.unread]);
- async function onFileChange(e){
-  const file=e.target.files?.[0];e.target.value='';
+ function attach(file){
   if(!file)return;
-  setBusy(true);
-  try{setImage(await compressClassroomImage(file));setError('')}catch(err){setError(err.message)}finally{setBusy(false)}
+  try{setAttachment(checkClassroomAttachment(file));setError('');}
+  catch(e){setError(e.message)}
  }
+ function onFileChange(e){attach(e.target.files?.[0]);e.target.value='';}
+ function onPaste(e){const file=clipboardClassroomFile(e);if(file)attach(file);}
+ function onDrop(e){e.preventDefault();attach(e.dataTransfer.files?.[0]);}
  async function send(e){
   e.preventDefault();
-  if(!body.trim()&&!image)return;
-  if(await action('send_message',{body:body.trim(),image_data:image})){setBody('');setImage(null)}
+  if(!body.trim()&&!attachment||busy)return;
+  if(attachment){
+   setBusy(true);setError('');setNotice('');
+   try{
+    await classroomUpload({file:attachment,body:body.trim(),studentToken:session.token});
+    setBody('');setAttachment(null);
+    await refresh(true);
+   }catch(err){setError(err.message||'Gửi file chưa thành công')}finally{setBusy(false)}
+  }else if(await action('send_message',{body:body.trim()}))setBody('');
  }
  async function submit(post){
   const payload={post_id:post.id};
@@ -142,20 +152,21 @@ export default function StudentClassroom({session,onUnread}){
      {m.body&&<p>{m.body}</p>}
      {m.image_data&&<a href={m.image_data} target="_blank" rel="noopener noreferrer" title="Xem ảnh đính kèm">
       <img src={m.image_data} alt="Ảnh đính kèm do người gửi chọn" loading="lazy"/></a>}
+     {m.file_name&&<ClassroomAttachment message={m} studentToken={session.token}/>}
     </div>)}
     <div ref={end}/>
    </div>
-   <form className="classroom-compose" onSubmit={send}>
-    {image&&<div className="classroom-image-preview"><img src={image} alt="Ảnh chuẩn bị gửi"/>
-     <button type="button" onClick={()=>setImage(null)} aria-label="Bỏ ảnh"><X size={18}/></button></div>}
+   <form className="classroom-compose" onSubmit={send}
+    onDragOver={e=>{if(e.dataTransfer.types.includes('Files'))e.preventDefault()}} onDrop={onDrop}>
+    <ClassroomDraftAttachment file={attachment} onRemove={()=>setAttachment(null)}/>
     <textarea value={body} maxLength={1500} rows={2} onChange={e=>setBody(e.target.value)}
-     placeholder="Nhắn thầy/cô, hỏi bài hoặc gửi ảnh bài tập…"/>
+     onPaste={onPaste} placeholder="Nhắn thầy/cô, Ctrl+V dán ảnh hoặc kéo thả file vào đây…"/>
     <div className="classroom-compose-actions">
-     <label className="classroom-attach"><Paperclip size={19}/> Gửi ảnh JPG/PNG
-      <input type="file" accept="image/jpeg,image/png,image/webp" onChange={onFileChange}/>
+     <label className="classroom-attach"><Paperclip size={19}/> Ảnh / PDF / Word / Excel / PPT
+      <input type="file" accept={CLASSROOM_FILE_ACCEPT} onChange={onFileChange}/>
      </label>
-     <span>Ảnh được nén và chỉ gửi riêng cho giáo viên.</span>
-     <button className="classroom-primary" disabled={busy||(!body.trim()&&!image)} type="submit"><Send size={18}/> Gửi</button>
+     <span>File tối đa 8 MB, riêng tư. Hỗ trợ dán ảnh Ctrl+V.</span>
+     <button className="classroom-primary" disabled={busy||(!body.trim()&&!attachment)} type="submit"><Send size={18}/> Gửi</button>
     </div>
    </form>
   </div>}
