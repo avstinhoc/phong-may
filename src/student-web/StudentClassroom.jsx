@@ -4,6 +4,7 @@ import {supabase} from '../lib/supabase.js';
 import {classroomDate,classroomRelative} from '../classroom/classroomUtils.js';
 import {CLASSROOM_FILE_ACCEPT,checkClassroomAttachment,clipboardClassroomFile,classroomUpload,ClassroomAttachment,ClassroomDraftAttachment} from '../classroom/classroomAttachments.jsx';
 import '../classroom/classroom.css';
+import PushPermission from '../classroom/PushPermission.jsx';
 
 const TABS=[['assignments','Bài tập',ClipboardList],['announcements','Thông báo',Bell],['messages','Tin nhắn',MessageCircle]];
 export default function StudentClassroom({session,onUnread}){
@@ -90,7 +91,10 @@ export default function StudentClassroom({session,onUnread}){
     <h1><MessageCircle size={30}/> Kết nối giáo viên</h1>
     <p>Nhận bài tập, theo dõi thông báo, nộp bài và nhắn tin trực tiếp với giáo viên.</p>
    </div>
-   <button type="button" onClick={()=>refresh()} aria-label="Cập nhật" className="classroom-refresh"><RefreshCw size={18}/> Làm mới</button>
+   <div className="classroom-header-actions">
+     <PushPermission studentToken={session.token}/>
+     <button type="button" onClick={()=>refresh()} aria-label="Cập nhật" className="classroom-refresh"><RefreshCw size={18}/> Làm mới</button>
+   </div>
   </header>
   <nav className="classroom-tabs" aria-label="Hoạt động lớp học">
    {TABS.map(([id,title,Icon])=><button key={id} type="button" aria-pressed={tab===id}

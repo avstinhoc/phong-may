@@ -6,3 +6,6 @@ verify_jwt = true
 
 [functions.classroom-attachments]
 verify_jwt = false # Handler verifies teacher JWT or student classroom session itself.
+
+[functions.qlpm-push]
+verify_jwt = false # Validates teacher JWT or student session and webhook secret in handler.
