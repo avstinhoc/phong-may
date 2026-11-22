@@ -70,3 +70,32 @@
 @media(max-width:980px){.classroom-teacher-grid{grid-template-columns:1fr}.classroom-teacher-chat{grid-template-columns:1fr}.classroom-contacts{display:flex;gap:5px;flex-wrap:wrap;max-height:180px}.classroom-contacts h3{width:100%}.classroom-contacts button{width:auto;border:1px solid #d0e4e4}}
 @media(max-width:650px){.classroom-header{flex-wrap:wrap}.classroom-header .classroom-refresh{width:100%;justify-content:center}.classroom-options{grid-template-columns:1fr}.classroom-compose-actions>span{flex-basis:100%;order:2}.classroom-compose-actions .classroom-primary{flex:1}.classroom-bubble{max-width:95%}}
 @media(prefers-reduced-motion:reduce){.classroom-primary{transition:none}}
+
+/* Distinguish duplicate class records and show which class contains unread messages */
+.classroom-other-threads{display:flex;align-items:center;gap:9px;flex-wrap:wrap;
+ padding:12px 16px;margin:0 0 14px;background:#fff8e7;border:1px solid #f1d39e;
+ border-radius:13px;color:#8b5e1e;font-size:13px}
+.classroom-other-threads button{background:#fff;border:1px solid #e5c485;color:#935e12;
+ padding:7px 12px;border-radius:9px;cursor:pointer;font:inherit;font-weight:800}
+.classroom-other-threads button:hover{background:#ffebbe}
+.classroom-contacts .classroom-unread{margin-left:6px;background:#e75e46;padding:3px 8px}
+/* User-selected attachments only; never loaded from external search results */
+.classroom-file-message{margin:8px 0 2px;max-width:min(100%,430px);min-width:0}
+.classroom-file-picture{background:transparent;border:0;display:block;padding:0;cursor:zoom-in}
+.classroom-file-picture img{width:auto;max-width:min(310px,100%);max-height:240px;object-fit:contain;
+ background:#fff;border-radius:9px;display:block}
+.classroom-file-download{display:flex;align-items:center;gap:9px;min-width:0;max-width:100%;
+ padding:10px 12px;border:1px solid #a8d1d7;border-radius:11px;
+ background:linear-gradient(125deg,#e9faff,#f9fffe);color:#215368;
+ cursor:pointer;text-align:left}
+.classroom-file-download span{flex:1;display:flex;flex-direction:column;gap:3px;min-width:0}
+.classroom-file-download strong{overflow-wrap:anywhere;font-size:12px}
+.classroom-file-download small{font-size:10px;color:#5f8391;overflow-wrap:anywhere}
+.classroom-file-error{display:flex;gap:5px;color:#af4640;font-weight:700;margin-top:7px}
+.classroom-draft-attachment{display:flex;gap:9px;align-items:center;background:#e4f7ed;border:1px dashed #65cba8;
+ border-radius:11px;padding:11px 12px;color:#09584c;max-width:100%}
+.classroom-draft-attachment span{flex:1;min-width:0;overflow-wrap:anywhere;font-size:13px;font-weight:800}
+.classroom-draft-attachment small{display:block;color:#44786a;font-weight:500}
+.classroom-draft-attachment button{border:0;background:#c74d41;color:#fff;width:28px;height:28px;flex:none;
+ border-radius:8px;cursor:pointer;font-size:20px;line-height:1}
+.classroom-compose:has(.classroom-draft-attachment){outline:2px dashed #71cba7;outline-offset:-6px}
