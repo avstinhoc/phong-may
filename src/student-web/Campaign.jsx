@@ -17,7 +17,6 @@ import './battleCharacter.css';
 const num=n=>Number.isFinite(Number(n))?Number(n):0;
 const maxHearts=3;
 const stars=n=>Number(n||0).toLocaleString('vi-VN');
-const tint=['','#e4bb79','#76d6be','#94c1fa','#c594e9','#ffe179'];
 
 function ArenaTop({children}){return <div className="cw-section-heading">{children}</div>}
 
@@ -144,7 +143,7 @@ export default function Campaign({session}){
  const mapId=selectedMap||currentId;
  const preview=worldAt(mapId);
  const wave=num(data?.wave)||1;
- const previewWave=selectedWave||Math.min(WAVES_PER_WORLD,wave);
+ const previewWave=selectedWave||(mapId===currentId?Math.min(WAVES_PER_WORLD,wave):1);
  const selectedEncounter=waveAt(mapId,previewWave);
  const progress=data?.map_progress||{};
  const completedFor=id=>Array.isArray(progress[String(id)])?progress[String(id)]:[];
@@ -158,7 +157,6 @@ export default function Campaign({session}){
  const championArt=heroArt(skin,num(data?.gear));
  const hpMax=num(data?.wave_max_hp)||160+95*wave+10*currentId;
  const monsterHp=Math.max(0,num(data?.hp));
- const damage=160;
  const theme=battleTheme(currentId);
  const sceneStyle={
    backgroundImage:"linear-gradient(180deg,#09192c28,transparent 60%,#081f2650),url('"+battleBackground(currentId)+"')",
@@ -252,7 +250,7 @@ export default function Campaign({session}){
       const active=!!data.in_battle&&mapId===currentId&&w===wave;
       return <button type="button" key={m.name} onClick={()=>setSelectedWave(w)}
        className={'cw-wave-row'+(active?' active':'')+(selectedWave===w?' chosen':'')}>
-       <span className="cw-wave-step">{done?<CheckCircle2 size={18}/>:w===3?<Crown size={19}/>:w}</span>
+       <span className="cw-wave-step">{done?<CheckCircle2 size={18}/>:w===WAVES_PER_WORLD?<Crown size={19}/>:w}</span>
        <span><small>ẢI {w} · {m.tier}</small><strong>{m.name}</strong><em>{m.hint}</em></span>
        {done?<CheckCircle2 color="#1cae99" size={20}/>:<Swords size={19}/>}
       </button>;
