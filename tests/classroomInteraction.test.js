@@ -34,6 +34,7 @@ test('private classroom: teacher assignment, student submission, grading and ima
   await db.exec(sql);
   await db.exec(extension);
   await db.exec(grants);
+  await db.exec(read('supabase/migrations/20261123070000_classroom_vietnam_due_minutes.sql'));
   const roles=(await db.query(`select
    has_function_privilege('service_role','public.qlpm_student_desktop_whoami(text)','EXECUTE') whoami,
    has_table_privilege('service_role','public.students','SELECT') students,
@@ -95,6 +96,29 @@ test('private classroom: teacher assignment, student submission, grading and ima
   await assert.rejects(sa('send_message',{image_data:'https://bad.example/img'}));
   await assert.rejects(ta('create_post',{kind:'announcement',title:'Chặn',body:'Không'},other));
   await assert.rejects(sa('send_message',{body:'Không có phiên'},'invalid'));
+  // Only one deadline mode may be used, and relative minutes are calculated
+  // by the database at assignment publication time.
+  const timed=await ta('create_post',{kind:'essay',title:'Hạn 20 phút',
+    body:'Nộp trong 20 phút sau khi giáo viên giao bài',due_minutes:'20'});
+  const timer=(await db.query(
+    'select extract(epoch from (due_at-created_at)) as seconds from public.qlpm_classroom_posts where id=$1',
+    [timed.id])).rows[0];
+  assert.ok(Number(timer.seconds)>=1199&&Number(timer.seconds)<=1201,
+    'Deadline is exactly 20 minutes after server creation');
+  const clock=await ta('create_post',{kind:'essay',title:'Hạn giờ Việt Nam',
+    body:'Nộp trước 23 giờ',due_at:'2035-12-31T23:15'});
+  const vietnam=(await db.query(
+    "select to_char(due_at at time zone 'Asia/Ho_Chi_Minh','YYYY-MM-DD\"T\"HH24:MI') as local_due from public.qlpm_classroom_posts where id=$1",
+    [clock.id])).rows[0];
+  assert.equal(vietnam.local_due,'2035-12-31T23:15');
+  await assert.rejects(ta('create_post',{kind:'essay',title:'Hai loại hạn',
+   body:'Không được nhập cả hai',due_at:'2035-12-31T23:15',due_minutes:'20'}),/Chỉ chọn/);
+  for(const bad of ['0','10081','abc','20.5','-1']){
+    await assert.rejects(ta('create_post',{kind:'essay',title:'Hạn không hợp lệ',
+      body:'Số phút sai',due_minutes:bad}),/Số phút/);
+  }
+  await assert.rejects(ta('create_post',{kind:'essay',title:'Hạn quá khứ',
+    body:'Không hợp lệ',due_at:'2020-01-01T00:00'}),/Hạn nộp/);
   // Documents remain in a private Storage bucket and metadata rows only.
   const privateBucket=(await db.query("select public from storage.buckets where id='qlpm-classroom-private'")).rows[0];
   assert.equal(privateBucket.public,false);
@@ -159,4 +183,17 @@ test('teacher classroom student search filters instantly by accented or unaccent
  assert.match(teacher,/classroom-contact-toolbar/);
  assert.match(teacher,/visibleStudents\.map/);
  assert.match(teacher,/type="search"/);
+});
+
+test('Vietnam deadline controls offer minute countdown or GMT+7 without browser-dependent timezone',async()=>{
+ const teacher=read('src/TeacherClassroom.jsx');
+ const helper=read('src/classroom/classroomUtils.js');
+ const migration=read('supabase/migrations/20261123070000_classroom_vietnam_due_minutes.sql');
+ assert.match(teacher,/draft\.due_minutes/);
+ assert.match(teacher,/type="datetime-local" lang="vi-VN"/);
+ assert.match(teacher,/type="number" inputMode="numeric"/);
+ assert.match(teacher,/GMT\+7/);
+ assert.match(helper,/timeZone:'Asia\/Ho_Chi_Minh'/);
+ assert.match(migration,/statement_timestamp\(\)\+make_interval/);
+ assert.match(migration,/AT TIME ZONE 'Asia\/Ho_Chi_Minh'/);
 });
