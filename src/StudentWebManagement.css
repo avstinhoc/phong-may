@@ -30,3 +30,15 @@
 .swm-profile-actions button{display:flex;align-items:center;justify-content:center;gap:6px;border:1px solid #c7dee2;background:#e9f8f3;color:#12694f;border-radius:9px;padding:10px;flex:1}
 .swm-profile-actions button+button{background:#fff2ee;color:#a54a3a;border-color:#ecd7ce}
 .swm-profile-actions button:disabled{opacity:.45}
+
+
+.swm-pc-requests{margin:17px 0 24px;padding:18px;border:1px solid #c8e1e4;border-radius:16px;background:#f4fbfa}
+.swm-pc-requests .swm-section-head{margin-bottom:12px}
+.swm-pc-approval-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(275px,1fr));gap:13px}
+.swm-pc-approval-card{display:grid;gap:12px;background:#fff;border:1px solid #d2e4e7;border-radius:14px;padding:16px}
+.swm-pc-approval-card>div:first-child{display:grid;gap:4px}
+.swm-pc-approval-card strong{color:#17445c}
+.swm-pc-approval-card small{font-size:12px;color:#648395}
+.swm-pc-move{display:flex;align-items:center;justify-content:space-between;gap:10px;border-radius:10px;padding:11px;background:#edf8f8;font-weight:800}
+.swm-pc-move>strong{color:#007f86}
+.swm-pc-warning{color:#b45309!important}

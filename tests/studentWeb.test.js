@@ -129,3 +129,22 @@ test('Teacher-approved PC transfers retain historical seats and reject unavailab
  assert.match(sql,/case when p_approve then 'approved' else 'rejected' end/);
  assert.doesNotMatch(sql,/delete from public\.computer_assignments/i);
 });
+
+
+test('Student PC requests are visible to class teachers, normalized and reviewed securely',()=>{
+ const sql=read('supabase/migrations/20261123150000_teacher_student_pc_approval_queue.sql');
+ const teacher=read('src/StudentWebManagement.jsx');
+ assert.match(sql,/qlpm_teacher_student_pc_pending/);
+ assert.match(sql,/public\.can_access_school\(p_school_id\)/);
+ assert.match(sql,/cl\.created_by=auth\.uid\(\)/);
+ assert.match(sql,/teacher_class\.id is null/);
+ assert.match(sql,/public\.ic3_normalize_pc\(p_pc\)/);
+ assert.match(sql,/status='pending'/);
+ assert.match(sql,/public\.qlpm_teacher_review_pc_request/);
+ assert.match(sql,/active=false,released_at=now\(\)/);
+ assert.doesNotMatch(sql,/delete from public\.computer_assignments/i);
+ assert.match(teacher,/qlpm_teacher_student_pc_pending/);
+ assert.match(teacher,/qlpm_teacher_review_pc_request/);
+ assert.match(teacher,/Duyệt/);
+ assert.match(teacher,/Từ chối/);
+});
