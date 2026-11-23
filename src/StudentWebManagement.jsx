@@ -15,6 +15,8 @@ export default function StudentWebManagement({profile,onNavigate}){
  const schoolId=profile?.school_id;
  const [tab,setTab]=useState('overview');
  const [devices,setDevices]=useState([]);
+ const [pcRequests,setPcRequests]=useState([]);
+ const [pcReviewing,setPcReviewing]=useState(null);
  const [profileRequests,setProfileRequests]=useState([]);
  const [reviewing,setReviewing]=useState(null);
  const [questions,setQuestions]=useState([]);
@@ -28,24 +30,27 @@ export default function StudentWebManagement({profile,onNavigate}){
   if(!schoolId)return;
   setBusy(true);setError('');
   try{
-   const [devicesResult,questionResult,profilesResult]=await Promise.all([
+   const [devicesResult,questionResult,profilesResult,pcResult]=await Promise.all([
     supabase.rpc('qlpm_teacher_student_web_devices',{p_school_id:schoolId}),
     supabase.from('student_web_practice_questions').select('*').eq('school_id',schoolId).order('created_at',{ascending:false}),
-    supabase.rpc('qlpm_teacher_student_profile_requests',{p_school_id:schoolId})
+    supabase.rpc('qlpm_teacher_student_profile_requests',{p_school_id:schoolId}),
+    supabase.rpc('qlpm_teacher_student_pc_pending',{p_school_id:schoolId})
    ]);
    if(devicesResult.error)throw devicesResult.error;
    if(questionResult.error)throw questionResult.error;
-   // Keep the existing teacher screens usable while the additive SQL migration is pending.
+   if(profilesResult.error)throw profilesResult.error;
+   if(pcResult.error)throw pcResult.error;
    setDevices(Array.isArray(devicesResult.data)?devicesResult.data:[]);
    setQuestions(Array.isArray(questionResult.data)?questionResult.data:[]);
    setProfileRequests(Array.isArray(profilesResult.data)?profilesResult.data:[]);
+   setPcRequests(Array.isArray(pcResult.data)?pcResult.data:[]);
   }catch(e){setError('Không tải được thông tin Student Web: '+(e.message||e));}
   finally{setBusy(false)}
  }
  useEffect(()=>{refreshData()},[schoolId]);
  const published=questions.filter(q=>q.published).length;
  const withPC=devices.filter(d=>d.display_pc).length;
- const pendingPC=devices.filter(d=>!d.display_pc&&d.requested_pc).length;
+ const pendingPC=pcRequests.length;
  const filtered=questions.filter(q=>filterLesson==='all'||String(q.lesson)===filterLesson);
  const numberOfVisible=n=>countBase(n)+questions.filter(q=>q.lesson===n&&q.published).length;
  const editsAvailable=Boolean(schoolId);
@@ -95,7 +100,20 @@ export default function StudentWebManagement({profile,onNavigate}){
    await refreshData();
   }catch(e){setError(e.message||String(e));}finally{setReviewing(null);}
  }
- const tabs=[['overview','Tổng quan'],['devices','Tài khoản & PC'],
+ async function reviewPc(request,approve){
+  const question=approve?'Xác nhận chuyển '+request.student_name+' sang '+request.requested_pc+'? Máy cũ sẽ được giải phóng.':'Từ chối yêu cầu '+request.requested_pc+' của '+request.student_name+'?';
+  if(!window.confirm(question))return;
+  setPcReviewing(request.id);setError('');setMessage('');
+  try{
+   const {data,error:err}=await supabase.rpc('qlpm_teacher_review_pc_request',{
+    p_request_id:request.id,p_approve:approve
+   });
+   if(err)throw err;if(!data?.ok)throw Error('Không xử lý được yêu cầu PC.');
+   setMessage(approve?'Đã duyệt chuyển máy và đồng bộ PC mới.':'Đã từ chối yêu cầu đổi máy.');
+   await refreshData();
+  }catch(e){setError(e.message||String(e));}finally{setPcReviewing(null);}
+ }
+ const tabs=[['overview','Tổng quan'],['devices','Tài khoản & PC'+(pendingPC?' ('+pendingPC+')':'')],
  ['profiles','Duyệt hồ sơ'+(profileRequests.length?' ('+profileRequests.length+')':'')],
  ['questions','Câu hỏi & hình ảnh'],['games','Trò chơi & bản đồ']];
  return <section className="swm">
@@ -128,6 +146,20 @@ export default function StudentWebManagement({profile,onNavigate}){
   {tab==='devices'&&<>
    <div className="swm-section-head"><div><h2>Đồng bộ tài khoản & PC</h2><p>Thứ tự ưu tiên: PC giáo viên gán → PC duyệt → PC mong muốn.</p></div>
     <button onClick={()=>onNavigate('computers')}>Mở phòng máy để gán PC</button></div>
+   <section className="swm-pc-requests" aria-label="Duyệt yêu cầu đổi PC của học sinh">
+    <div className="swm-section-head"><div><h3>Yêu cầu đổi máy đang chờ duyệt ({pcRequests.length})</h3>
+     <p>Chỉ giáo viên chủ lớp hoặc quản trị viên được duyệt. Kiểm tra PC cũ và PC mới trước khi chuyển.</p></div></div>
+    {!pcRequests.length&&<p className="swm-info">Hiện không có yêu cầu đổi PC nào đang chờ.</p>}
+    {!!pcRequests.length&&<div className="swm-pc-approval-list">{pcRequests.map(r=><article key={r.id} className="swm-pc-approval-card">
+     <div><strong>{r.student_name}</strong><small>Lớp {r.class_name} · Yêu cầu: {new Date(r.requested_at).toLocaleString('vi-VN')}</small></div>
+     <div className="swm-pc-move"><span>{r.current_pc||'Chưa có máy'}</span><span aria-hidden="true">→</span><strong>{r.requested_pc}</strong></div>
+     {['broken','maintenance'].includes(r.pc_status)&&<small className="swm-pc-warning">Máy mới đang không khả dụng</small>}
+     <div className="swm-profile-actions">
+      <button type="button" disabled={busy||!!pcReviewing||!r.reviewable||['broken','maintenance'].includes(r.pc_status)} onClick={()=>reviewPc(r,true)}><Check size={16}/> Duyệt</button>
+      <button type="button" disabled={busy||!!pcReviewing||!r.reviewable} onClick={()=>reviewPc(r,false)}><X size={16}/> Từ chối</button>
+     </div>
+    </article>)}</div>}
+   </section>
    <div className="swm-table-wrap"><table><thead><tr><th>Học sinh / tài khoản</th><th>Lớp</th><th>PC mong muốn</th><th>PC đã gán / duyệt</th><th>Trạng thái</th></tr></thead>
     <tbody>{devices.map((d,i)=><tr key={d.student_id||d.username||i}>
       <td><strong>{d.student_name||'—'}</strong><small>@{d.username||'—'}</small></td>
