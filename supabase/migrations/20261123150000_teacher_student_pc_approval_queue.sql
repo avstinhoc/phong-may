@@ -104,7 +104,7 @@ begin
    (select cr.class_id from public.qlpm_student_web_credentials cr
     where cr.student_id=pupil.id),pupil.class_id)
    and cl.school_id=req.school_id;
- if not (public.is_admin() or teacher_class.created_by=auth.uid()) then
+ if teacher_class.id is null or not (public.is_admin() or teacher_class.created_by=auth.uid()) then
   raise exception 'Chỉ giáo viên chủ lớp hoặc quản trị viên được xét duyệt PC.'; end if;
  select * into pc from public.computers
   where id=req.computer_id and school_id=req.school_id for update;
