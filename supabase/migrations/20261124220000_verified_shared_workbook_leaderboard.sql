@@ -151,6 +151,4 @@ begin
  ) into v_result;
  return v_result;
 end
-$function$
-
--- Restrict execution to the same roles as the existing school portal.
+$function$;
