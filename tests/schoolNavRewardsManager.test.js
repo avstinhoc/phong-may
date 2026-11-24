@@ -58,3 +58,19 @@ test('student reward management reuses ledger, scopes by school id and never byp
  assert.equal(isFormalViolation({record_type:'violation',title:'Không làm bài'}),true);
  assert.equal(flameEffect({earned:24,effect_score:24,flame_state:'active'}).tier,2);
 });
+
+
+test('same verified private workbook produces a shared leaderboard without moving private student records',()=>{
+ const sql=read('../supabase/migrations/20261124220000_verified_shared_workbook_leaderboard.sql');
+ assert.match(sql,/peer\.spreadsheet_id=home\.spreadsheet_id/);
+ assert.match(sql,/peer\.status='verified'/);
+ assert.match(sql,/home\.status='verified'/);
+ assert.match(sql,/lower\(trim\(sc\.name\)\)=lower\(trim\(v_school_name\)\)/);
+ assert.match(sql,/coalesce\(v_shared_ids,array\[v_school_id\]\)/);
+ assert.match(sql,/s\.school_id=any\(v_shared_ids\)/);
+ assert.match(sql,/w\.school_id=e\.school_id/);
+ assert.match(sql,/select distinct on \(cr\.class_name\)/);
+ assert.match(sql,/is_sheet_owner desc/);
+ assert.doesNotMatch(sql,/delete from public\.(?:students|student_records|classes)/i);
+ assert.doesNotMatch(sql,/update public\.(?:students|student_records|classes)/i);
+});
