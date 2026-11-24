@@ -363,7 +363,7 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
        Xóa học sinh ở một hồ sơ chỉ đánh dấu không hoạt động tại hồ sơ đó; dữ liệu ở hồ sơ kia và dòng cũ trên Sheets không tự biến mất.</p>
       <p>Để bảo vệ điểm danh, điểm và sao thưởng, hệ thống sẽ không tự khôi phục học sinh đã ẩn, xóa dòng chứa lịch sử hoặc ghi đè lớp trùng khi chưa xác minh được hồ sơ nào là nguồn chính.</p>
       <p><b>Cách xử lý:</b> Thống nhất một hồ sơ trường/lớp để hai giáo viên cùng sử dụng, đối chiếu danh sách học sinh của lớp bị báo trùng, rồi mới xác nhận xử lý những dòng không còn hoạt động trên Sheets. Không cần ngắt liên kết hay xóa file gốc.</p>
-     </details>
+     </details>}
     {message&&<div className="sheets-link-message" role="status">{message}</div>}
     {link&&<details className="sheets-fixed-date-guide" hidden>
       <summary>Ghi ngày học cố định trong Google Sheets (B1–B70)</summary>
