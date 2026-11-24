@@ -44,3 +44,13 @@ test('other school teachers see shared link instead of a private personal link',
  assert.ok(ui.includes('Dùng chung cho giáo viên tại'));
  assert.ok(!ui.includes(".eq('owner_id',profile.id).eq('school_id',profile.school_id)"));
 });
+
+
+test('a deleted student in a duplicate school profile must not silently erase another teacher workbook row',()=>{
+ assert.match(server,/Lớp "\+name\+" có học sinh tại nhiều hồ sơ trường cùng tên/);
+ assert.match(server,/A student archived on Web must not be silently re-created/);
+ assert.match(server,/Archive the complete original rows below the grid before clearing roster inputs/);
+ assert.match(ui,/Vì sao danh sách học sinh không tự cập nhật sau khi xóa/);
+ assert.match(ui,/không tự khôi phục học sinh đã ẩn/);
+ assert.match(ui,/Không cần ngắt liên kết hay xóa file gốc/);
+});

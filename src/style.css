@@ -1454,3 +1454,9 @@
 
 .classroom-global-badge{margin-left:auto;border-radius:99px;background:#f0644d;color:#fff;font-size:11px;min-width:19px;height:19px;padding:0 5px;display:inline-grid;place-items:center;font-weight:950}
 .classroom-global-toast{position:fixed;top:85px;right:22px;z-index:999;display:flex;align-items:center;gap:9px;border:1px solid #5dcdb3;background:#edfff6;border-radius:13px;box-shadow:0 10px 27px #133e5140;color:#096c68;padding:14px 18px;cursor:pointer;font-size:14px;font-weight:900;max-width:calc(100vw - 34px)}
+
+/* Shared workbook school-profile conflict explanation. */
+
+.sheets-shared-conflict-guide{margin:10px 0 15px;padding:14px 17px;border:1px solid #f0d8b8;border-radius:12px;background:#fffbf5;color:#6c4930;font-size:13px;line-height:1.6}
+.sheets-shared-conflict-guide summary{font-weight:800;cursor:pointer;color:#905516}
+.sheets-shared-conflict-guide p{margin:8px 0 0}

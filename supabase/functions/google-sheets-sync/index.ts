@@ -1,6 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2.119.0";
 import { importPKCS8, SignJWT } from "npm:jose@5.10.0";
-import { canReconcileMissingRows, studentSheetSortPlan, mergedRowMoves, verifiedCodeMatch, matchedStudentBatches, verifiedRowMapping } from "./nameSort.js";
+import { canReconcileMissingRows, studentSheetSortPlan, mergedRowMoves, verifiedCodeMatch, matchedStudentBatches, verifiedRowMapping, uniqueArchivedStudentRow } from "./nameSort.js";
 
 type Dict = Record<string, any>;
 const ORIGIN="https://phong-may.vercel.app";
@@ -285,22 +285,31 @@ async function syncClass(db:any,link:Dict,map:Dict,token:string,actorId:string,m
  let retiredOnWeb=0,retiredOnSheet=0;
  if(mode==="pull_names"||mode==="pull"){
   const mapped={...(map.student_rows||{})};
-  const ids=Object.keys(mapped);
-  const stale=ids.filter(id=>!students.some(st=>st.id===id));
-  const retired=stale.length?await db.from("students").select("id,full_name,student_code")
-    .eq("school_id",link.school_id).eq("class_name",map.class_name).eq("status","inactive").in("id",stale):{data:[],error:null};
+  // A Web deletion is a soft delete. Restore a lost row mapping only by a
+  // unique exact match inside this class; preserve a complete archive copy.
+  const retired=await db.from("students").select("id,full_name,student_code,date_of_birth")
+    .eq("school_id",link.school_id).eq("class_name",map.class_name)
+    .eq("status","inactive").order("id").limit(500);
   if(retired.error)throw fail("Không đọc được hồ sơ đã xóa.",503);
   const rowNames=rows.slice(3).map((r:any[])=>normalize(r?.[2]));
   const removed:number[]=[];
   for(const st of retired.data||[]){
-   const r=Number(mapped[st.id]),name=normalize(st.full_name);
-   if(r<8||r>70||!Number.isInteger(r))continue;
+   const name=normalize(st.full_name),mappedRow=Number(mapped[st.id]);
+   const fallback=uniqueArchivedStudentRow(st,rowNames,students,retired.data||[],mapped);
+   const r=Number.isInteger(mappedRow)&&mappedRow>=8&&mappedRow<=70&&rowNames[mappedRow-8]===name
+     ?mappedRow:fallback;
+   if(!Number.isInteger(r)||r<8||r>70)continue;
    if(!rowNames.includes(name)){delete mapped[st.id];continue;}
-   if(rowNames[r-8]!==name)continue;
-   const code=clean(st.student_code);
-   const unique=rowNames.filter((v:string)=>v===name).length===1&&!students.some(s=>normalize(s.full_name)===name);
-   const coded=code&&clean(rows[r-5]?.[0])===code&&rows.slice(3).filter((v:any[])=>clean(v[0])===code).length===1&&!students.some(s=>clean(s.student_code)===code);
-   if((unique||coded)&&Object.values(mapped).filter(n=>Number(n)===r).length===1){
+   if(rowNames[r-8]!==name||removed.includes(r))continue;
+   const raw=rows[r-5]||[],code=clean(st.student_code);
+   // A mismatch in reliable code/birth-date fields is never safe to clean.
+   if(code&&clean(raw[0])&&clean(raw[0])!==code)continue;
+   if(st.date_of_birth&&nonblank(raw[3])&&asDate(raw[3])!==st.date_of_birth)continue;
+   const unique=rowNames.filter((v:string)=>v===name).length===1&&
+     !students.some(s=>normalize(s.full_name)===name)&&
+     (retired.data||[]).filter((other:Dict)=>normalize(other.full_name)===name).length===1;
+   const coded=code&&clean(raw[0])===code&&rows.slice(3).filter((v:any[])=>clean(v[0])===code).length===1;
+   if((unique||coded)&&Object.entries(mapped).every(([id,row])=>id===st.id||Number(row)!==r)){
     removed.push(r);delete mapped[st.id];
    }
   }

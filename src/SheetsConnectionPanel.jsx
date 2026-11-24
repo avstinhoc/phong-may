@@ -356,6 +356,14 @@ export function SheetsConnectionPanel({profile,classes=[],sessions=[],logoData=n
      {canManageLink&&<button className="mini-btn danger" disabled={!!busy} onClick={()=>run('disconnect',disconnect)}>Ngắt liên kết toàn trường</button>}
     </div>}
     {error&&<div className="sheets-link-error" role="alert"><strong>Chưa thực hiện được:</strong> {error}</div>}
+    {error&&/hồ sơ trường cùng tên|đã xóa khỏi danh sách Web|xung đột dữ liệu/i.test(error)&&
+     <details className="sheets-shared-conflict-guide" open>
+      <summary>Vì sao danh sách học sinh không tự cập nhật sau khi xóa?</summary>
+      <p><b>Hai hồ sơ trường có thể đang cùng kết nối một file Sheets nhưng lại lưu học sinh của lớp này riêng biệt.</b>
+       Xóa học sinh ở một hồ sơ chỉ đánh dấu không hoạt động tại hồ sơ đó; dữ liệu ở hồ sơ kia và dòng cũ trên Sheets không tự biến mất.</p>
+      <p>Để bảo vệ điểm danh, điểm và sao thưởng, hệ thống sẽ không tự khôi phục học sinh đã ẩn, xóa dòng chứa lịch sử hoặc ghi đè lớp trùng khi chưa xác minh được hồ sơ nào là nguồn chính.</p>
+      <p><b>Cách xử lý:</b> Thống nhất một hồ sơ trường/lớp để hai giáo viên cùng sử dụng, đối chiếu danh sách học sinh của lớp bị báo trùng, rồi mới xác nhận xử lý những dòng không còn hoạt động trên Sheets. Không cần ngắt liên kết hay xóa file gốc.</p>
+     </details>}
     {message&&<div className="sheets-link-message" role="status">{message}</div>}
     {link&&<details className="sheets-fixed-date-guide" hidden>
       <summary>Ghi ngày học cố định trong Google Sheets (B1–B70)</summary>
