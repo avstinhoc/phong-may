@@ -116,3 +116,23 @@ export function verifiedRowMapping(beforeGrid, afterGrid, existingMapping, first
   }
   return {safe:true, mapping:recovered};
 }
+
+
+/**
+ * Conservative fallback when a pupil was soft-deleted on Web and their
+ * student_rows mapping was previously dropped by sorting/reconciliation.
+ * Never infer a row for ambiguous names or a row mapped to another pupil.
+ * The caller must still archive the complete Sheet row before clearing it.
+ */
+export function uniqueArchivedStudentRow(student, sheetNames, activeStudents, inactiveStudents, mapping, firstRow=8) {
+ const normalize = name => String(name ?? '').normalize('NFC').trim().replace(/\s+/gu,' ').toLocaleLowerCase('vi');
+ const name=normalize(student?.full_name);
+ if(!name)return null;
+ if(activeStudents.some(st=>normalize(st.full_name)===name))return null;
+ if(inactiveStudents.filter(st=>normalize(st.full_name)===name).length!==1)return null;
+ const matches=sheetNames.map((value,index)=>normalize(value)===name?firstRow+index:null).filter(Number.isInteger);
+ if(matches.length!==1)return null;
+ const row=matches[0];
+ if(Object.entries(mapping||{}).some(([id,oldRow])=>id!==student.id&&Number(oldRow)===row))return null;
+ return row;
+}
